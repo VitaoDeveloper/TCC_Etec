@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TCC - Index</title>
+    <title>SimpleStudy</title>
 </head>
 <body>
-    <?php echo "Index do TCC" ?> 
+    <header>
+        <img src="assets/img/SimpleStudyLogoMain.png" alt="MainLogo">
+    </header>
 </body>
 </html>
