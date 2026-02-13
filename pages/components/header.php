@@ -4,10 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $page_title ?? 'Royal Tech - Loja de Tecnologia Premium'; ?></title>
-    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="../../assets/css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
     <!-- Header Principal -->
@@ -33,7 +32,7 @@
             <div class="container">
                 <div class="header-main-content">
                     <div class="logo">
-                        <a href="index.php">
+                        <a href="../index.php">
                             <span class="logo-icon"><i class="fas fa-crown"></i></span>
                             <span class="logo-text">Royal<span>Tech</span></span>
                         </a>
@@ -41,11 +40,11 @@
                     
                     <nav class="main-nav">
                         <ul class="nav-menu">
-                            <li><a href="index.php" class="active">Início</a></li>
-                            <li><a href="pages/products/products.php">Produtos</a></li>
-                            <li><a href="pages/products/categories.php">Categorias</a></li>
-                            <li><a href="pages/about.php">Sobre</a></li>
-                            <li><a href="pages/contact.php">Contato</a></li>
+                            <li><a href="../index.php">Início</a></li>
+                            <li><a href="products.php" class="active">Produtos</a></li>
+                            <li><a href="categories.php">Categorias</a></li>
+                            <li><a href="../about.php">Sobre</a></li>
+                            <li><a href="../contact.php">Contato</a></li>
                         </ul>
                     </nav>
                     
@@ -57,7 +56,7 @@
                         <div class="user-actions">
                             <a href="#" class="action-btn"><i class="far fa-heart"></i></a>
                             <a href="#" class="action-btn"><i class="fas fa-shopping-cart"></i></a>
-                            <a href="pages/admin/login.php" class="action-btn admin-link"><i class="fas fa-user-cog"></i></a>
+                            <a href="admin/login.php" class="action-btn admin-link"><i class="fas fa-user-cog"></i></a>
                         </div>
                     </div>
                     
@@ -74,7 +73,7 @@
     <section class="breadcrumb-section">
         <div class="container">
             <nav class="breadcrumb">
-                <a href="index.php">Início</a>
+                <a href="../index.php">Início</a>
                 <span>/</span>
                 <span><?php echo $breadcrumb_title ?? 'Página Atual'; ?></span>
             </nav>

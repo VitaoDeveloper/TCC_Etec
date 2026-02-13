@@ -1,7 +1,7 @@
 <?php
 $page_title = 'Sobre Nós - Royal Tech';
 $show_breadcrumb = true;
- 'Sobre Nós$breadcrumb_title =';
+$breadcrumb_title = 'Sobre Nós';
 
 include '../components/header.php';
 ?>

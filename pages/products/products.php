@@ -3,7 +3,7 @@ $page_title = 'Produtos - Royal Tech';
 $show_breadcrumb = true;
 $breadcrumb_title = 'Produtos';
 
-include '../../components/header.php';
+include '../../pages/components/header.php';
 ?>
 
 <!-- Products Section -->
@@ -115,7 +115,7 @@ include '../../components/header.php';
                         $product_is_new = $p['new'] ?? false;
                         $product_is_featured = $p['featured'] ?? false;
                         
-                        include '../../components/product-card.php';
+                        include '../../pages/components/product-card.php';
                     }
                     ?>
                 </div>
@@ -317,5 +317,5 @@ include '../../components/header.php';
 </style>
 
 <?php
-include '../../components/footer.php';
+include '../../pages/components/footer.php';
 ?>

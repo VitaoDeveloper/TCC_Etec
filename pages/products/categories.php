@@ -3,7 +3,7 @@ $page_title = 'Categorias - Royal Tech';
 $show_breadcrumb = true;
 $breadcrumb_title = 'Categorias';
 
-include '../../components/header.php';
+include '../../pages/components/header.php';
 ?>
 
 <!-- Categories Hero -->
@@ -149,5 +149,5 @@ include '../../components/header.php';
 </style>
 
 <?php
-include '../../components/footer.php';
+include '../../pages/components/footer.php';
 ?>

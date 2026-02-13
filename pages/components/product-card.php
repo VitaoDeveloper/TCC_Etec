@@ -1,6 +1,6 @@
 <?php
 /**
- * Componente de Cartão de Produto
+ * Componente de Cartão de Produto (para páginas em subdiretórios)
  * 
  * Variáveis esperadas:
  * - $product_id: ID do produto
@@ -25,7 +25,7 @@
         <span class="product-badge featured">Destaque</span>
         <?php endif; ?>
         
-        <img src="<?php echo $product_image ?? 'assets/img/placeholder-product.jpg'; ?>" 
+        <img src="<?php echo $product_image ?? '../../assets/img/placeholder-product.jpg'; ?>" 
              alt="<?php echo $product_name ?? 'Produto'; ?>">
         
         <div class="product-actions">
@@ -44,7 +44,7 @@
     <div class="product-info">
         <span class="product-category"><?php echo $product_category ?? 'Eletrônicos'; ?></span>
         <h3 class="product-name">
-            <a href="pages/products/product-detail.php?id=<?php echo $product_id ?? 0; ?>">
+            <a href="product-detail.php?id=<?php echo $product_id ?? 0; ?>">
                 <?php echo $product_name ?? 'Nome do Produto'; ?>
             </a>
         </h3>
