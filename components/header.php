@@ -57,7 +57,7 @@
                         <div class="user-actions">
                             <a href="#" class="action-btn"><i class="far fa-heart"></i></a>
                             <a href="#" class="action-btn"><i class="fas fa-shopping-cart"></i></a>
-                            <a href="pages/admin/login.php" class="action-btn admin-link"><i class="fas fa-user-cog"></i></a>
+                            <a href="pages/Entrada/login.php" class="action-btn admin-link"><i class="fas fa-user-cog"></i></a>
                         </div>
                     </div>
                     
