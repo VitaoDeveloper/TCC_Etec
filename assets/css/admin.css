@@ -1,0 +1,445 @@
+/* ========================================
+   ROYAL TECH - Estilos Administrativos
+   ======================================== */
+
+/* Admin Wrapper */
+.admin-wrapper {
+    display: flex;
+    min-height: 100vh;
+    background: var(--color-black);
+}
+
+/* Sidebar Admin */
+.admin-sidebar {
+    width: 280px;
+    background: var(--color-black-light);
+    border-right: 1px solid var(--color-border);
+    padding: 0;
+    position: fixed;
+    height: 100vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    z-index: 100;
+}
+
+.admin-sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.admin-sidebar::-webkit-scrollbar-track {
+    background: var(--color-black);
+}
+
+.admin-sidebar::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 3px;
+}
+
+.admin-logo {
+    padding: 30px 25px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.admin-logo a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.admin-nav {
+    padding: 20px 0;
+    flex: 1;
+}
+
+.admin-nav-item {
+    margin-bottom: 5px;
+}
+
+.admin-nav-link {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px 25px;
+    color: var(--color-gray-light);
+    font-weight: 500;
+    transition: var(--transition);
+    border-left: 3px solid transparent;
+}
+
+.admin-nav-link:hover,
+.admin-nav-link.active {
+    background: rgba(212, 175, 55, 0.1);
+    color: var(--color-primary);
+    border-left-color: var(--color-primary);
+}
+
+.admin-nav-link i {
+    width: 20px;
+    text-align: center;
+    font-size: 1.1rem;
+}
+
+/* Main Content */
+.admin-main {
+    flex: 1;
+    margin-left: 280px;
+    padding: 30px;
+    background: var(--color-black);
+}
+
+/* Admin Header */
+.admin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 40px;
+    padding-bottom: 25px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.admin-title h2 {
+    font-size: 1.8rem;
+    margin-bottom: 5px;
+}
+
+.admin-title p {
+    color: var(--color-gray);
+    font-size: 0.95rem;
+}
+
+.admin-actions {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.admin-user {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 20px;
+    background: var(--color-black-light);
+    border: 1px solid var(--color-border);
+    border-radius: 30px;
+}
+
+.admin-user img {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.admin-user span {
+    font-weight: 500;
+    color: var(--color-white);
+}
+
+/* Admin Cards */
+.admin-cards {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 25px;
+    margin-bottom: 40px;
+}
+
+.admin-card {
+    background: var(--color-black-light);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    padding: 30px;
+    transition: var(--transition);
+}
+
+.admin-card:hover {
+    border-color: var(--color-primary);
+    transform: translateY(-5px);
+}
+
+.admin-card-icon {
+    width: 60px;
+    height: 60px;
+    background: var(--color-black);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.admin-card-icon i {
+    font-size: 1.5rem;
+    color: var(--color-primary);
+}
+
+.admin-card-value {
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: var(--color-white);
+    margin-bottom: 5px;
+    font-family: var(--font-secondary);
+}
+
+.admin-card-label {
+    color: var(--color-gray);
+    font-size: 0.9rem;
+    margin-bottom: 15px;
+}
+
+.admin-card-change {
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.admin-card-change.positive {
+    color: #4caf50;
+}
+
+.admin-card-change.negative {
+    color: #f44336;
+}
+
+/* Admin Table */
+.admin-table-container {
+    background: var(--color-black-light);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.admin-table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 25px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.admin-table-header h3 {
+    font-size: 1.1rem;
+}
+
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.admin-table th,
+.admin-table td {
+    padding: 15px 25px;
+    text-align: left;
+}
+
+.admin-table th {
+    background: var(--color-black);
+    color: var(--color-gray);
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.admin-table td {
+    border-bottom: 1px solid var(--color-border);
+    color: var(--color-gray-light);
+    font-size: 0.95rem;
+}
+
+.admin-table tbody tr {
+    transition: var(--transition);
+}
+
+.admin-table tbody tr:hover td {
+    background: rgba(212, 175, 55, 0.03);
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 5px 15px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-active {
+    background: rgba(76, 175, 80, 0.15);
+    color: #4caf50;
+}
+
+.status-inactive {
+    background: rgba(244, 67, 54, 0.15);
+    color: #f44336;
+}
+
+.status-pending {
+    background: rgba(255, 193, 7, 0.15);
+    color: #ffc107;
+}
+
+.status-processing {
+    background: rgba(33, 150, 243, 0.15);
+    color: #2196f3;
+}
+
+.table-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.table-actions a,
+.table-actions button {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--color-border);
+    border-radius: 5px;
+    color: var(--color-gray-light);
+    background: transparent;
+    cursor: pointer;
+    transition: var(--transition);
+    font-size: 0.85rem;
+}
+
+.table-actions a:hover,
+.table-actions button:hover {
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+.table-actions button.delete:hover {
+    color: #f44336;
+    border-color: #f44336;
+}
+
+/* Quick Actions */
+.quick-action-card:hover {
+    border-color: var(--color-primary);
+    transform: translateY(-5px);
+}
+
+/* Admin Forms */
+.admin-form-group {
+    margin-bottom: 25px;
+}
+
+.admin-form-group label {
+    display: block;
+    margin-bottom: 10px;
+    font-weight: 500;
+    color: var(--color-white);
+}
+
+.admin-form-group input,
+.admin-form-group select,
+.admin-form-group textarea {
+    width: 100%;
+    padding: 12px 20px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-black);
+    color: var(--color-white);
+    font-family: var(--font-primary);
+    font-size: 1rem;
+    transition: var(--transition);
+}
+
+.admin-form-group input:focus,
+.admin-form-group select:focus,
+.admin-form-group textarea:focus {
+    outline: none;
+    border-color: var(--color-primary);
+}
+
+.admin-form-group textarea {
+    resize: vertical;
+    min-height: 120px;
+}
+
+.admin-file-upload {
+    border: 2px dashed var(--color-border);
+    border-radius: 10px;
+    padding: 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.admin-file-upload:hover {
+    border-color: var(--color-primary);
+}
+
+.admin-file-upload i {
+    font-size: 3rem;
+    color: var(--color-primary);
+    margin-bottom: 15px;
+}
+
+/* Admin Sidebar Toggle */
+.sidebar-toggle {
+    display: none;
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 1000;
+    width: 45px;
+    height: 45px;
+    background: var(--color-primary);
+    border: none;
+    border-radius: 8px;
+    color: var(--color-black);
+    font-size: 1.2rem;
+    cursor: pointer;
+}
+
+/* Responsive Admin */
+@media (max-width: 1200px) {
+    .admin-cards {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 992px) {
+    .admin-sidebar {
+        transform: translateX(-100%);
+        transition: var(--transition);
+    }
+    
+    .admin-sidebar.active {
+        transform: translateX(0);
+    }
+    
+    .admin-main {
+        margin-left: 0;
+    }
+    
+    .sidebar-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .admin-cards {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .admin-cards {
+        grid-template-columns: 1fr;
+    }
+    
+    .admin-header {
+        flex-direction: column;
+        gap: 20px;
+        align-items: flex-start;
+    }
+    
+    .admin-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+}
