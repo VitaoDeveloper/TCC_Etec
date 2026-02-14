@@ -33,7 +33,7 @@
             <div class="container">
                 <div class="header-main-content">
                     <div class="logo">
-                        <a href="index.php">
+                        <a href="<?php echo $base_path ?? ''; ?>index.php">
                             <span class="logo-icon"><i class="fas fa-crown"></i></span>
                             <span class="logo-text">Royal<span>Tech</span></span>
                         </a>
@@ -41,11 +41,11 @@
                     
                     <nav class="main-nav">
                         <ul class="nav-menu">
-                            <li><a href="index.php" class="active">Início</a></li>
-                            <li><a href="pages/products/products.php">Produtos</a></li>
-                            <li><a href="pages/products/categories.php">Categorias</a></li>
-                            <li><a href="pages/about.php">Sobre</a></li>
-                            <li><a href="pages/contact.php">Contato</a></li>
+                            <li><a href="<?php echo $base_path ?? ''; ?>index.php" class="<?php echo ($current_page ?? '') === 'inicio' ? 'active' : ''; ?>">Início</a></li>
+                            <li><a href="<?php echo $base_path ?? ''; ?>pages/products/products.php" class="<?php echo ($current_page ?? '') === 'produtos' ? 'active' : ''; ?>">Produtos</a></li>
+                            <li><a href="<?php echo $base_path ?? ''; ?>pages/products/categories.php" class="<?php echo ($current_page ?? '') === 'categorias' ? 'active' : ''; ?>">Categorias</a></li>
+                            <li><a href="<?php echo $base_path ?? ''; ?>pages/products/about.php" class="<?php echo ($current_page ?? '') === 'sobre' ? 'active' : ''; ?>">Sobre</a></li>
+                            <li><a href="<?php echo $base_path ?? ''; ?>pages/products/contact.php" class="<?php echo ($current_page ?? '') === 'contato' ? 'active' : ''; ?>">Contato</a></li>
                         </ul>
                     </nav>
                     
@@ -57,7 +57,7 @@
                         <div class="user-actions">
                             <a href="#" class="action-btn"><i class="far fa-heart"></i></a>
                             <a href="#" class="action-btn"><i class="fas fa-shopping-cart"></i></a>
-                            <a href="pages/Entrada/login.php" class="action-btn admin-link"><i class="fas fa-user-cog"></i></a>
+                            <a href="<?php echo $base_path ?? ''; ?>pages/Entrada/login.php" class="action-btn admin-link"><i class="fas fa-user-cog"></i></a>
                         </div>
                     </div>
                     
@@ -74,10 +74,11 @@
     <section class="breadcrumb-section">
         <div class="container">
             <nav class="breadcrumb">
-                <a href="index.php">Início</a>
+                <a href="<?php echo $base_path ?? ''; ?>index.php">Início</a>
                 <span>/</span>
                 <span><?php echo $breadcrumb_title ?? 'Página Atual'; ?></span>
             </nav>
         </div>
     </section>
     <?php endif; ?>
+

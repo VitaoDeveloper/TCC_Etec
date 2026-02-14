@@ -2,11 +2,12 @@
 $page_title = 'Categorias - Royal Tech';
 $show_breadcrumb = true;
 $breadcrumb_title = 'Categorias';
+$current_page = 'categorias';
+$base_path = '../../';
 
-include '../../pages/components/header.php';
+include '../../components/header.php';
 ?>
-
-<!-- Categories Hero -->
+<link rel="stylesheet" href="<?php echo $base_path.'assets/css/style.css' ?>">
 <section class="section" style="padding: 100px 0 60px;">
     <div class="container">
         <div class="section-header">
@@ -149,5 +150,5 @@ include '../../pages/components/header.php';
 </style>
 
 <?php
-include '../../pages/components/footer.php';
+include '../../components/footer.php';
 ?>

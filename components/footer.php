@@ -20,20 +20,20 @@
                     <div class="footer-col">
                         <h4>Institucional</h4>
                         <ul>
-                            <li><a href="pages/about.php">Sobre Nós</a></li>
-                            <li><a href="pages/careers.php">Trabalhe Conosco</a></li>
-                            <li><a href="pages/terms.php">Termos de Uso</a></li>
-                            <li><a href="pages/privacy.php">Política de Privacidade</a></li>
+                            <li><a href="<?php echo $base_path ?? ''; ?>pages/products/about.php">Sobre Nós</a></li>
+                            <li><a href="#">Trabalhe Conosco</a></li>
+                            <li><a href="#">Termos de Uso</a></li>
+                            <li><a href="#">Política de Privacidade</a></li>
                         </ul>
                     </div>
                     
                     <div class="footer-col">
                         <h4>Atendimento</h4>
                         <ul>
-                            <li><a href="pages/contact.php">Fale Conosco</a></li>
-                            <li><a href="pages/faq.php">Perguntas Frequentes</a></li>
-                            <li><a href="pages/shipping.php">Frete e Entrega</a></li>
-                            <li><a href="pages/returns.php">Trocas e Devoluções</a></li>
+                            <li><a href="<?php echo $base_path ?? ''; ?>pages/products/contact.php">Fale Conosco</a></li>
+                            <li><a href="#">Perguntas Frequentes</a></li>
+                            <li><a href="#">Frete e Entrega</a></li>
+                            <li><a href="#">Trocas e Devoluções</a></li>
                         </ul>
                     </div>
                     
@@ -72,6 +72,6 @@
     </a>
 
     <!-- Scripts -->
-    <script src="../assets/js/script.js"></script>
+    <script src="<?php echo $base_path ?? ''; ?>assets/js/script.js"></script>
 </body>
 </html>

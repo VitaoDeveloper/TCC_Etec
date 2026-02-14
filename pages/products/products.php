@@ -2,11 +2,12 @@
 $page_title = 'Produtos - Royal Tech';
 $show_breadcrumb = true;
 $breadcrumb_title = 'Produtos';
+$current_page = 'produtos';
+$base_path = '../../';
 
-include '../../pages/components/header.php';
+include '../../components/header.php';
 ?>
-
-<!-- Products Section -->
+<link rel="stylesheet" href="<?php echo $base_path.'assets/css/style.css' ?>">
 <section class="section">
     <div class="container">
         <div style="display: grid; grid-template-columns: 280px 1fr; gap: 40px;">
@@ -115,7 +116,7 @@ include '../../pages/components/header.php';
                         $product_is_new = $p['new'] ?? false;
                         $product_is_featured = $p['featured'] ?? false;
                         
-                        include '../../pages/components/product-card.php';
+                        include '../../components/product-card.php';
                     }
                     ?>
                 </div>
@@ -317,5 +318,5 @@ include '../../pages/components/header.php';
 </style>
 
 <?php
-include '../../pages/components/footer.php';
+include '../../components/footer.php';
 ?>

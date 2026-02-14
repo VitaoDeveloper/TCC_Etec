@@ -224,7 +224,7 @@ h6 { font-size: 1rem; }
     width: 0;
     height: 2px;
     background: var(--color-primary);
-    transition: var(--transition);
+    transition: width 0.3s ease-in-out;
 }
 
 .nav-menu a:hover,

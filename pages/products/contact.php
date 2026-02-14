@@ -2,11 +2,12 @@
 $page_title = 'Contato - Royal Tech';
 $show_breadcrumb = true;
 $breadcrumb_title = 'Contato';
+$current_page = 'contato';
+$base_path = '../../';
 
-include '../components/header.php';
+include '../../components/header.php';
 ?>
-
-<!-- Contact Hero -->
+<link rel="stylesheet" href="<?php echo $base_path.'assets/css/style.css' ?>">
 <section class="section" style="padding: 100px 0 60px;">
     <div class="container">
         <div class="section-header">
@@ -162,5 +163,5 @@ include '../components/header.php';
 </section>
 
 <?php
-include '../components/footer.php';
+include '../../components/footer.php';
 ?>

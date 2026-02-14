@@ -1,12 +1,12 @@
 <?php
 $page_title = 'Royal Tech - Loja de Tecnologia Premium';
 $show_breadcrumb = false;
+$current_page = 'inicio';
+$base_path = '';
 
 // Include header
 include 'components/header.php';
 ?>
-
-<!-- Hero Section -->
 <section class="hero-section">
     <div class="container">
         <div class="hero-content">
