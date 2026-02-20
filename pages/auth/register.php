@@ -164,11 +164,11 @@
 
     <h2 class="form-title">Criar Nova Conta</h2>
 
-    <form id="registerForm" novalidate>
+    <form id="registerForm" method="POST" action="#">
 
       <div class="admin-form-group">
         <label for="nome">Nome completo</label>
-        <input type="text" id="nome" name="nome" placeholder="João Silva" required minlength="3">
+        <input type="text" id="nome" name="name" placeholder="João Silva" required minlength="3">
         <div class="error-message" id="nome-error">Nome muito curto</div>
       </div>
 
@@ -185,8 +185,32 @@
       </div>
 
       <div class="admin-form-group">
+        <label for="cep">CEP</label>
+        <input type="number" id="username" name="postalcode" placeholder="00000-000" required minlength="8" maxlength="8">
+        <div class="error-message" id="username-error">Mínimo 4 caracteres</div>
+      </div>
+
+      <div class="admin-form-group">
+        <label for="username">Rua</label>
+        <input type="text" id="username" name="street" placeholder="Rua Clóvis Basílio" required minlength="4">
+        <div class="error-message" id="username-error">Mínimo 4 caracteres</div>
+      </div>
+
+      <div class="admin-form-group">
+        <label for="username">Número</label>
+        <input type="number" id="username" name="number" placeholder="000" required maxlength="5">
+        <div class="error-message" id="username-error">Mínimo 4 caracteres</div>
+      </div>
+
+      <div class="admin-form-group">
+        <label for="username">Complemento (Apto, etc)</label>
+        <input type="text" id="username" name="complement" placeholder="Opcional" minlength="4">
+        <div class="error-message" id="username-error">Mínimo 4 caracteres</div>
+      </div>
+
+      <div class="admin-form-group">
         <label for="senha">Senha</label>
-        <input type="password" id="senha" name="senha" placeholder="••••••••••••" required minlength="8">
+        <input type="password" id="senha" name="password" placeholder="••••••••••••" required minlength="8">
         <button type="button" class="password-toggle" id="togglePassword">
           <i class="fas fa-eye"></i>
         </button>
@@ -195,11 +219,11 @@
 
       <div class="admin-form-group">
         <label for="confirm_senha">Confirmar senha</label>
-        <input type="password" id="confirm_senha" name="confirm_senha" placeholder="••••••••••••" required>
+        <input type="password" id="confirm_senha" placeholder="••••••••••••" required>
         <div class="error-message" id="confirm-error">As senhas não coincidem</div>
       </div>
 
-      <button type="submit" class="btn-register">
+      <button type="submit" name="btn" class="btn-register register" value="register">
         <i class="fas fa-user-plus"></i> Cadastrar
       </button>
 
@@ -211,10 +235,40 @@
 
   </div>
 
+  <?php
+    include "../../database/connection.php";
+    if ($_SERVER["REQUEST_METHOD"] === "POST")
+    {
+      $name = filter_input(INPUT_POST, 'name');
+      $email = filter_input(INPUT_POST, 'email');
+      $username = filter_input(INPUT_POST, 'username');
+      $password = crypt(filter_input(INPUT_POST, 'password'), "galinhas");
+      $postal_code = filter_input(INPUT_POST, 'postalcode');
+      $street = filter_input(INPUT_POST, 'street');
+      $number = filter_input(INPUT_POST, 'number');
+      $complement = filter_input(INPUT_POST, 'complement') ?: null;
+
+      $sql = "
+        INSERT INTO users 
+        (name, email, username, password, postal_code, street, number, complement)
+        VALUES
+        ('$name', '$email', '$username', '$password', '$postal_code', '$street', '$number', '$complement')
+      ";
+
+      $register = mysqli_query($connection, $sql);
+
+      if (!$register) {
+        echo "Erro no SQL: " . mysqli_error($connection);
+      }
+    }
+  ?>
+
   <script>
     // Toggle de visualização da senha
     const toggleBtn = document.getElementById('togglePassword');
+    const confirmarSenha = document.getElementById('confirm_senha')
     const senhaInput = document.getElementById('senha');
+    const form = document.getElementById('registerForm')
 
     if (toggleBtn && senhaInput) {
       toggleBtn.addEventListener('click', () => {
@@ -226,6 +280,13 @@
         icon.classList.toggle('fa-eye-slash');
       });
     }
+
+    form.addEventListener("submit", function(event) {
+    if (senhaInput.value !== confirmarSenha.value) {
+      event.preventDefault(); // Impede envio do form
+      alert('As senhas não coincidem')
+    } 
+  });
   </script>
 
 </body>
