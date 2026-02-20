@@ -59,6 +59,7 @@
                             <a href="#" class="action-btn"><i class="far fa-heart"></i></a>
                             <a href="#" class="action-btn"><i class="fas fa-shopping-cart"></i></a>
                             <a href="<?php echo $base_path ?? ''; ?>pages/auth/login.php" class="btn btn-primary btn-small"><i class="fas fa-user-cog"></i> Login</a>
+                            <a href="<?php echo $base_path ?? ''; ?>pages/auth/register.php" class="btn btn-secondary btn-small"><i class="fas fa-user-cog"></i> Cadastro</a>
                         </div>
                     </div>
                     
