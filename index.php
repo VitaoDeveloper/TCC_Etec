@@ -7,35 +7,37 @@ $base_path = '';
 // Include header
 include 'components/header.php';
 ?>
-<section class="hero-section">
-    <div class="container">
-        <div class="hero-content">
-            <div class="hero-text">
-                <h1> Tecnologia de <span>Alta Performance</span></h1>
-                <p>Descubra os melhores produtos tecnológicos do mercado com qualidade premium e atendimento personalizado. A Royal Tech traz inovação diretamente para suas mãos.</p>
-                <div class="hero-buttons">
-                    <a href="pages/products/products.php" class="btn btn-primary">
-                        <i class="fas fa-shopping-bag"></i>
-                        Ver Produtos
-                    </a>
-                    <a href="pages/about.php" class="btn btn-secondary">
-                        <i class="fas fa-info-circle"></i>
-                        Sobre Nós
-                    </a>
+<div class="hero-bg">
+    <section class="hero-section">
+        <div class="container">
+            <div class="hero-content">
+                <div class="hero-text">
+                    <h1> Tecnologia de <span>Alta Performance</span></h1>
+                    <p>Descubra os melhores produtos tecnológicos do mercado com qualidade premium e atendimento personalizado. A Royal Tech traz inovação diretamente para suas mãos.</p>
+                    <div class="hero-buttons">
+                        <a href="pages/products/products.php" class="btn btn-primary">
+                            <i class="fas fa-shopping-bag"></i>
+                            Ver Produtos
+                        </a>
+                        <a href="pages/products/about.php" class="btn btn-secondary">
+                            <i class="fas fa-info-circle"></i>
+                            Sobre Nós
+                        </a>
+                    </div>
                 </div>
-            </div>
-            <div class="hero-image">
-                <!-- Espaço para imagem do Hero -->
-                <div class="placeholder">
-                    <i class="fas fa-laptop"></i>
-                    <h4>Imagem Hero Principal</h4>
-                    <p>Insira uma imagem de produto premium ou banner aqui</p>
-                    <small>尺寸: 500x500px</small>
+                <div class="hero-image">
+                    <!-- Espaço para imagem do Hero -->
+                    <div class="placeholder">
+                        <i class="fas fa-laptop"></i>
+                        <h4>Imagem Hero Principal</h4>
+                        <p>Insira uma imagem de produto premium ou banner aqui</p>
+                        <small>尺寸: 500x500px</small>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-</section>
+    </section>
+</div>
 
 <!-- Features Section -->
 <section class="section section-dark">
