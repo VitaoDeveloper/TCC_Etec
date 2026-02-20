@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="<?php echo $base_path.'assets/css/admin.css' ?>">
 </head>
 <body>
     <!-- Header Principal -->
@@ -57,7 +58,7 @@
                         <div class="user-actions">
                             <a href="#" class="action-btn"><i class="far fa-heart"></i></a>
                             <a href="#" class="action-btn"><i class="fas fa-shopping-cart"></i></a>
-                            <a href="<?php echo $base_path ?? ''; ?>pages/Entrada/login.php" class="action-btn admin-link"><i class="fas fa-user-cog"></i></a>
+                            <a href="<?php echo $base_path ?? ''; ?>pages/auth/login.php" class="action-btn admin-link"><i class="fas fa-user-cog"></i></a>
                         </div>
                     </div>
                     

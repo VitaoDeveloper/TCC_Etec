@@ -8,6 +8,7 @@ $base_path = '../../';
 include '../../components/header.php';
 ?>
 <link rel="stylesheet" href="<?php echo $base_path.'assets/css/style.css' ?>">
+<link rel="stylesheet" href="<?php echo $base_path.'assets/css/admin.css' ?>">
 <section class="section">
     <div class="container">
         <div style="display: grid; grid-template-columns: 280px 1fr; gap: 40px;">
