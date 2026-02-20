@@ -424,6 +424,10 @@ h6 { font-size: 1rem; }
     transition: var(--transition);
 }
 
+.btn-small {
+    padding: 7.5px 17.5px !important;
+}
+
 .btn-primary {
     background: var(--color-primary);
     color: var(--color-black);

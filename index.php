@@ -3,6 +3,7 @@ $page_title = 'Royal Tech - Loja de Tecnologia Premium';
 $show_breadcrumb = false;
 $current_page = 'inicio';
 $base_path = '';
+echo "Olá Mundo";
 
 // Include header
 include 'components/header.php';
