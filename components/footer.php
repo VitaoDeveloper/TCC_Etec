@@ -53,7 +53,7 @@
         <div class="footer-bottom">
             <div class="container">
                 <div class="footer-bottom-content">
-                    <p>&copy; 2024 Royal Tech. Todos os direitos reservados.</p>
+                    <p>&copy; 2026 Royal Tech. Todos os direitos reservados.</p>
                     <div class="payment-methods">
                         <span><i class="fab fa-cc-visa"></i></span>
                         <span><i class="fab fa-cc-mastercard"></i></span>
