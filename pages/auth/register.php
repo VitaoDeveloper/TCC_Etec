@@ -17,6 +17,7 @@
   <link rel="stylesheet" href="../../assets/css/style.css">
   <link rel="stylesheet" href="../../assets/css/admin.css">
   <link rel="stylesheet" href="../../assets/css/register.css">
+  <link rel="stylesheet" href="../../assets/css/login.css">
 </head>
 <body>
 

@@ -21,6 +21,7 @@ $page_title = 'Login de Usuário';
     <link rel="stylesheet" href="../../assets/css/style.css">
     <link rel="stylesheet" href="../../assets/css/admin.css">
     <link rel="stylesheet" href="../../assets/css/login.css">
+    <link rel="stylesheet" href="../../assets/css/register.css">
 </head>
 <body>
 
@@ -37,16 +38,18 @@ $page_title = 'Login de Usuário';
         <form class="login-form" action="index.php" method="POST">
 
             <div class="admin-form-group">
-                <label for="email">E-mail</label>
-                <input type="email" id="email" name="email" placeholder="seuemail@royaltech.com" required>
+                <label for="indentifier">E-mail ou Nome de Usuário</label>
+                <input type="text" id="identifier" name="indentifier" placeholder="seuemail@royaltech.com" required>
+                <div class="error-message" id="email-error">E-mail ou Username inválido</div>
             </div>
 
             <div class="admin-form-group">
-                <label for="password">Senha</label>
-                <input type="password" id="password" name="password" placeholder="••••••••••••" required>
+                <label for="senha">Senha</label>
+                <input type="password" id="senha" name="password" placeholder="••••••••••••" required minlength="8">
                 <button type="button" class="password-toggle" id="togglePassword">
-                    <i class="fas fa-eye"></i>
+                <i class="fas fa-eye"></i>
                 </button>
+                <div class="error-message" id="senha-error">Mínimo 8 caracteres</div>
             </div>
 
             <div class="auth-options">
@@ -88,6 +91,18 @@ $page_title = 'Login de Usuário';
                 icon.classList.toggle('fa-eye-slash');
             });
         }
+
+        setInterval(() => {
+            let indentfierInp = document.querySelector('#identifier')
+            switch(indentfierInp.placeholder) {
+                case 'seuemail@royaltech.com':
+                    indentfierInp.placeholder = 'joaosilva'
+                    break
+                case 'joaosilva': 
+                    indentfierInp.placeholder = 'seuemail@royaltech.com'
+                    break
+            }
+        }, 1500)
     </script>
 
 </body>
