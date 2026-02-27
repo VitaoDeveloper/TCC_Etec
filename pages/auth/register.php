@@ -16,141 +16,7 @@
   <!-- Seus estilos -->
   <link rel="stylesheet" href="../../assets/css/style.css">
   <link rel="stylesheet" href="../../assets/css/admin.css">
-
-  <style>
-    /* Estilos específicos da página de registro */
-    body {
-      background: var(--color-black);
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 40px 20px;
-      overflow: hidden;           /* remove scroll da página inteira */
-    }
-
-    .register-wrapper {
-      width: 100%;
-      max-width: 520px;
-      background: var(--color-black-light);
-      border: 1px solid var(--color-border);
-      border-radius: 12px;
-      padding: 45px 40px;
-      box-shadow: var(--shadow);
-      max-height: 95vh;
-      overflow-y: auto;           /* scroll só dentro do card se precisar */
-    }
-
-    .register-logo {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-    }
-
-    .register-logo .logo-icon {
-      font-size: 2.8rem;
-      color: var(--color-primary);
-    }
-
-    .register-logo .logo-text {
-      font-size: 2.6rem;
-      font-weight: 700;
-      letter-spacing: 1px;
-    }
-
-    .register-logo .logo-text span {
-      color: var(--color-primary);
-    }
-
-    .form-title {
-      font-size: 1.6rem;
-      margin: 0 0 35px;
-      text-align: center;
-      color: var(--color-white);
-    }
-
-    .admin-form-group {
-      position: relative;
-      margin-bottom: 25px;
-    }
-
-    .admin-form-group input:focus,
-    .admin-form-group select:focus {
-      border-color: var(--color-primary);
-      box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.15);
-    }
-
-    .password-toggle {
-      position: absolute;
-      right: 16px;
-      top: 50%;
-      transform: translateY(-50%);
-      color: var(--color-gray-light);
-      cursor: pointer;
-      font-size: 1.3rem;
-      background: transparent;
-      border: none;
-    }
-
-    .btn-register {
-      width: 100%;
-      padding: 16px;
-      background: var(--color-primary);
-      color: var(--color-black);
-      border: none;
-      border-radius: 30px;
-      font-size: 1.05rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      cursor: pointer;
-      transition: var(--transition);
-      margin-top: 20px;
-    }
-
-    .btn-register:hover {
-      background: var(--color-primary-dark);
-      transform: translateY(-2px);
-      box-shadow: var(--shadow-hover);
-    }
-
-    .form-footer {
-      text-align: center;
-      margin-top: 30px;
-      color: var(--color-gray-light);
-      font-size: 0.95rem;
-    }
-
-    .form-footer a {
-      color: var(--color-primary);
-      font-weight: 500;
-      text-decoration: none;
-    }
-
-    .form-footer a:hover {
-      text-decoration: underline;
-    }
-
-    .error-message {
-      color: #ff6b6b;
-      font-size: 0.85rem;
-      margin-top: 6px;
-      display: none;
-    }
-
-    @media (max-width: 576px) {
-      .register-wrapper {
-        padding: 35px 25px;
-      }
-      .register-logo .logo-text {
-        font-size: 2.2rem;
-      }
-      .register-logo .logo-icon {
-        font-size: 2.4rem;
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="../../assets/css/register.css">
 </head>
 <body>
 
@@ -242,23 +108,37 @@
       $name = filter_input(INPUT_POST, 'name');
       $email = filter_input(INPUT_POST, 'email');
       $username = filter_input(INPUT_POST, 'username');
-      $password = crypt(filter_input(INPUT_POST, 'password'), "galinhas");
+      $password = filter_input(INPUT_POST, 'password');
       $postal_code = filter_input(INPUT_POST, 'postalcode');
       $street = filter_input(INPUT_POST, 'street');
-      $number = filter_input(INPUT_POST, 'number');
+      $number = filter_input(INPUT_POST, 'number') ?: 100;
       $complement = filter_input(INPUT_POST, 'complement') ?: null;
 
       $sql = "
-        INSERT INTO users 
+        INSERT INTO users
         (name, email, username, password, postal_code, street, number, complement)
         VALUES
-        ('$name', '$email', '$username', '$password', '$postal_code', '$street', '$number', '$complement')
+        (:name, :email, :username, :password, :postal_code, :street, :number, :complement)
       ";
 
-      $register = mysqli_query($connection, $sql);
+      try {
+        $stmt = $pdo->prepare($sql);
 
-      if (!$register) {
-        echo "Erro no SQL: " . mysqli_error($connection);
+        $stmt->execute([
+            ':name' => $name,
+            ':email' => $email,
+            ':username' => $username,
+            ':password' => password_hash($password, PASSWORD_DEFAULT),
+            ':postal_code' => $postal_code,
+            ':street' => $street,
+            ':number' => $number,
+            ':complement' => $complement
+        ]);
+      } catch (PDOException $e) {
+        $error = $e->getMessage();
+        echo "<script>alert('Erro no cadastro: $error')</script>";
+      } finally {
+          echo "<meta http-equiv='refresh' content='0; URL=../products/products.php'>";
       }
     }
   ?>
