@@ -35,11 +35,11 @@ $page_title = 'Login de Usuário';
 
         <h2 class="form-title">Área de Login</h2>
 
-        <form class="login-form" action="index.php" method="POST">
+        <form class="login-form" action="authentication.php" method="POST">
 
             <div class="admin-form-group">
                 <label for="indentifier">E-mail ou Nome de Usuário</label>
-                <input type="text" id="identifier" name="indentifier" placeholder="seuemail@royaltech.com" required>
+                <input type="text" id="identifier" name="identifier" placeholder="seuemail@royaltech.com" required>
                 <div class="error-message" id="email-error">E-mail ou Username inválido</div>
             </div>
 
