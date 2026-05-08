@@ -2,6 +2,10 @@
 $page_title = 'Gerenciar Categorias - Royal Tech';
 ?>
 
+<?php
+include 'auth_check.php';
+?>
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -85,7 +89,7 @@ $page_title = 'Gerenciar Categorias - Royal Tech';
                 </div>
                 <div class="admin-actions">
                     <button class="action-btn"><i class="fas fa-bell"></i></button>
-                    <button class="btn btn-primary" onclick="document.getElementById('addCategoryModal').classList.add('active')">
+                    <button class="btn btn-primary" onclick="document.getElementById('addCategoryModal').style.display='flex'">
                         <i class="fas fa-plus"></i>
                         Nova Categoria
                     </button>
@@ -217,7 +221,7 @@ $page_title = 'Gerenciar Categorias - Royal Tech';
     </div>
     
     <!-- Add Category Modal -->
-    <div id="addCategoryModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; align-items: center; justify-content: center;">
+    <div id="addCategoryModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; align-items: center; justify-content: center;">
         <div style="background: var(--color-black-light); border: 1px solid var(--color-border); border-radius: 15px; padding: 40px; width: 100%; max-width: 500px;">
             <h3 style="margin-bottom: 30px;">Nova Categoria</h3>
             <div class="admin-form-group">
@@ -241,7 +245,7 @@ $page_title = 'Gerenciar Categorias - Royal Tech';
             </div>
             <div style="display: flex; gap: 15px; margin-top: 30px;">
                 <button class="btn btn-primary" style="flex: 1;">Salvar</button>
-                <button class="btn btn-secondary" style="flex: 1;" onclick="document.getElementById('addCategoryModal').classList.remove('active')">Cancelar</button>
+                <button class="btn btn-secondary" style="flex: 1;" onclick="document.getElementById('addCategoryModal').style.display='none'">Cancelar</button>
             </div>
         </div>
     </div>

@@ -1,3 +1,7 @@
+<?php
+if (session_status() === PHP_SESSION_NONE) { session_start(); }
+$isLoggedIn = isset($_SESSION['user_id']);
+?>
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -8,9 +12,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="assets/css/style.css">
-    <link rel="stylesheet" href="<?php echo $base_path.'assets/css/admin.css' ?>">
-</head>
-<body>
+    </head>
+<body data-logged-in="<?php echo $isLoggedIn ? "1" : "0"; ?>">
     <!-- Header Principal -->
     <header class="main-header">
         <div class="header-top">
@@ -56,10 +59,14 @@
                             <button><i class="fas fa-search"></i></button>
                         </div>
                         <div class="user-actions">
-                            <a href="#" class="action-btn"><i class="far fa-heart"></i></a>
-                            <a href="#" class="action-btn"><i class="fas fa-shopping-cart"></i></a>
-                            <a href="<?php echo $base_path ?? ''; ?>pages/auth/login.php" class="btn btn-primary btn-small"><i class="fas fa-user-cog"></i> Login</a>
-                            <a href="<?php echo $base_path ?? ''; ?>pages/auth/register.php" class="btn btn-secondary btn-small"><i class="fas fa-user-cog"></i> Cadastro</a>
+                            <a href="#" class="action-btn require-auth" data-auth-target="favoritos"><i class="far fa-heart"></i></a>
+                            <a href="#" class="action-btn require-auth" data-auth-target="carrinho"><i class="fas fa-shopping-cart"></i></a>
+                            <?php if ($isLoggedIn): ?>
+                                <a href="<?php echo $base_path ?? ''; ?>pages/auth/logout.php" class="btn btn-secondary btn-small"><i class="fas fa-sign-out-alt"></i> Sair</a>
+                            <?php else: ?>
+                                <a href="<?php echo $base_path ?? ''; ?>pages/auth/login.php" class="btn btn-primary btn-small"><i class="fas fa-user-cog"></i> Login</a>
+                                <a href="<?php echo $base_path ?? ''; ?>pages/auth/register.php" class="btn btn-secondary btn-small"><i class="fas fa-user-cog"></i> Cadastro</a>
+                            <?php endif; ?>
                         </div>
                     </div>
                     

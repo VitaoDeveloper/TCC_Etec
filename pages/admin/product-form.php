@@ -3,6 +3,10 @@ $page_title = 'Novo Produto - Royal Tech';
 $is_edit = isset($_GET['id']);
 ?>
 
+<?php
+include 'auth_check.php';
+?>
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>

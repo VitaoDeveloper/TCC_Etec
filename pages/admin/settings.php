@@ -2,6 +2,10 @@
 $page_title = 'Configurações - Royal Tech';
 ?>
 
+<?php
+include 'auth_check.php';
+?>
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
