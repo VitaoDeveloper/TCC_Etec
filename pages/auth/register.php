@@ -53,25 +53,25 @@
 
       <div class="admin-form-group">
         <label for="cep">CEP</label>
-        <input type="number" id="username" name="postalcode" placeholder="00000-000" required minlength="8" maxlength="8">
+        <input type="text" id="postalcode" pattern="[0-9]{5}-?[0-9]{3}" inputmode="numeric" name="postalcode" placeholder="00000-000" required minlength="8" maxlength="8">
         <div class="error-message" id="username-error">Mínimo 4 caracteres</div>
       </div>
 
       <div class="admin-form-group">
-        <label for="username">Rua</label>
-        <input type="text" id="username" name="street" placeholder="Rua Clóvis Basílio" required minlength="4">
+        <label for="street">Rua</label>
+        <input type="text" id="street" name="street" placeholder="Rua Clóvis Basílio" required minlength="4">
         <div class="error-message" id="username-error">Mínimo 4 caracteres</div>
       </div>
 
       <div class="admin-form-group">
-        <label for="username">Número</label>
-        <input type="number" id="username" name="number" placeholder="000" required maxlength="5">
+        <label for="number">Número</label>
+        <input type="number" id="number" name="number" placeholder="000" required maxlength="5">
         <div class="error-message" id="username-error">Mínimo 4 caracteres</div>
       </div>
 
       <div class="admin-form-group">
-        <label for="username">Complemento (Apto, etc)</label>
-        <input type="text" id="username" name="complement" placeholder="Opcional" minlength="4">
+        <label for="complement">Complemento (Apto, etc)</label>
+        <input type="text" id="complement" name="complement" placeholder="Opcional" minlength="4">
         <div class="error-message" id="username-error">Mínimo 4 caracteres</div>
       </div>
 
