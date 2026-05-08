@@ -25,17 +25,17 @@
         <span class="product-badge featured">Destaque</span>
         <?php endif; ?>
         
-        <img src="<?php echo $product_image ?? 'assets/img/placeholder-product.jpg'; ?>" 
+        <img src="<?php echo $product_image ?? (($base_path ?? '') . 'assets/img/placeholder-product.jpg'); ?>" 
              alt="<?php echo $product_name ?? 'Produto'; ?>">
         
         <div class="product-actions">
-            <button class="action-btn" title="Adicionar aos favoritos">
+            <button class="action-btn" title="Adicionar aos favoritos" aria-label="Adicionar aos favoritos">
                 <i class="far fa-heart"></i>
             </button>
-            <button class="action-btn" title="Adicionar ao carrinho">
+            <button class="action-btn" title="Adicionar ao carrinho" aria-label="Adicionar ao carrinho">
                 <i class="fas fa-shopping-cart"></i>
             </button>
-            <button class="action-btn" title="Visualizar">
+            <button class="action-btn" title="Visualizar" aria-label="Visualizar produto">
                 <i class="fas fa-eye"></i>
             </button>
         </div>
@@ -63,7 +63,7 @@
         </div>
         <?php endif; ?>
         
-        <button class="btn-add-cart">
+        <button class="btn-add-cart require-auth" data-auth-target="carrinho">
             <i class="fas fa-shopping-bag"></i>
             Adicionar ao Carrinho
         </button>

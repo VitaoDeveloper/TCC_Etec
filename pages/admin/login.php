@@ -25,7 +25,7 @@ $page_title = 'Login Administrativo - Royal Tech';
                 <p>Faça login para gerenciar sua loja</p>
             </div>
             
-            <form class="login-form" action="index.php" method="POST">
+            <form class="login-form" action="authenticate.php" method="POST">
                 <div class="admin-form-group">
                     <label for="email">E-mail</label>
                     <input type="email" id="email" name="email" placeholder="Seu e-mail" required>
