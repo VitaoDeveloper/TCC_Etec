@@ -44,7 +44,7 @@
     <div class="product-info">
         <span class="product-category"><?php echo $product_category ?? 'Eletrônicos'; ?></span>
         <h3 class="product-name">
-            <a href="pages/products/product-detail.php?id=<?php echo $product_id ?? 0; ?>">
+            <a href="<?php echo ($base_path ?? ''); ?>pages/products/product-detail.php?id=<?php echo $product_id ?? 0; ?>">
                 <?php echo $product_name ?? 'Nome do Produto'; ?>
             </a>
         </h3>
