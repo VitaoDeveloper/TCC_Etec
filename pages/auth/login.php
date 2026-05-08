@@ -38,7 +38,7 @@ $page_title = 'Login de Usuário';
         <form class="login-form" action="authentication.php" method="POST">
 
             <div class="admin-form-group">
-                <label for="indentifier">E-mail ou Nome de Usuário</label>
+                <label for="identifier">E-mail ou Nome de Usuário</label>
                 <input type="text" id="identifier" name="identifier" placeholder="seuemail@royaltech.com" required>
                 <div class="error-message" id="email-error">E-mail ou Username inválido</div>
             </div>
@@ -79,7 +79,7 @@ $page_title = 'Login de Usuário';
     <script>
         // Toggle de visualização da senha
         const toggleBtn = document.getElementById('togglePassword');
-        const passwordInput = document.getElementById('password');
+        const passwordInput = document.getElementById('senha');
 
         if (toggleBtn && passwordInput) {
             toggleBtn.addEventListener('click', () => {
