@@ -63,7 +63,7 @@
         </div>
         <?php endif; ?>
         
-        <button class="btn-add-cart">
+        <button class="btn-add-cart require-auth" data-auth-target="carrinho">
             <i class="fas fa-shopping-bag"></i>
             Adicionar ao Carrinho
         </button>

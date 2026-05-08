@@ -37,6 +37,8 @@ if ($_SESSION['user_role'] === 'admin') {
     exit;
 }
 
+$next = $_POST['next'] ?? '../products/products.php';
+header('Location: ' . $next);
 header('Location: ../products/products.php');
 exit;
 ?>
