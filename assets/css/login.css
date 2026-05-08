@@ -163,3 +163,4 @@ body {
                 font-size: 2.4rem;
             }
         }
+.auth-feedback{margin:15px 0;padding:12px 14px;border-radius:8px;font-weight:600}.auth-feedback-error{background:#3a1010;color:#ffb3b3;border:1px solid #c54242}.auth-feedback-success{background:#103a1f;color:#b5f5cb;border:1px solid #41a967}
