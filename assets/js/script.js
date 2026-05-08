@@ -153,7 +153,8 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             const target = this.getAttribute('data-auth-target') || 'recurso';
             const currentPage = window.location.pathname + window.location.search;
-            const loginUrl = '/pages/auth/login.php?next=' + encodeURIComponent(currentPage);
+            const basePath = document.body.getAttribute('data-base-path') || '/';
+            const loginUrl = basePath + 'pages/auth/login.php?next=' + encodeURIComponent(currentPage);
             alert('Para acessar ' + target + ', você precisa fazer login.');
             window.location.href = loginUrl;
         });
