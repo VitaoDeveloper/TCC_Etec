@@ -35,7 +35,7 @@ if ($imageCandidate === '') {
         <span class="product-badge featured">Destaque</span>
         <?php endif; ?>
         
-        <img src="<?php echo htmlspecialchars($imageCandidate, ENT_QUOTES, 'UTF-8'); ?>" style="width:100%; height:100%; object-fit:cover;" 
+        <img src="../..<?php echo htmlspecialchars($imageCandidate, ENT_QUOTES, 'UTF-8'); ?>" style="width:100%; height:100%; object-fit:cover;" 
              alt="<?php echo $product_name ?? 'Produto'; ?>">
         
         <div class="product-actions">
