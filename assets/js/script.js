@@ -137,6 +137,29 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
+
+    // ========================================
+    // Require authentication for ecommerce actions
+    // ========================================
+    const protectedActions = document.querySelectorAll('.require-auth');
+    const loggedFlag = document.body.getAttribute('data-logged-in') === '1';
+
+    protectedActions.forEach((btn) => {
+        btn.addEventListener('click', function(e) {
+            if (loggedFlag) {
+                return;
+            }
+
+            e.preventDefault();
+            const target = this.getAttribute('data-auth-target') || 'recurso';
+            const currentPage = window.location.pathname + window.location.search;
+            const basePath = document.body.getAttribute('data-base-path') || '/';
+            const loginUrl = basePath + 'pages/auth/login.php?next=' + encodeURIComponent(currentPage);
+            alert('Para acessar ' + target + ', você precisa fazer login.');
+            window.location.href = loginUrl;
+        });
+    });
+
     // ========================================
     // Newsletter Form
     // ========================================
