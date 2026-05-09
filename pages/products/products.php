@@ -17,7 +17,13 @@ $sql = 'SELECT p.id, p.name, p.price, p.old_price, p.brand, p.is_featured, c.nam
         WHERE 1=1';
 $params = [];
 if ($categoryFilter > 0) {$sql .= ' AND p.category_id = :category_id'; $params[':category_id'] = $categoryFilter;}
-if ($searchTerm !== '') {$sql .= ' AND (p.name LIKE :term OR p.brand LIKE :term OR c.name LIKE :term)'; $params[':term'] = '%' . $searchTerm . '%';}
+if ($searchTerm !== '') {
+    $sql .= ' AND (p.name LIKE :term_name OR p.brand LIKE :term_brand OR c.name LIKE :term_category)';
+    $searchPattern = '%' . $searchTerm . '%';
+    $params[':term_name'] = $searchPattern;
+    $params[':term_brand'] = $searchPattern;
+    $params[':term_category'] = $searchPattern;
+}
 $sql .= ' ORDER BY p.created_at DESC';
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
