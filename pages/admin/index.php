@@ -3,6 +3,10 @@ $page_title = 'Painel Administrativo - Royal Tech';
 
 // Include header admin (sidebar)
 ?>
+
+<?php
+include 'auth_check.php';
+?>
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -77,7 +81,7 @@ $page_title = 'Painel Administrativo - Royal Tech';
             </nav>
             
             <div style="padding: 20px; margin-top: auto;">
-                <a href="login.php" class="btn btn-secondary" style="width: 100%;">
+                <a href="logout.php" class="btn btn-secondary" style="width: 100%;">
                     <i class="fas fa-sign-out-alt"></i>
                     Sair
                 </a>
