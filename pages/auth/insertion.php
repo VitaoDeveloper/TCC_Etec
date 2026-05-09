@@ -49,7 +49,7 @@ try {
         ':name' => $name,
         ':email' => $email,
         ':username' => $username,
-        ':password' => password_hash($password, PASSWORD_DEFAULT),
+        ':password' => password_hash($password, PASSWORD_ARGON2ID),
         ':postal_code' => $postalCode,
         ':street' => $street,
         ':number' => $number,
