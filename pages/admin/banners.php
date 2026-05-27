@@ -2,8 +2,13 @@
 $page_title = 'Gerenciar Banners - Royal Tech';
 include 'auth_check.php';
 include '../../database/connection.php';
+require_once __DIR__ . '/../../includes/csrf.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!csrf_verify($_POST['_csrf_token'] ?? null)) {
+        http_response_code(419);
+        exit('Sessão expirada. Recarregue a página.');
+    }
     $action = $_POST['action'] ?? '';
 
     if ($action === 'create') {
@@ -86,6 +91,7 @@ unset($_SESSION['admin_message']);
                 <h3 style="margin-bottom:15px;">Novo Banner</h3>
                 <form method="POST" style="display:grid; gap:12px; max-width:500px;">
                     <input type="hidden" name="action" value="create">
+                    <?php echo csrf_field(); ?>
                     <input type="text" name="title" placeholder="Título" required style="padding:10px; border:1px solid var(--color-border); border-radius:5px; background:var(--color-black); color:var(--color-white);">
                     <input type="text" name="subtitle" placeholder="Subtítulo (opcional)" style="padding:10px; border:1px solid var(--color-border); border-radius:5px; background:var(--color-black); color:var(--color-white);">
                     <input type="text" name="image_path" placeholder="Caminho da imagem (ex: /assets/img/banner.jpg)" required style="padding:10px; border:1px solid var(--color-border); border-radius:5px; background:var(--color-black); color:var(--color-white);">
@@ -117,6 +123,7 @@ unset($_SESSION['admin_message']);
                         <div style="display: flex; gap: 10px; margin-top: 15px;">
                             <form method="POST" style="flex:1;">
                                 <input type="hidden" name="action" value="toggle">
+                                <?php echo csrf_field(); ?>
                                 <input type="hidden" name="banner_id" value="<?php echo (int) $b['id']; ?>">
                                 <button type="submit" class="btn btn-secondary" style="width:100%; padding:8px;">
                                     <i class="fas <?php echo $b['is_active'] ? 'fa-eye-slash' : 'fa-eye'; ?>"></i>
@@ -124,6 +131,7 @@ unset($_SESSION['admin_message']);
                             </form>
                             <form method="POST" style="flex:1;" onsubmit="return confirm('Remover banner?');">
                                 <input type="hidden" name="action" value="delete">
+                                <?php echo csrf_field(); ?>
                                 <input type="hidden" name="banner_id" value="<?php echo (int) $b['id']; ?>">
                                 <button type="submit" class="btn btn-secondary delete" style="width:100%; padding:8px; color:#f44336;">
                                     <i class="fas fa-trash"></i>

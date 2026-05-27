@@ -2,6 +2,7 @@
 $page_title = 'Formulário de Produto - Royal Tech';
 include 'auth_check.php';
 include '../../database/connection.php';
+require_once __DIR__ . '/../../includes/csrf.php';
 
 $productId = (int) ($_GET['id'] ?? 0);
 $product = ['category_id' => '', 'name' => '', 'description' => '', 'brand' => '', 'price' => '', 'old_price' => '', 'stock' => 0, 'is_featured' => 0];
@@ -41,6 +42,10 @@ if ($productId > 0) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!csrf_verify($_POST['_csrf_token'] ?? null)) {
+        http_response_code(419);
+        exit('Sessão expirada. Recarregue a página.');
+    }
     $categoryId = (int) ($_POST['category_id'] ?? 0);
     $name = trim((string) ($_POST['name'] ?? ''));
     $imagePathInput = normalizeImagePath((string) ($_POST['image_path'] ?? ''));
@@ -160,6 +165,7 @@ $categories = $pdo->query('SELECT id, name FROM e5_categories ORDER BY name')->f
 <input type="file" id="product_image" name="product_image" accept=".jpg,.jpeg,.png,.webp">
 <?php if ($currentImagePath): ?><small>Imagem atual: <?php echo htmlspecialchars($currentImagePath, ENT_QUOTES, 'UTF-8'); ?></small><?php endif; ?>
 
+<?php echo csrf_field(); ?>
 <button class="btn btn-primary" type="submit">Salvar</button>
 <a class="btn btn-secondary" href="products.php">Voltar</a>
 </form></div></main></div>

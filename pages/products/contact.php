@@ -4,11 +4,16 @@ $show_breadcrumb = true;
 $breadcrumb_title = 'Contato';
 $current_page = 'contato';
 $base_path = '../../';
+require_once __DIR__ . '/../../includes/csrf.php';
 
 $contactMessage = null;
 $contactError = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!csrf_verify($_POST['_csrf_token'] ?? null)) {
+        http_response_code(419);
+        exit('Sessão expirada. Recarregue a página.');
+    }
     $name = trim((string) ($_POST['name'] ?? ''));
     $email = trim((string) ($_POST['email'] ?? ''));
     $phone = trim((string) ($_POST['phone'] ?? ''));
@@ -85,6 +90,7 @@ include '../../components/header.php';
                         <label for="message">Mensagem *</label>
                         <textarea id="message" name="message" rows="5" placeholder="Sua mensagem..." required></textarea>
                     </div>
+                    <?php echo csrf_field(); ?>
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-paper-plane"></i>
                         Enviar Mensagem

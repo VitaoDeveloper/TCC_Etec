@@ -1,6 +1,7 @@
 <?php
 $page_title = 'Redefinir Senha - Royal Tech';
 $base_path = '../../';
+require_once __DIR__ . '/../../includes/csrf.php';
 $errorMessage = null;
 $successMessage = null;
 
@@ -11,6 +12,10 @@ if ($token === '') {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $token !== '') {
+    if (!csrf_verify($_POST['_csrf_token'] ?? null)) {
+        http_response_code(419);
+        exit('Sessão expirada. Recarregue a página.');
+    }
     $password = (string) ($_POST['password'] ?? '');
     $confirm = (string) ($_POST['confirm_password'] ?? '');
 
@@ -45,6 +50,7 @@ include '../../components/header.php';
     <form method="POST" class="admin-table-container" style="padding:30px;">
         <div class="admin-form-group"><label for="password">Nova Senha</label><input type="password" id="password" name="password" placeholder="Mínimo 6 caracteres" required minlength="6"></div>
         <div class="admin-form-group"><label for="confirm_password">Confirmar Senha</label><input type="password" id="confirm_password" name="confirm_password" placeholder="Repita a senha" required minlength="6"></div>
+        <?php echo csrf_field(); ?>
         <button type="submit" class="btn btn-primary" style="width:100%;"><i class="fas fa-check"></i> Redefinir Senha</button>
     </form>
     <?php endif; ?>

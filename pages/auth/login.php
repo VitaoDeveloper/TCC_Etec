@@ -1,5 +1,6 @@
 <?php
 session_start();
+require_once __DIR__ . '/../../includes/csrf.php';
 
 if (isset($_SESSION['user_id'])) {
     header('Location: ../products/products.php');
@@ -47,6 +48,7 @@ $next = $_GET['next'] ?? '../products/products.php';
     <?php endif; ?>
 
     <form class="login-form" action="authentication.php" method="POST">
+        <?php echo csrf_field(); ?>
         <input type="hidden" name="next" value="<?php echo htmlspecialchars($next, ENT_QUOTES, 'UTF-8'); ?>">
         <div class="admin-form-group">
             <label for="identifier">E-mail ou Nome de Usuário</label>

@@ -2,8 +2,13 @@
 $page_title = 'Gerenciar Produtos - Royal Tech';
 include 'auth_check.php';
 include '../../database/connection.php';
+require_once __DIR__ . '/../../includes/csrf.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!csrf_verify($_POST['_csrf_token'] ?? null)) {
+        http_response_code(419);
+        exit('Sessão expirada. Recarregue a página.');
+    }
     $action = $_POST['action'] ?? '';
 
     if ($action === 'delete') {
@@ -28,5 +33,5 @@ unset($_SESSION['admin_message']);
 <header class="admin-header"><div class="admin-title"><h2>Produtos</h2><p>Lista de produtos cadastrados</p></div><a class="btn btn-primary" href="product-form.php">Novo produto</a></header>
 <?php if ($message): ?><div class="auth-feedback auth-feedback-success"><?php echo htmlspecialchars($message, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
 <div class="admin-table-container"><table class="admin-table"><thead><tr><th>ID</th><th>Nome</th><th>Categoria</th><th>Preço</th><th>Estoque</th><th>Ações</th></tr></thead><tbody>
-<?php foreach ($products as $product): ?><tr><td><?php echo (int) $product['id']; ?></td><td><?php echo htmlspecialchars($product['name'], ENT_QUOTES, 'UTF-8'); ?></td><td><?php echo htmlspecialchars($product['category_name'], ENT_QUOTES, 'UTF-8'); ?></td><td>R$ <?php echo number_format((float) $product['price'], 2, ',', '.'); ?></td><td><?php echo (int) $product['stock']; ?></td><td><a class="btn btn-secondary" href="product-form.php?id=<?php echo (int) $product['id']; ?>">Editar</a><form method="POST" style="display:inline-block" onsubmit="return confirm('Excluir produto?');"><input type="hidden" name="action" value="delete"><input type="hidden" name="product_id" value="<?php echo (int) $product['id']; ?>"><button class="btn btn-secondary" type="submit">Excluir</button></form></td></tr><?php endforeach; ?>
+<?php foreach ($products as $product): ?><tr><td><?php echo (int) $product['id']; ?></td><td><?php echo htmlspecialchars($product['name'], ENT_QUOTES, 'UTF-8'); ?></td><td><?php echo htmlspecialchars($product['category_name'], ENT_QUOTES, 'UTF-8'); ?></td><td>R$ <?php echo number_format((float) $product['price'], 2, ',', '.'); ?></td><td><?php echo (int) $product['stock']; ?></td><td><a class="btn btn-secondary" href="product-form.php?id=<?php echo (int) $product['id']; ?>">Editar</a><form method="POST" style="display:inline-block" onsubmit="return confirm('Excluir produto?');"><input type="hidden" name="action" value="delete"><?php echo csrf_field(); ?><input type="hidden" name="product_id" value="<?php echo (int) $product['id']; ?>"><button class="btn btn-secondary" type="submit">Excluir</button></form></td></tr><?php endforeach; ?>
 </tbody></table></div></main></div></body></html>

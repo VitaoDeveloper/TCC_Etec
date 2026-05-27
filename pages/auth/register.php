@@ -1,5 +1,6 @@
 <?php
 session_start();
+require_once __DIR__ . '/../../includes/csrf.php';
 
 if (isset($_SESSION['user_id'])) {
     header('Location: ../products/products.php');
@@ -42,6 +43,7 @@ unset($_SESSION['auth_errors'], $_SESSION['auth_old']);
   <?php endif; ?>
 
   <form id="registerForm" method="POST" action="insertion.php">
+    <?php echo csrf_field(); ?>
     <div class="admin-form-group"><label for="name">Nome completo</label><input type="text" id="name" name="name" value="<?php echo htmlspecialchars($old['name'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" required minlength="3"></div>
     <div class="admin-form-group"><label for="email">E-mail</label><input type="email" id="email" name="email" value="<?php echo htmlspecialchars($old['email'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" required></div>
     <div class="admin-form-group"><label for="username">Nome de usuário</label><input type="text" id="username" name="username" value="<?php echo htmlspecialchars($old['username'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" required minlength="4"></div>

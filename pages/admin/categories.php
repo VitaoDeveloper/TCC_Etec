@@ -2,8 +2,13 @@
 $page_title = 'Gerenciar Categorias - Royal Tech';
 include 'auth_check.php';
 include '../../database/connection.php';
+require_once __DIR__ . '/../../includes/csrf.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!csrf_verify($_POST['_csrf_token'] ?? null)) {
+        http_response_code(419);
+        exit('Sessão expirada. Recarregue a página.');
+    }
     $action = $_POST['action'] ?? '';
 
     if ($action === 'create') {
@@ -40,8 +45,8 @@ unset($_SESSION['admin_message']);
 <?php if ($message): ?><div class="auth-feedback auth-feedback-success"><?php echo htmlspecialchars($message, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
 <div class="admin-table-container" style="margin-bottom:30px;">
 <h3>Nova categoria</h3>
-<form method="POST" style="display:grid; gap:12px;"><input type="hidden" name="action" value="create"><input type="text" name="name" placeholder="Nome da categoria" required><textarea name="description" placeholder="Descrição (opcional)"></textarea><button class="btn btn-primary" type="submit">Cadastrar</button></form>
+<form method="POST" style="display:grid; gap:12px;"><input type="hidden" name="action" value="create"><?php echo csrf_field(); ?><input type="text" name="name" placeholder="Nome da categoria" required><textarea name="description" placeholder="Descrição (opcional)"></textarea><button class="btn btn-primary" type="submit">Cadastrar</button></form>
 </div>
 <div class="admin-table-container"><table class="admin-table"><thead><tr><th>ID</th><th>Nome</th><th>Produtos</th><th>Ações</th></tr></thead><tbody>
-<?php foreach ($categories as $category): ?><tr><td><?php echo (int) $category['id']; ?></td><td><?php echo htmlspecialchars($category['name'], ENT_QUOTES, 'UTF-8'); ?></td><td><?php echo (int) $category['total_products']; ?></td><td><form method="POST" onsubmit="return confirm('Deseja remover esta categoria?');"><input type="hidden" name="action" value="delete"><input type="hidden" name="category_id" value="<?php echo (int) $category['id']; ?>"><button class="btn btn-secondary" type="submit">Excluir</button></form></td></tr><?php endforeach; ?>
+<?php foreach ($categories as $category): ?><tr><td><?php echo (int) $category['id']; ?></td><td><?php echo htmlspecialchars($category['name'], ENT_QUOTES, 'UTF-8'); ?></td><td><?php echo (int) $category['total_products']; ?></td><td><form method="POST" onsubmit="return confirm('Deseja remover esta categoria?');"><input type="hidden" name="action" value="delete"><?php echo csrf_field(); ?><input type="hidden" name="category_id" value="<?php echo (int) $category['id']; ?>"><button class="btn btn-secondary" type="submit">Excluir</button></form></td></tr><?php endforeach; ?>
 </tbody></table></div></main></div></body></html>

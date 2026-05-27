@@ -1,8 +1,17 @@
 <?php
-$host = "localhost";
-$username = "root";
-$password = "";
-$database = "e5_royaltech";
+$configFile = __DIR__ . '/../config.php';
+if (file_exists($configFile)) {
+    require $configFile;
+    $host = DB_HOST;
+    $username = DB_USER;
+    $password = DB_PASS;
+    $database = DB_NAME;
+} else {
+    $host = "localhost";
+    $username = "root";
+    $password = "";
+    $database = "e5_royaltech";
+}
 
 $dsn = "mysql:host=$host;dbname=$database;charset=utf8mb4";
 

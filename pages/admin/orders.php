@@ -2,8 +2,13 @@
 $page_title = 'Gerenciar Pedidos - Royal Tech';
 include 'auth_check.php';
 include '../../database/connection.php';
+require_once __DIR__ . '/../../includes/csrf.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'update_status') {
+    if (!csrf_verify($_POST['_csrf_token'] ?? null)) {
+        http_response_code(419);
+        exit('Sessão expirada. Recarregue a página.');
+    }
     $orderId = (int) ($_POST['order_id'] ?? 0);
     $newStatus = (string) ($_POST['status'] ?? '');
     $allowed = ['pending', 'paid', 'shipped', 'delivered', 'canceled'];
@@ -112,6 +117,7 @@ unset($_SESSION['admin_message']);
                             <td>
                                 <form method="POST" style="display:flex; gap:6px; align-items:center;">
                                     <input type="hidden" name="action" value="update_status">
+                                    <?php echo csrf_field(); ?>
                                     <input type="hidden" name="order_id" value="<?php echo (int) $o['id']; ?>">
                                     <select name="status" style="padding:4px 8px; border:1px solid var(--color-border); border-radius:4px; background:var(--color-black); color:var(--color-white); font-size:0.8rem;">
                                         <?php foreach ($statusLabels as $k => $v): ?>

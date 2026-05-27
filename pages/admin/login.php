@@ -1,5 +1,6 @@
 <?php
 $page_title = 'Login Administrativo - Royal Tech';
+require_once __DIR__ . '/../../includes/csrf.php';
 ?>
 
 <!DOCTYPE html>
@@ -26,6 +27,7 @@ $page_title = 'Login Administrativo - Royal Tech';
             </div>
             
             <form class="login-form" action="authenticate.php" method="POST">
+                <?php echo csrf_field(); ?>
                 <div class="admin-form-group">
                     <label for="email">E-mail</label>
                     <input type="email" id="email" name="email" placeholder="Seu e-mail" required>

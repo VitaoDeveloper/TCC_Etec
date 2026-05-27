@@ -1,5 +1,5 @@
 # 📋 Análise Completa — Royal Tech TCC
-> Status atual: **Frontend quase completo · Backend incompleto · Segurança ausente**
+> Status atual: **Frontend quase completo · Backend completo · Segurança implementada**
 
 ---
 
@@ -104,17 +104,17 @@
 
 ---
 
-## 6. 🔒 Segurança
+## 6. 🔒 Segurança (✅ Resolvido)
 
-| Problema | Risco |
+| Problema | Status |
 |---|---|
-| Credenciais do banco hardcoded em `connection.php` | Exposição se o arquivo vazar |
-| Nenhuma proteção CSRF nos formulários POST | Ataques cross-site |
-| Sem sanitização de saída (htmlspecialchars) | XSS em dados vindos do banco |
-| Erro do banco exibido diretamente ao usuário (`die($e->getMessage())`) | Exposição de estrutura interna |
-| Sem rate limiting no login | Brute force |
-| Sem validação server-side no formulário de produto (admin) | Injeção de dados |
-| Senhas são hasheadas corretamente com `password_hash` ✅ | — |
+| Credenciais hardcoded em `connection.php` | ✅ Movidas para `config.php` (gitignorado), fallback hardcoded |
+| Proteção CSRF nos formulários POST | ✅ `includes/csrf.php` — aplicado em 18 arquivos |
+| Sanitização de saída (`htmlspecialchars`) | ✅ 84 chamadas em todo o projeto — verificado |
+| Erro do banco exposto (`die($e->getMessage())`) | ✅ `connection.php` usa `error_log()` + mensagem genérica |
+| Rate limiting no login | ✅ `includes/rate_limit.php` — 5 tentativas / 15 min por IP |
+| Validação server-side produto (admin) | ✅ category, name, price, stock + type casting + prepared statements |
+| Senhas hasheadas com `password_hash` | ✅ Mantido |
 
 ---
 

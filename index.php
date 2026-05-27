@@ -3,6 +3,7 @@ $page_title = 'Royal Tech - Loja de Tecnologia Premium';
 $show_breadcrumb = false;
 $current_page = 'inicio';
 $base_path = '';
+require_once __DIR__ . '/includes/csrf.php';
 
 // Include header
 include 'components/header.php';
@@ -310,6 +311,10 @@ include 'components/header.php';
 <?php
 $newsletterMessage = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['newsletter_email'])) {
+    if (!csrf_verify($_POST['_csrf_token'] ?? null)) {
+        http_response_code(419);
+        exit('Sessão expirada. Recarregue a página.');
+    }
     $email = trim((string) $_POST['newsletter_email']);
     if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
         try {
@@ -334,6 +339,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['newsletter_email'])) 
         <?php if ($newsletterMessage): ?><div style="text-align:center; margin-bottom:15px; color:var(--color-primary);"><?php echo htmlspecialchars($newsletterMessage, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
         <div style="max-width: 600px; margin: 0 auto; text-align: center;">
             <form method="POST" style="display: flex; gap: 15px;">
+                <?php echo csrf_field(); ?>
                 <input type="email" name="newsletter_email" placeholder="Seu melhor e-mail..." required style="
                     flex: 1;
                     padding: 15px 25px;

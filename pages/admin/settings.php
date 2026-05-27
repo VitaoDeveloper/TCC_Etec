@@ -1,6 +1,7 @@
 <?php
 $page_title = 'Configurações - Royal Tech';
 include 'auth_check.php';
+require_once __DIR__ . '/../../includes/csrf.php';
 
 $settingsFile = __DIR__ . '/../../database/settings.json';
 $settings = [];
@@ -9,6 +10,10 @@ if (file_exists($settingsFile)) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!csrf_verify($_POST['_csrf_token'] ?? null)) {
+        http_response_code(419);
+        exit('Sessão expirada. Recarregue a página.');
+    }
     $keys = ['store_name','store_email','store_phone','store_address','store_cnpj','store_currency','store_description','social_facebook','social_instagram','social_twitter','social_youtube'];
     foreach ($keys as $k) {
         $settings[$k] = trim((string) ($_POST[$k] ?? ''));
@@ -62,6 +67,7 @@ unset($_SESSION['admin_message']);
             <div class="auth-feedback auth-feedback-success"><?php echo htmlspecialchars($message, ENT_QUOTES, 'UTF-8'); ?></div>
             <?php endif; ?>
             <form id="settingsForm" method="POST">
+            <?php echo csrf_field(); ?>
             <div style="display: grid; grid-template-columns: 250px 1fr; gap: 30px;">
                 <aside class="settings-sidebar">
                     <nav class="settings-nav">

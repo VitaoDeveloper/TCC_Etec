@@ -11,6 +11,7 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
+require_once __DIR__ . '/../../includes/csrf.php';
 include '../../database/connection.php';
 $userId = (int) $_SESSION['user_id'];
 
@@ -28,6 +29,10 @@ $successMessage = null;
 $errorMessage = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!csrf_verify($_POST['_csrf_token'] ?? null)) {
+        http_response_code(419);
+        exit('Sessão expirada. Recarregue a página.');
+    }
     $name = trim((string) ($_POST['name'] ?? ''));
     $email = trim((string) ($_POST['email'] ?? ''));
     $username = trim((string) ($_POST['username'] ?? ''));
@@ -104,6 +109,7 @@ include '../../components/header.php';
             <div class="admin-form-group"><label for="current_password">Senha Atual</label><input type="password" id="current_password" name="current_password" placeholder="Deixe em branco para manter"></div>
             <div class="admin-form-group"><label for="new_password">Nova Senha</label><input type="password" id="new_password" name="new_password" placeholder="Mínimo 6 caracteres" minlength="6"></div>
         </div>
+        <?php echo csrf_field(); ?>
         <button type="submit" class="btn btn-primary" style="width:100%; margin-top:20px;"><i class="fas fa-save"></i> Salvar Alterações</button>
     </form>
     <div style="text-align:center; margin-top:15px;"><a href="orders.php" class="btn btn-secondary"><i class="fas fa-box"></i> Meus Pedidos</a></div>

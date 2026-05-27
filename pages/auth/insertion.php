@@ -1,10 +1,16 @@
 <?php
 session_start();
+require_once __DIR__ . '/../../includes/csrf.php';
 include "../../database/connection.php";
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: register.php');
     exit;
+}
+
+if (!csrf_verify($_POST['_csrf_token'] ?? null)) {
+    http_response_code(419);
+    exit('Sessão expirada. Recarregue a página.');
 }
 
 $name = trim((string) filter_input(INPUT_POST, 'name'));
