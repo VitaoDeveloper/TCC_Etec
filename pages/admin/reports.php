@@ -1,11 +1,47 @@
 <?php
 $page_title = 'Relatórios - Royal Tech';
-?>
-
-<?php
 include 'auth_check.php';
-?>
+include '../../database/connection.php';
 
+$totalRevenue = $pdo->query("SELECT COALESCE(SUM(total), 0) FROM e5_orders WHERE status != 'canceled'")->fetchColumn();
+$totalOrders = $pdo->query('SELECT COUNT(*) FROM e5_orders')->fetchColumn();
+$totalCustomers = $pdo->query("SELECT COUNT(*) FROM e5_users WHERE role = 'customer'")->fetchColumn();
+
+$avgTicket = $totalOrders > 0 ? $totalRevenue / $totalOrders : 0;
+
+$prevMonth = $pdo->query("SELECT COALESCE(SUM(total), 0) FROM e5_orders WHERE status != 'canceled' AND created_at >= DATE_SUB(NOW(), INTERVAL 2 MONTH) AND created_at < DATE_SUB(NOW(), INTERVAL 1 MONTH)")->fetchColumn();
+$currMonth = $pdo->query("SELECT COALESCE(SUM(total), 0) FROM e5_orders WHERE status != 'canceled' AND created_at >= DATE_SUB(NOW(), INTERVAL 1 MONTH)")->fetchColumn();
+$revenueChange = $prevMonth > 0 ? round(($currMonth - $prevMonth) / $prevMonth * 100, 1) : 0;
+
+$prevOrders = $pdo->query("SELECT COUNT(*) FROM e5_orders WHERE created_at >= DATE_SUB(NOW(), INTERVAL 2 MONTH) AND created_at < DATE_SUB(NOW(), INTERVAL 1 MONTH)")->fetchColumn();
+$currOrders = $pdo->query("SELECT COUNT(*) FROM e5_orders WHERE created_at >= DATE_SUB(NOW(), INTERVAL 1 MONTH)")->fetchColumn();
+$orderChange = $prevOrders > 0 ? round(($currOrders - $prevOrders) / $prevOrders * 100, 1) : 0;
+
+$prevCustomers = $pdo->query("SELECT COUNT(*) FROM e5_users WHERE role = 'customer' AND created_at >= DATE_SUB(NOW(), INTERVAL 2 MONTH) AND created_at < DATE_SUB(NOW(), INTERVAL 1 MONTH)")->fetchColumn();
+$currCustomers = $pdo->query("SELECT COUNT(*) FROM e5_users WHERE role = 'customer' AND created_at >= DATE_SUB(NOW(), INTERVAL 1 MONTH)")->fetchColumn();
+$customerChange = $prevCustomers > 0 ? round(($currCustomers - $prevCustomers) / $prevCustomers * 100, 1) : 0;
+
+$topProducts = $pdo->query('
+    SELECT p.name, SUM(oi.quantity) AS qty, SUM(oi.quantity * oi.unit_price) AS revenue
+    FROM e5_order_items oi
+    INNER JOIN e5_products p ON p.id = oi.product_id
+    GROUP BY oi.product_id, p.name
+    ORDER BY qty DESC
+    LIMIT 5
+')->fetchAll();
+
+$ordersByStatus = $pdo->query("SELECT status, COUNT(*) AS cnt FROM e5_orders GROUP BY status ORDER BY cnt DESC")->fetchAll();
+
+$categorySales = $pdo->query('
+    SELECT c.name, SUM(oi.quantity) AS qty
+    FROM e5_order_items oi
+    INNER JOIN e5_products p ON p.id = oi.product_id
+    INNER JOIN e5_categories c ON c.id = p.category_id
+    GROUP BY c.id, c.name
+    ORDER BY qty DESC
+')->fetchAll();
+$totalCatQty = array_sum(array_column($categorySales, 'qty'));
+?>
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -20,65 +56,18 @@ include 'auth_check.php';
 <body>
     <div class="admin-wrapper">
         <aside class="admin-sidebar">
-            <div class="admin-logo">
-                <a href="index.php">
-                    <span class="logo-icon"><i class="fas fa-crown"></i></span>
-                    <span class="logo-text">Royal<span>Tech</span></span>
-                </a>
-            </div>
-            
+            <div class="admin-logo"><a href="index.php"><span class="logo-icon"><i class="fas fa-crown"></i></span><span class="logo-text">Royal<span>Tech</span></span></a></div>
             <nav class="admin-nav">
-                <div class="admin-nav-item">
-                    <a href="index.php" class="admin-nav-link">
-                        <i class="fas fa-tachometer-alt"></i>
-                        <span>Dashboard</span>
-                    </a>
-                </div>
-                <div class="admin-nav-item">
-                    <a href="products.php" class="admin-nav-link">
-                        <i class="fas fa-box"></i>
-                        <span>Produtos</span>
-                    </a>
-                </div>
-                <div class="admin-nav-item">
-                    <a href="categories.php" class="admin-nav-link">
-                        <i class="fas fa-tags"></i>
-                        <span>Categorias</span>
-                    </a>
-                </div>
-                <div class="admin-nav-item">
-                    <a href="orders.php" class="admin-nav-link">
-                        <i class="fas fa-shopping-cart"></i>
-                        <span>Pedidos</span>
-                    </a>
-                </div>
-                <div class="admin-nav-item">
-                    <a href="customers.php" class="admin-nav-link">
-                        <i class="fas fa-users"></i>
-                        <span>Clientes</span>
-                    </a>
-                </div>
-                <div class="admin-nav-item">
-                    <a href="banners.php" class="admin-nav-link">
-                        <i class="fas fa-images"></i>
-                        <span>Banners</span>
-                    </a>
-                </div>
-                <div class="admin-nav-item">
-                    <a href="reports.php" class="admin-nav-link active">
-                        <i class="fas fa-chart-bar"></i>
-                        <span>Relatórios</span>
-                    </a>
-                </div>
-                <div class="admin-nav-item">
-                    <a href="settings.php" class="admin-nav-link">
-                        <i class="fas fa-cogs"></i>
-                        <span>Configurações</span>
-                    </a>
-                </div>
+                <div class="admin-nav-item"><a href="index.php" class="admin-nav-link"><i class="fas fa-tachometer-alt"></i><span>Dashboard</span></a></div>
+                <div class="admin-nav-item"><a href="products.php" class="admin-nav-link"><i class="fas fa-box"></i><span>Produtos</span></a></div>
+                <div class="admin-nav-item"><a href="categories.php" class="admin-nav-link"><i class="fas fa-tags"></i><span>Categorias</span></a></div>
+                <div class="admin-nav-item"><a href="orders.php" class="admin-nav-link"><i class="fas fa-shopping-cart"></i><span>Pedidos</span></a></div>
+                <div class="admin-nav-item"><a href="customers.php" class="admin-nav-link"><i class="fas fa-users"></i><span>Clientes</span></a></div>
+                <div class="admin-nav-item"><a href="banners.php" class="admin-nav-link"><i class="fas fa-images"></i><span>Banners</span></a></div>
+                <div class="admin-nav-item"><a href="reports.php" class="admin-nav-link active"><i class="fas fa-chart-bar"></i><span>Relatórios</span></a></div>
+                <div class="admin-nav-item"><a href="settings.php" class="admin-nav-link"><i class="fas fa-cogs"></i><span>Configurações</span></a></div>
             </nav>
         </aside>
-        
         <main class="admin-main">
             <header class="admin-header">
                 <div class="admin-title">
@@ -86,130 +75,105 @@ include 'auth_check.php';
                     <p>Análise detalhada do desempenho da sua loja</p>
                 </div>
                 <div class="admin-actions">
-                    <select style="padding: 10px 20px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-black-light); color: var(--color-white);">
-                        <option>Últimos 7 dias</option>
-                        <option>Últimos 30 dias</option>
-                        <option>Últimos 90 dias</option>
-                        <option>Este ano</option>
-                    </select>
-                    <button class="btn btn-primary">
-                        <i class="fas fa-download"></i>
-                        Exportar PDF
-                    </button>
+                    <button class="btn btn-primary"><i class="fas fa-download"></i> Exportar PDF</button>
                 </div>
             </header>
-            
+
             <div class="admin-cards">
                 <div class="admin-card">
-                    <div class="admin-card-icon">
-                        <i class="fas fa-dollar-sign"></i>
-                    </div>
-                    <div class="admin-card-value">R$ 156.890</div>
+                    <div class="admin-card-icon"><i class="fas fa-dollar-sign"></i></div>
+                    <div class="admin-card-value">R$ <?php echo number_format($totalRevenue, 2, ',', '.'); ?></div>
                     <div class="admin-card-label">Receita Total</div>
-                    <div class="admin-card-change positive">
-                        <i class="fas fa-arrow-up"></i> 15% vs mês anterior
+                    <div class="admin-card-change <?php echo $revenueChange >= 0 ? 'positive' : 'negative'; ?>">
+                        <i class="fas fa-arrow-<?php echo $revenueChange >= 0 ? 'up' : 'down'; ?>"></i> <?php echo abs($revenueChange); ?>% vs mês anterior
                     </div>
                 </div>
                 <div class="admin-card">
-                    <div class="admin-card-icon">
-                        <i class="fas fa-shopping-cart"></i>
-                    </div>
-                    <div class="admin-card-value">1.247</div>
+                    <div class="admin-card-icon"><i class="fas fa-shopping-cart"></i></div>
+                    <div class="admin-card-value"><?php echo $totalOrders; ?></div>
                     <div class="admin-card-label">Total de Pedidos</div>
-                    <div class="admin-card-change positive">
-                        <i class="fas fa-arrow-up"></i> 8% vs mês anterior
+                    <div class="admin-card-change <?php echo $orderChange >= 0 ? 'positive' : 'negative'; ?>">
+                        <i class="fas fa-arrow-<?php echo $orderChange >= 0 ? 'up' : 'down'; ?>"></i> <?php echo abs($orderChange); ?>% vs mês anterior
                     </div>
                 </div>
                 <div class="admin-card">
-                    <div class="admin-card-icon">
-                        <i class="fas fa-ticket-alt"></i>
-                    </div>
-                    <div class="admin-card-value">R$ 125,90</div>
+                    <div class="admin-card-icon"><i class="fas fa-ticket-alt"></i></div>
+                    <div class="admin-card-value">R$ <?php echo number_format($avgTicket, 2, ',', '.'); ?></div>
                     <div class="admin-card-label">Ticket Médio</div>
-                    <div class="admin-card-change positive">
-                        <i class="fas fa-arrow-up"></i> 5% vs mês anterior
-                    </div>
                 </div>
                 <div class="admin-card">
-                    <div class="admin-card-icon">
-                        <i class="fas fa-users"></i>
-                    </div>
-                    <div class="admin-card-value">89</div>
-                    <div class="admin-card-label">Novos Clientes</div>
-                    <div class="admin-card-change negative">
-                        <i class="fas fa-arrow-down"></i> 3% vs mês anterior
+                    <div class="admin-card-icon"><i class="fas fa-users"></i></div>
+                    <div class="admin-card-value"><?php echo $currCustomers; ?></div>
+                    <div class="admin-card-label">Novos Clientes (30 dias)</div>
+                    <div class="admin-card-change <?php echo $customerChange >= 0 ? 'positive' : 'negative'; ?>">
+                        <i class="fas fa-arrow-<?php echo $customerChange >= 0 ? 'up' : 'down'; ?>"></i> <?php echo abs($customerChange); ?>% vs mês anterior
                     </div>
                 </div>
             </div>
-            
+
             <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 30px;">
                 <div class="admin-table-container" style="padding: 30px;">
                     <h4 style="margin-bottom: 25px;">Produtos Mais Vendidos</h4>
                     <table class="admin-table">
-                        <thead>
-                            <tr>
-                                <th>Produto</th>
-                                <th>Vendas</th>
-                                <th>Receita</th>
-                            </tr>
-                        </thead>
+                        <thead><tr><th>Produto</th><th>Vendas</th><th>Receita</th></tr></thead>
                         <tbody>
+                            <?php if (empty($topProducts)): ?>
+                            <tr><td colspan="3" style="text-align:center; color:var(--color-gray); padding:30px;">Nenhuma venda registrada.</td></tr>
+                            <?php else: foreach ($topProducts as $p): ?>
                             <tr>
-                                <td>Notebook Premium Pro</td>
-                                <td>148</td>
-                                <td>R$ 1.331.852</td>
+                                <td><?php echo htmlspecialchars($p['name'], ENT_QUOTES, 'UTF-8'); ?></td>
+                                <td><?php echo (int) $p['qty']; ?></td>
+                                <td>R$ <?php echo number_format((float) $p['revenue'], 2, ',', '.'); ?></td>
                             </tr>
-                            <tr>
-                                <td>Smartphone Ultra X</td>
-                                <td>132</td>
-                                <td>R$ 659.868</td>
-                            </tr>
-                            <tr>
-                                <td>Fone Premium Wireless</td>
-                                <td>98</td>
-                                <td>R$ 88.102</td>
-                            </tr>
+                            <?php endforeach; endif; ?>
                         </tbody>
                     </table>
                 </div>
-                
+
                 <div class="admin-table-container" style="padding: 30px;">
-                    <h4 style="margin-bottom: 25px;">Categorias Populares</h4>
-                    <div style="display: flex; flex-direction: column; gap: 15px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span>Notebooks</span>
-                            <span style="color: var(--color-primary);">35%</span>
+                    <h4 style="margin-bottom: 25px;">Pedidos por Status</h4>
+                    <div style="display:flex; flex-direction:column; gap:15px;">
+                        <?php if (empty($ordersByStatus)): ?>
+                        <p style="color:var(--color-gray);">Nenhum pedido.</p>
+                        <?php else: foreach ($ordersByStatus as $s):
+                            $pct = $totalOrders > 0 ? round($s['cnt'] / $totalOrders * 100) : 0;
+                        ?>
+                        <div>
+                            <div style="display:flex; justify-content:space-between;">
+                                <span><?php echo ucfirst($s['status']); ?></span>
+                                <span style="color:var(--color-primary);"><?php echo $pct; ?>%</span>
+                            </div>
+                            <div style="height:8px; background:var(--color-black); border-radius:4px; margin-top:5px; overflow:hidden;">
+                                <div style="width:<?php echo $pct; ?>%; height:100%; background:var(--color-primary); border-radius:4px;"></div>
+                            </div>
                         </div>
-                        <div style="height: 8px; background: var(--color-black); border-radius: 4px; overflow: hidden;">
-                            <div style="width: 35%; height: 100%; background: var(--color-primary);"></div>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span>Smartphones</span>
-                            <span style="color: var(--color-primary);">28%</span>
-                        </div>
-                        <div style="height: 8px; background: var(--color-black); border-radius: 4px; overflow: hidden;">
-                            <div style="width: 28%; height: 100%; background: var(--color-primary);"></div>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span>Periféricos</span>
-                            <span style="color: var(--color-primary);">18%</span>
-                        </div>
-                        <div style="height: 8px; background: var(--color-black); border-radius: 4px; overflow: hidden;">
-                            <div style="width: 18%; height: 100%; background: var(--color-primary);"></div>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span>Áudio</span>
-                            <span style="color: var(--color-primary);">12%</span>
-                        </div>
-                        <div style="height: 8px; background: var(--color-black); border-radius: 4px; overflow: hidden;">
-                            <div style="width: 12%; height: 100%; background: var(--color-primary);"></div>
-                        </div>
+                        <?php endforeach; endif; ?>
                     </div>
                 </div>
             </div>
+
+            <?php if (!empty($categorySales)): ?>
+            <div class="admin-table-container" style="padding:30px; margin-top:30px;">
+                <h4 style="margin-bottom:25px;">Categorias Populares</h4>
+                <div style="display:flex; flex-direction:column; gap:15px; max-width:500px;">
+                    <?php foreach ($categorySales as $cat):
+                        $pct = $totalCatQty > 0 ? round($cat['qty'] / $totalCatQty * 100) : 0;
+                    ?>
+                    <div>
+                        <div style="display:flex; justify-content:space-between;">
+                            <span><?php echo htmlspecialchars($cat['name'], ENT_QUOTES, 'UTF-8'); ?></span>
+                            <span style="color:var(--color-primary);"><?php echo $pct; ?>%</span>
+                        </div>
+                        <div style="height:8px; background:var(--color-black); border-radius:4px; margin-top:5px; overflow:hidden;">
+                            <div style="width:<?php echo $pct; ?>%; height:100%; background:var(--color-primary); border-radius:4px;"></div>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <?php endif; ?>
         </main>
     </div>
-    
     <script src="../../assets/js/script.js"></script>
 </body>
 </html>
