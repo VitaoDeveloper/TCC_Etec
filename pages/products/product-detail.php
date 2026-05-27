@@ -18,7 +18,7 @@ $product = $stmt->fetch();
 
 $imagePath = (string) ($product['image_path'] ?? '');
 if ($imagePath === '') {
-    $imagePath = $base_path . 'assets/img/placeholder-product.jpg';
+    $imagePath = $base_path . 'assets/img/placeholder-product.svg';
 } elseif (!preg_match('#^(?:https?://|/)#', $imagePath)) {
     $imagePath = $base_path . ltrim($imagePath, '/');
 }

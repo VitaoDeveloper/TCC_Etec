@@ -100,7 +100,7 @@ include 'auth_check.php';
                     <button class="action-btn"><i class="fas fa-bell"></i></button>
                     <button class="action-btn"><i class="fas fa-envelope"></i></button>
                     <div class="admin-user">
-                        <img src="../../assets/img/placeholder-avatar.jpg" alt="Admin">
+                        <img src="../../assets/img/placeholder-avatar.svg" alt="Admin">
                         <span>Administrador</span>
                     </div>
                 </div>
@@ -246,7 +246,7 @@ include 'auth_check.php';
                     </div>
                     <div style="padding: 20px;">
                         <div class="popular-product" style="display: flex; align-items: center; gap: 15px; padding: 15px 0; border-bottom: 1px solid var(--color-border);">
-                            <img src="../../assets/img/placeholder-product.jpg" alt="Produto" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;">
+                            <img src="../../assets/img/placeholder-product.svg" alt="Produto" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;">
                             <div style="flex: 1;">
                                 <h5 style="font-size: 0.95rem; margin-bottom: 5px;">Notebook Premium Pro</h5>
                                 <span style="color: var(--color-primary); font-weight: 600;">R$ 8.999,00</span>
@@ -254,7 +254,7 @@ include 'auth_check.php';
                             <span class="status-badge status-active">148 vendas</span>
                         </div>
                         <div class="popular-product" style="display: flex; align-items: center; gap: 15px; padding: 15px 0; border-bottom: 1px solid var(--color-border);">
-                            <img src="../../assets/img/placeholder-product.jpg" alt="Produto" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;">
+                            <img src="../../assets/img/placeholder-product.svg" alt="Produto" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;">
                             <div style="flex: 1;">
                                 <h5 style="font-size: 0.95rem; margin-bottom: 5px;">Smartphone Ultra X</h5>
                                 <span style="color: var(--color-primary); font-weight: 600;">R$ 4.999,00</span>
@@ -262,7 +262,7 @@ include 'auth_check.php';
                             <span class="status-badge status-active">132 vendas</span>
                         </div>
                         <div class="popular-product" style="display: flex; align-items: center; gap: 15px; padding: 15px 0; border-bottom: 1px solid var(--color-border);">
-                            <img src="../../assets/img/placeholder-product.jpg" alt="Produto" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;">
+                            <img src="../../assets/img/placeholder-product.svg" alt="Produto" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;">
                             <div style="flex: 1;">
                                 <h5 style="font-size: 0.95rem; margin-bottom: 5px;">Fone Premium Wireless</h5>
                                 <span style="color: var(--color-primary); font-weight: 600;">R$ 899,00</span>
@@ -270,7 +270,7 @@ include 'auth_check.php';
                             <span class="status-badge status-active">98 vendas</span>
                         </div>
                         <div class="popular-product" style="display: flex; align-items: center; gap: 15px; padding: 15px 0;">
-                            <img src="../../assets/img/placeholder-product.jpg" alt="Produto" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;">
+                            <img src="../../assets/img/placeholder-product.svg" alt="Produto" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;">
                             <div style="flex: 1;">
                                 <h5 style="font-size: 0.95rem; margin-bottom: 5px;">Tablet Pro 12"</h5>
                                 <span style="color: var(--color-primary); font-weight: 600;">R$ 5.999,00</span>

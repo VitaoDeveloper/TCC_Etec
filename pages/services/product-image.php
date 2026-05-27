@@ -2,7 +2,7 @@
 include '../../database/connection.php';
 $productId = (int) ($_GET['product_id'] ?? 0);
 
-$placeholder = '../../assets/img/placeholder-product.jpg';
+$placeholder = '../../assets/img/placeholder-product.svg';
 if ($productId <= 0) {
     echo $placeholder;
     exit;
