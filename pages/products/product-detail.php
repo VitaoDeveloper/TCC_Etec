@@ -9,9 +9,9 @@ include '../../database/connection.php';
 $productId = (int) ($_GET['id'] ?? 0);
 
 $stmt = $pdo->prepare('SELECT p.*, c.name AS category_name,
-    (SELECT pi.image_path FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.is_primary DESC, pi.id ASC LIMIT 1) AS image_path
-    FROM products p
-    INNER JOIN categories c ON c.id = p.category_id
+    (SELECT pi.image_path FROM e5_product_images pi WHERE pi.product_id = p.id ORDER BY pi.is_primary DESC, pi.id ASC LIMIT 1) AS image_path
+    FROM e5_products p
+    INNER JOIN e5_categories c ON c.id = p.category_id
     WHERE p.id = :id LIMIT 1');
 $stmt->execute([':id' => $productId]);
 $product = $stmt->fetch();

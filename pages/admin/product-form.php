@@ -27,14 +27,14 @@ function normalizeImagePath(string $rawPath): string
 }
 
 if ($productId > 0) {
-    $stmt = $pdo->prepare('SELECT * FROM products WHERE id = :id LIMIT 1');
+    $stmt = $pdo->prepare('SELECT * FROM e5_products WHERE id = :id LIMIT 1');
     $stmt->execute([':id' => $productId]);
     $result = $stmt->fetch();
     if ($result) {
         $product = $result;
     }
 
-    $imgStmt = $pdo->prepare('SELECT image_path FROM product_images WHERE product_id = :id ORDER BY is_primary DESC, id ASC LIMIT 1');
+    $imgStmt = $pdo->prepare('SELECT image_path FROM e5_product_images WHERE product_id = :id ORDER BY is_primary DESC, id ASC LIMIT 1');
     $imgStmt->execute([':id' => $productId]);
     $imgRow = $imgStmt->fetch();
     $currentImagePath = $imgRow['image_path'] ?? '';
@@ -63,10 +63,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             if ($productId > 0) {
                 $payload[':id'] = $productId;
-                $sql = 'UPDATE products SET category_id=:category_id, name=:name, description=:description, brand=:brand, price=:price, old_price=:old_price, stock=:stock, is_featured=:is_featured WHERE id=:id';
+                $sql = 'UPDATE e5_products SET category_id=:category_id, name=:name, description=:description, brand=:brand, price=:price, old_price=:old_price, stock=:stock, is_featured=:is_featured WHERE id=:id';
             } else {
                 $payload[':slug'] = $slugBase . '-' . time();
-                $sql = 'INSERT INTO products (category_id, name, slug, description, brand, price, old_price, stock, is_featured) VALUES (:category_id, :name, :slug, :description, :brand, :price, :old_price, :stock, :is_featured)';
+                $sql = 'INSERT INTO e5_products (category_id, name, slug, description, brand, price, old_price, stock, is_featured) VALUES (:category_id, :name, :slug, :description, :brand, :price, :old_price, :stock, :is_featured)';
             }
 
             $stmt = $pdo->prepare($sql);
@@ -113,16 +113,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             if ($finalImagePath !== '') {
-                $pdo->prepare('UPDATE product_images SET is_primary = 0 WHERE product_id = :product_id')->execute([':product_id' => $productId]);
+                $pdo->prepare('UPDATE e5_product_images SET is_primary = 0 WHERE product_id = :product_id')->execute([':product_id' => $productId]);
 
-                $existingImgStmt = $pdo->prepare('SELECT id FROM product_images WHERE product_id = :product_id AND image_path = :image_path LIMIT 1');
+                $existingImgStmt = $pdo->prepare('SELECT id FROM e5_product_images WHERE product_id = :product_id AND image_path = :image_path LIMIT 1');
                 $existingImgStmt->execute([':product_id' => $productId, ':image_path' => $finalImagePath]);
                 $existingImage = $existingImgStmt->fetch();
 
                 if ($existingImage) {
-                    $pdo->prepare('UPDATE product_images SET is_primary = 1 WHERE id = :id')->execute([':id' => (int) $existingImage['id']]);
+                    $pdo->prepare('UPDATE e5_product_images SET is_primary = 1 WHERE id = :id')->execute([':id' => (int) $existingImage['id']]);
                 } else {
-                    $pdo->prepare('INSERT INTO product_images (product_id, image_path, is_primary) VALUES (:product_id, :image_path, 1)')
+                    $pdo->prepare('INSERT INTO e5_product_images (product_id, image_path, is_primary) VALUES (:product_id, :image_path, 1)')
                         ->execute([':product_id' => $productId, ':image_path' => $finalImagePath]);
                 }
             }
@@ -137,7 +137,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$categories = $pdo->query('SELECT id, name FROM categories ORDER BY name')->fetchAll();
+$categories = $pdo->query('SELECT id, name FROM e5_categories ORDER BY name')->fetchAll();
 ?>
 <!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title><?php echo $page_title; ?></title><link rel="stylesheet" href="../../assets/css/style.css"><link rel="stylesheet" href="../../assets/css/admin.css"></head><body>
 <div class="admin-wrapper"><main class="admin-main" style="margin-left:0; max-width:900px; margin-inline:auto;"><header class="admin-header"><div class="admin-title"><h2><?php echo $productId > 0 ? 'Editar Produto' : 'Novo Produto'; ?></h2></div></header>

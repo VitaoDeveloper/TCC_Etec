@@ -8,7 +8,7 @@ $base_path = '../../';
 include '../../database/connection.php';
 include '../../components/header.php';
 
-$categories = $pdo->query('SELECT c.id, c.name, c.description, COUNT(p.id) AS total_products FROM categories c LEFT JOIN products p ON p.category_id = c.id GROUP BY c.id, c.name, c.description ORDER BY c.name')->fetchAll();
+$categories = $pdo->query('SELECT c.id, c.name, c.description, COUNT(p.id) AS total_products FROM e5_categories c LEFT JOIN e5_products p ON p.category_id = c.id GROUP BY c.id, c.name, c.description ORDER BY c.name')->fetchAll();
 ?>
 <section class="section"><div class="container"><div class="section-header"><h2>Categorias</h2><p>Navegue por categorias dinâmicas cadastradas no painel admin</p></div>
 <div class="categories-grid">

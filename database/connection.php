@@ -2,7 +2,7 @@
 $host = "localhost";
 $username = "root";
 $password = "";
-$database = "royaltech";
+$database = "e5_royaltech";
 
 $dsn = "mysql:host=$host;dbname=$database;charset=utf8mb4";
 

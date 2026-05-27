@@ -11,7 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $description = trim((string) $_POST['description']);
         if ($name !== '') {
             $slug = strtolower(trim(preg_replace('/[^a-zA-Z0-9]+/', '-', $name), '-'));
-            $stmt = $pdo->prepare('INSERT INTO categories (name, slug, description) VALUES (:name, :slug, :description)');
+            $stmt = $pdo->prepare('INSERT INTO e5_categories (name, slug, description) VALUES (:name, :slug, :description)');
             $stmt->execute([':name' => $name, ':slug' => $slug . '-' . time(), ':description' => $description ?: null]);
             $_SESSION['admin_message'] = 'Categoria criada com sucesso.';
         }
@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'delete') {
         $categoryId = (int) ($_POST['category_id'] ?? 0);
         if ($categoryId > 0) {
-            $stmt = $pdo->prepare('DELETE FROM categories WHERE id = :id');
+            $stmt = $pdo->prepare('DELETE FROM e5_categories WHERE id = :id');
             $stmt->execute([':id' => $categoryId]);
             $_SESSION['admin_message'] = 'Categoria removida com sucesso.';
         }
@@ -30,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
-$categories = $pdo->query('SELECT c.*, (SELECT COUNT(*) FROM products p WHERE p.category_id = c.id) AS total_products FROM categories c ORDER BY c.name')->fetchAll();
+$categories = $pdo->query('SELECT c.*, (SELECT COUNT(*) FROM e5_products p WHERE p.category_id = c.id) AS total_products FROM e5_categories c ORDER BY c.name')->fetchAll();
 $message = $_SESSION['admin_message'] ?? null;
 unset($_SESSION['admin_message']);
 ?>

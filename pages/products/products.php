@@ -11,9 +11,9 @@ $categoryFilter = (int) ($_GET['category_id'] ?? 0);
 $searchTerm = trim((string) ($_GET['q'] ?? ''));
 
 $sql = 'SELECT p.id, p.name, p.price, p.old_price, p.brand, p.is_featured, c.name AS category_name,
-        (SELECT pi.image_path FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.is_primary DESC, pi.id ASC LIMIT 1) AS image_path
-        FROM products p
-        INNER JOIN categories c ON c.id = p.category_id
+        (SELECT pi.image_path FROM e5_product_images pi WHERE pi.product_id = p.id ORDER BY pi.is_primary DESC, pi.id ASC LIMIT 1) AS image_path
+        FROM e5_products p
+        INNER JOIN e5_categories c ON c.id = p.category_id
         WHERE 1=1';
 $params = [];
 if ($categoryFilter > 0) {$sql .= ' AND p.category_id = :category_id'; $params[':category_id'] = $categoryFilter;}
@@ -28,7 +28,7 @@ $sql .= ' ORDER BY p.created_at DESC';
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $products = $stmt->fetchAll();
-$categories = $pdo->query('SELECT id, name FROM categories ORDER BY name')->fetchAll();
+$categories = $pdo->query('SELECT id, name FROM e5_categories ORDER BY name')->fetchAll();
 
 include '../../components/header.php';
 ?>

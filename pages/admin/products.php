@@ -9,7 +9,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'delete') {
         $id = (int) ($_POST['product_id'] ?? 0);
         if ($id > 0) {
-            $stmt = $pdo->prepare('DELETE FROM products WHERE id = :id');
+            $stmt = $pdo->prepare('DELETE FROM e5_products WHERE id = :id');
             $stmt->execute([':id' => $id]);
             $_SESSION['admin_message'] = 'Produto removido com sucesso.';
         }
@@ -19,7 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
-$products = $pdo->query('SELECT p.id, p.name, p.price, p.stock, c.name AS category_name FROM products p INNER JOIN categories c ON c.id = p.category_id ORDER BY p.created_at DESC')->fetchAll();
+$products = $pdo->query('SELECT p.id, p.name, p.price, p.stock, c.name AS category_name FROM e5_products p INNER JOIN e5_categories c ON c.id = p.category_id ORDER BY p.created_at DESC')->fetchAll();
 $message = $_SESSION['admin_message'] ?? null;
 unset($_SESSION['admin_message']);
 ?>

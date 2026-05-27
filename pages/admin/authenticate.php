@@ -10,7 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $email = trim((string) filter_input(INPUT_POST, 'email'));
 $password = (string) filter_input(INPUT_POST, 'password');
 
-$sql = 'SELECT id, name, password FROM users WHERE email = :email AND role = :role LIMIT 1';
+$sql = 'SELECT id, name, password FROM e5_users WHERE email = :email AND role = :role LIMIT 1';
 $stmt = $pdo->prepare($sql);
 $stmt->execute([':email' => $email, ':role' => 'admin']);
 $admin = $stmt->fetch();

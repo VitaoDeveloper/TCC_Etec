@@ -41,7 +41,7 @@ if (!empty($errors)) {
     exit;
 }
 
-$sql = 'INSERT INTO users (name, email, username, password, postal_code, street, number, complement) VALUES (:name, :email, :username, :password, :postal_code, :street, :number, :complement)';
+$sql = 'INSERT INTO e5_users (name, email, username, password, postal_code, street, number, complement) VALUES (:name, :email, :username, :password, :postal_code, :street, :number, :complement)';
 
 try {
     $stmt = $pdo->prepare($sql);

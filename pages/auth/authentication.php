@@ -27,7 +27,7 @@ if (!empty($errors)) {
 }
 
 $identifierType = filter_var($identifier, FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
-$sql = "SELECT id, name, {$identifierType}, password, role FROM users WHERE {$identifierType} = :identifier LIMIT 1";
+$sql = "SELECT id, name, {$identifierType}, password, role FROM e5_users WHERE {$identifierType} = :identifier LIMIT 1";
 $stmt = $pdo->prepare($sql);
 $stmt->execute([':identifier' => $identifier]);
 $user = $stmt->fetch();

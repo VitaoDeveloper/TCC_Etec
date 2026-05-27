@@ -8,7 +8,7 @@ if ($productId <= 0) {
     exit;
 }
 
-$stmt = $pdo->prepare('SELECT image_path FROM product_images WHERE product_id = :product_id ORDER BY is_primary DESC, id ASC LIMIT 1');
+$stmt = $pdo->prepare('SELECT image_path FROM e5_product_images WHERE product_id = :product_id ORDER BY is_primary DESC, id ASC LIMIT 1');
 $stmt->execute([':product_id' => $productId]);
 $row = $stmt->fetch();
 
