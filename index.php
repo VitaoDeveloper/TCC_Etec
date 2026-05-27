@@ -307,15 +307,34 @@ include 'components/header.php';
 </section>
 
 <!-- Newsletter Section -->
+<?php
+$newsletterMessage = null;
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['newsletter_email'])) {
+    $email = trim((string) $_POST['newsletter_email']);
+    if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        try {
+            include 'database/connection.php';
+            $stmt = $pdo->prepare('INSERT IGNORE INTO e5_newsletter (email) VALUES (:email)');
+            $stmt->execute([':email' => $email]);
+            $newsletterMessage = 'E-mail cadastrado com sucesso!';
+        } catch (Throwable $e) {
+            $newsletterMessage = 'Erro ao cadastrar. Tente novamente.';
+        }
+    } else {
+        $newsletterMessage = 'E-mail inválido.';
+    }
+}
+?>
 <section class="section section-dark">
     <div class="container">
         <div class="section-header">
             <h2>Receba Ofertas Exclusivas</h2>
             <p>Cadastre-se em nossa newsletter e seja o primeiro a saber sobre promoções e lançamentos</p>
         </div>
+        <?php if ($newsletterMessage): ?><div style="text-align:center; margin-bottom:15px; color:var(--color-primary);"><?php echo htmlspecialchars($newsletterMessage, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
         <div style="max-width: 600px; margin: 0 auto; text-align: center;">
-            <form class="newsletter-form" style="display: flex; gap: 15px;">
-                <input type="email" placeholder="Seu melhor e-mail..." style="
+            <form method="POST" style="display: flex; gap: 15px;">
+                <input type="email" name="newsletter_email" placeholder="Seu melhor e-mail..." required style="
                     flex: 1;
                     padding: 15px 25px;
                     border: 1px solid var(--color-border);

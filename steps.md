@@ -80,16 +80,16 @@
 ## 5. 🚧 Funcionalidades Não Implementadas
 
 ### Backend (sem nenhuma lógica PHP)
-- [ ] **Carrinho de compras** — botão existe, efeito visual existe, mas nada é salvo
-- [ ] **Checkout e pagamento** — inexistente
-- [ ] **Busca de produtos** — campo existe, sem resultado real
-- [ ] **Filtros e ordenação** — frontend only, sem query no banco
-- [ ] **Formulário de contato** — sem envio de e-mail ou gravação
-- [ ] **Newsletter** — sem backend
-- [ ] **Paginação** — hardcoded no HTML
-- [ ] **Recuperação de senha** — link existe, sem página
-- [ ] **Perfil do usuário logado** — inexistente
-- [ ] **Histórico de pedidos do cliente** — inexistente
+- [x] **Carrinho de compras** — sessão DB + AJAX + badge no header + página com quantidades
+- [x] **Checkout e pagamento** — cria pedido em `e5_orders` + `e5_order_items`, transação, confirmação
+- [x] **Busca de produtos** — header search box agora navega para `products.php?q=`
+- [x] **Filtros e ordenação** — marca, preço min/max, ordenação dinâmica (preço, nome, data)
+- [x] **Formulário de contato** — salva em `e5_contacts` com validação
+- [x] **Newsletter** — salva em `e5_newsletter` com unique email
+- [x] **Paginação** — 12 itens/página com navegação numérica
+- [x] **Recuperação de senha** — forgot + reset com token criptografado e expiração
+- [x] **Perfil do usuário logado** — editar dados + alterar senha
+- [x] **Histórico de pedidos do cliente** — listagem + detalhes por pedido
 
 ### CRUD Admin (✅ Todos conectados ao banco)
 - [x] Listagem de produtos do banco
@@ -123,7 +123,7 @@
 - **Dois designs de login diferentes**: `pages/admin/login.php` e `pages/auth/login.php` têm aparências distintas sem motivo claro
 - **Breadcrumb** usa `padding: 120px 0 40px` fixo — em mobile, onde o header é menor, gera espaço excessivo
 - **Sidebar mobile do admin** abre mas não tem overlay/backdrop clicável para fechar
-- **`product-detail.php`** não existe, então todos os cards de produto têm links quebrados
+- **`product-detail.php`** já existe e está funcional (corrigido em sessão anterior)
 - **CEP no cadastro**: campo `type="number"` apaga zeros à esquerda (ex: `01310100` vira `1310100`)
 
 ---

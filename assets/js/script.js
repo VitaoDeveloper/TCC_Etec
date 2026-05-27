@@ -62,25 +62,56 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // ========================================
-    // Add to Cart Button
+    // Add to Cart Button — AJAX
     // ========================================
     const addToCartBtns = document.querySelectorAll('.btn-add-cart');
-    
+    const loggedFlag = document.body.getAttribute('data-logged-in') === '1';
+    const basePath = document.body.getAttribute('data-base-path') || '';
+
     addToCartBtns.forEach(btn => {
         btn.addEventListener('click', function(e) {
             e.preventDefault();
-            
-            // Efeito visual de feedback
+            if (!loggedFlag) return;
+
+            const card = this.closest('[data-product-id]');
+            const productId = card ? card.getAttribute('data-product-id') : null;
+            if (!productId) return;
+
             const originalText = this.innerHTML;
-            this.innerHTML = '<i class="fas fa-check"></i> Adicionado!';
-            this.style.background = 'var(--color-primary)';
-            this.style.color = 'var(--color-black)';
-            
-            setTimeout(() => {
-                this.innerHTML = originalText;
-                this.style.background = '';
-                this.style.color = '';
-            }, 2000);
+
+            fetch(basePath + 'pages/cart/add.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: 'product_id=' + productId + '&quantity=1'
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    this.innerHTML = '<i class="fas fa-check"></i> Adicionado!';
+                    this.style.background = 'var(--color-primary)';
+                    this.style.color = 'var(--color-black)';
+                    setTimeout(() => {
+                        this.innerHTML = originalText;
+                        this.style.background = '';
+                        this.style.color = '';
+                    }, 2000);
+                    const badge = document.querySelector('.cart-badge');
+                    if (badge) {
+                        badge.textContent = data.count;
+                    } else {
+                        const cartBtn = document.querySelector('.cart-btn');
+                        if (cartBtn) {
+                            const span = document.createElement('span');
+                            span.className = 'cart-badge';
+                            span.textContent = data.count;
+                            cartBtn.appendChild(span);
+                        }
+                    }
+                } else {
+                    alert(data.message);
+                }
+            })
+            .catch(() => { alert('Erro ao adicionar ao carrinho.'); });
         });
     });
     
@@ -160,22 +191,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // ========================================
-    // Newsletter Form
-    // ========================================
-    const newsletterForm = document.querySelector('.newsletter-form');
-    
-    if (newsletterForm) {
-        newsletterForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const email = this.querySelector('input[type="email"]').value;
-            
-            if (email) {
-                alert('Obrigado por se cadastrar! Você receberá nossas ofertas em: ' + email);
-                this.reset();
-            }
-        });
-    }
+
     
     // ========================================
     // Sticky Header Effect

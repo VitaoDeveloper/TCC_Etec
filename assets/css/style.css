@@ -307,6 +307,27 @@ h6 { font-size: 1rem; }
     color: var(--color-primary);
 }
 
+.cart-btn {
+    position: relative;
+}
+
+.cart-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    background: var(--color-primary);
+    color: var(--color-black);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 18px;
+    text-align: center;
+    border-radius: 9px;
+    border: 2px solid var(--color-black);
+}
+
 /* Mobile Menu Button */
 .mobile-menu-btn {
     display: none;

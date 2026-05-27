@@ -41,7 +41,7 @@ $page_title = 'Login Administrativo - Royal Tech';
                         <input type="checkbox" name="remember">
                         <span>Lembrar-me</span>
                     </label>
-                    <a href="#" class="forgot-password">Esqueceu a senha?</a>
+                    <a href="../auth/forgot-password.php" class="forgot-password">Esqueceu a senha?</a>
                 </div>
                 
                 <button type="submit" class="btn btn-primary" style="width: 100%;">

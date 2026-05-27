@@ -5,6 +5,20 @@ if (session_status() === PHP_SESSION_NONE) {
 
 $isLoggedIn = isset($_SESSION['user_id']);
 $basePath = $base_path ?? '';
+
+$cartCount = 0;
+if ($isLoggedIn) {
+    if (!isset($pdo)) {
+        $connPath = dirname(__DIR__) . '/database/connection.php';
+        if (file_exists($connPath)) {
+            include $connPath;
+        }
+    }
+    if (isset($pdo)) {
+        require_once dirname(__DIR__) . '/includes/cart_functions.php';
+        $cartCount = cartGetCount($pdo, (int)$_SESSION['user_id']);
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -57,13 +71,17 @@ $basePath = $base_path ?? '';
 
                 <div class="header-actions">
                     <div class="search-box">
-                        <input type="text" placeholder="Buscar produtos...">
-                        <button><i class="fas fa-search"></i></button>
+                        <input type="text" placeholder="Buscar produtos..." id="header-search-input">
+                        <button id="header-search-btn"><i class="fas fa-search"></i></button>
                     </div>
                     <div class="user-actions">
                         <a href="#" class="action-btn require-auth" data-auth-target="favoritos"><i class="far fa-heart"></i></a>
-                        <a href="#" class="action-btn require-auth" data-auth-target="carrinho"><i class="fas fa-shopping-cart"></i></a>
+                        <a href="<?php echo $basePath; ?>pages/cart/cart.php" class="action-btn cart-btn">
+                            <i class="fas fa-shopping-cart"></i>
+                            <?php if ($cartCount > 0): ?><span class="cart-badge"><?php echo $cartCount; ?></span><?php endif; ?>
+                        </a>
                         <?php if ($isLoggedIn): ?>
+                            <a href="<?php echo $basePath; ?>pages/auth/profile.php" class="btn btn-secondary btn-small"><i class="fas fa-user"></i> Perfil</a>
                             <a href="<?php echo $basePath; ?>pages/auth/logout.php" class="btn btn-secondary btn-small"><i class="fas fa-sign-out-alt"></i> Sair</a>
                         <?php else: ?>
                             <a href="<?php echo $basePath; ?>pages/auth/login.php" class="btn btn-primary btn-small"><i class="fas fa-user-cog"></i> Login</a>
@@ -78,6 +96,20 @@ $basePath = $base_path ?? '';
     </div>
 </header>
 
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var searchBtn = document.getElementById('header-search-btn');
+    var searchInput = document.getElementById('header-search-input');
+    function doSearch() {
+        var q = searchInput.value.trim();
+        if (q) {
+            window.location.href = '<?php echo $basePath; ?>pages/products/products.php?q=' + encodeURIComponent(q);
+        }
+    }
+    if (searchBtn) searchBtn.addEventListener('click', doSearch);
+    if (searchInput) searchInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') doSearch(); });
+});
+</script>
 <?php if (isset($show_breadcrumb) && $show_breadcrumb): ?>
 <section class="breadcrumb-section">
     <div class="container">

@@ -58,6 +58,7 @@ $next = $_GET['next'] ?? '../products/products.php';
             <button type="button" class="password-toggle" id="togglePassword"><i class="fas fa-eye"></i></button>
         </div>
         <button type="submit" class="btn-auth"><i class="fas fa-sign-in-alt"></i> Entrar</button>
+        <div style="text-align:center; margin-top:10px;"><a href="forgot-password.php" style="color:var(--color-gray); font-size:0.85rem;">Esqueceu a senha?</a></div>
     </form>
 
     <div class="auth-footer">Ainda não tem conta? <a href="register.php">Crie uma agora</a></div>
