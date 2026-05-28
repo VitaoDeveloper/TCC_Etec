@@ -3,6 +3,7 @@ $page_title = 'Formulário de Produto - Royal Tech';
 include 'auth_check.php';
 include '../../database/connection.php';
 require_once __DIR__ . '/../../includes/csrf.php';
+$activePage = 'products';
 
 $productId = (int) ($_GET['id'] ?? 0);
 $product = ['category_id' => '', 'name' => '', 'description' => '', 'brand' => '', 'price' => '', 'old_price' => '', 'stock' => 0, 'is_featured' => 0];
@@ -21,7 +22,7 @@ function normalizeImagePath(string $rawPath): string
     }
 
     if ($path[0] !== '/') {
-        $path = '/assets/img/products/' . ltrim($path, '/');
+        $path = 'assets/img/products/' . ltrim($path, '/');
     }
 
     return $path;
@@ -143,57 +144,141 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $categories = $pdo->query('SELECT id, name FROM e5_categories ORDER BY name')->fetchAll();
-?>
-<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title><?php echo $page_title; ?></title><link rel="stylesheet" href="../../assets/css/style.css"><link rel="stylesheet" href="../../assets/css/admin.css"></head><body>
-<div class="admin-wrapper"><main class="admin-main" style="margin-left:0; max-width:900px; margin-inline:auto;"><header class="admin-header"><div class="admin-title"><h2><?php echo $productId > 0 ? 'Editar Produto' : 'Novo Produto'; ?></h2></div></header>
-<?php if ($errorMessage): ?><div class="auth-feedback auth-feedback-error"><?php echo htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
-<div class="admin-table-container"><form method="POST" enctype="multipart/form-data" style="display:grid; gap:12px;">
-<select name="category_id" required><option value="">Selecione a categoria</option><?php foreach($categories as $category): ?><option value="<?php echo (int)$category['id']; ?>" <?php echo (int)$product['category_id'] === (int)$category['id'] ? 'selected' : ''; ?>><?php echo htmlspecialchars($category['name'], ENT_QUOTES, 'UTF-8'); ?></option><?php endforeach; ?></select>
-<input type="text" id="product_name" name="name" placeholder="Nome" value="<?php echo htmlspecialchars($product['name'], ENT_QUOTES, 'UTF-8'); ?>" required>
-<textarea name="description" placeholder="Descrição"><?php echo htmlspecialchars($product['description'] ?? '', ENT_QUOTES, 'UTF-8'); ?></textarea>
-<input type="text" name="brand" placeholder="Marca" value="<?php echo htmlspecialchars($product['brand'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
-<input type="number" step="0.01" min="0.01" name="price" placeholder="Preço" value="<?php echo htmlspecialchars((string)$product['price'], ENT_QUOTES, 'UTF-8'); ?>" required>
-<input type="number" step="0.01" min="0" name="old_price" placeholder="Preço anterior" value="<?php echo htmlspecialchars((string)($product['old_price'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
-<input type="number" min="0" name="stock" placeholder="Estoque" value="<?php echo (int)$product['stock']; ?>" required>
-<label><input type="checkbox" name="is_featured" <?php echo (int)$product['is_featured'] === 1 ? 'checked' : ''; ?>> Produto em destaque</label>
+?><!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?php echo $page_title; ?></title>
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="stylesheet" href="../../assets/css/admin.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <button class="sidebar-toggle" aria-label="Abrir menu"><i class="fas fa-bars"></i></button>
+    <div class="admin-wrapper">
+        <?php include 'sidebar_inc.php'; ?>
+        <main class="admin-main">
+            <header class="admin-header">
+                <div class="admin-title">
+                    <h2><?php echo $productId > 0 ? 'Editar Produto' : 'Novo Produto'; ?></h2>
+                    <p>Preencha os dados do produto</p>
+                </div>
+            </header>
 
-<label for="image_path">Caminho da imagem (manual)</label>
-<input type="text" id="image_path" name="image_path" data-auto-path="<?php echo $currentImagePath === '' ? '1' : '0'; ?>" placeholder="/assets/img/products/meu-produto.jpg ou produto.jpg" value="<?php echo htmlspecialchars($currentImagePath, ENT_QUOTES, 'UTF-8'); ?>">
-<small>Se você informar apenas o nome do arquivo, o sistema salva automaticamente em /assets/img/products/.</small>
+            <?php if ($errorMessage): ?>
+            <div class="auth-feedback auth-feedback-error"><?php echo htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8'); ?></div>
+            <?php endif; ?>
 
-<label for="product_image">Upload da imagem (JPG, PNG, WEBP)</label>
-<input type="file" id="product_image" name="product_image" accept=".jpg,.jpeg,.png,.webp">
-<?php if ($currentImagePath): ?><small>Imagem atual: <?php echo htmlspecialchars($currentImagePath, ENT_QUOTES, 'UTF-8'); ?></small><?php endif; ?>
+            <div class="admin-table-container">
+                <div class="admin-table-header">
+                    <h3>Dados do produto</h3>
+                </div>
+                <form method="POST" enctype="multipart/form-data" style="padding:20px 25px;">
+                    <div class="admin-form-group">
+                        <label for="category_id">Categoria</label>
+                        <select id="category_id" name="category_id" required>
+                            <option value="">Selecione a categoria</option>
+                            <?php foreach ($categories as $category): ?>
+                            <option value="<?php echo (int) $category['id']; ?>" <?php echo (int) $product['category_id'] === (int) $category['id'] ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($category['name'], ENT_QUOTES, 'UTF-8'); ?>
+                            </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
 
-<?php echo csrf_field(); ?>
-<button class="btn btn-primary" type="submit">Salvar</button>
-<a class="btn btn-secondary" href="products.php">Voltar</a>
-</form></div></main></div>
-<script>
-(function () {
-  const nameInput = document.getElementById('product_name');
-  const pathInput = document.getElementById('image_path');
-  if (!nameInput || !pathInput) return;
+                    <div class="admin-form-group">
+                        <label for="product_name">Nome do produto</label>
+                        <input type="text" id="product_name" name="name" placeholder="Ex: Smartphone X Pro" value="<?php echo htmlspecialchars($product['name'], ENT_QUOTES, 'UTF-8'); ?>" required>
+                    </div>
 
-  const slugify = (value) => value
-    .toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+                    <div class="admin-form-group">
+                        <label for="description">Descrição <small>(opcional)</small></label>
+                        <textarea id="description" name="description" placeholder="Descrição detalhada do produto"><?php echo htmlspecialchars($product['description'] ?? '', ENT_QUOTES, 'UTF-8'); ?></textarea>
+                    </div>
 
-  const refreshPath = () => {
-    if (pathInput.dataset.autoPath !== '1') return;
-    const slug = slugify(nameInput.value);
-    pathInput.value = slug ? `/assets/img/products/${slug}.jpg` : '';
-  };
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+                        <div class="admin-form-group">
+                            <label for="brand">Marca <small>(opcional)</small></label>
+                            <input type="text" id="brand" name="brand" placeholder="Ex: Apple, Samsung" value="<?php echo htmlspecialchars($product['brand'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+                        </div>
+                        <div class="admin-form-group">
+                            <label for="stock">Estoque</label>
+                            <input type="number" id="stock" min="0" name="stock" placeholder="Qtd. em estoque" value="<?php echo (int) $product['stock']; ?>" required>
+                        </div>
+                    </div>
 
-  pathInput.addEventListener('input', () => {
-    const value = pathInput.value.trim();
-    pathInput.dataset.autoPath = value === '' ? '1' : '0';
-  });
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+                        <div class="admin-form-group">
+                            <label for="price">Preço</label>
+                            <input type="number" id="price" step="0.01" min="0.01" name="price" placeholder="0,00" value="<?php echo htmlspecialchars((string) $product['price'], ENT_QUOTES, 'UTF-8'); ?>" required>
+                        </div>
+                        <div class="admin-form-group">
+                            <label for="old_price">Preço anterior <small>(opcional)</small></label>
+                            <input type="number" id="old_price" step="0.01" min="0" name="old_price" placeholder="0,00" value="<?php echo htmlspecialchars((string) ($product['old_price'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
+                        </div>
+                    </div>
 
-  nameInput.addEventListener('input', refreshPath);
-  refreshPath();
-})();
-</script>
-</body></html>
+                    <div class="admin-form-group">
+                        <label class="checkbox-label" style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+                            <input type="checkbox" name="is_featured" <?php echo (int) $product['is_featured'] === 1 ? 'checked' : ''; ?> style="width:auto;">
+                            <span>Produto em destaque</span>
+                        </label>
+                    </div>
+
+                    <hr style="border:none; border-top:1px solid var(--color-border); margin:20px 0;">
+
+                    <div class="admin-form-group">
+                        <label for="image_path">Caminho da imagem</label>
+                        <input type="text" id="image_path" name="image_path" data-auto-path="<?php echo $currentImagePath === '' ? '1' : '0'; ?>" placeholder="/assets/img/products/meu-produto.jpg" value="<?php echo htmlspecialchars($currentImagePath, ENT_QUOTES, 'UTF-8'); ?>">
+                        <small style="color:var(--color-gray);">Informe apenas o nome do arquivo (ex: produto.jpg) que o sistema completa o caminho.</small>
+                    </div>
+
+                    <div class="admin-form-group">
+                        <label for="product_image">Upload de imagem (JPG, PNG, WEBP)</label>
+                        <input type="file" id="product_image" name="product_image" accept=".jpg,.jpeg,.png,.webp">
+                        <?php if ($currentImagePath): ?>
+                        <small style="color:var(--color-gray); display:block; margin-top:6px;">Imagem atual: <?php echo htmlspecialchars($currentImagePath, ENT_QUOTES, 'UTF-8'); ?></small>
+                        <?php endif; ?>
+                    </div>
+
+                    <?php echo csrf_field(); ?>
+                    <div style="display:flex; gap:10px; margin-top:20px;">
+                        <button class="btn btn-primary" type="submit"><i class="fas fa-save"></i> Salvar</button>
+                        <a class="btn btn-secondary" href="products.php">Voltar</a>
+                    </div>
+                </form>
+            </div>
+        </main>
+    </div>
+    <script src="../../assets/js/script.js"></script>
+    <script>
+    (function () {
+      const nameInput = document.getElementById('product_name');
+      const pathInput = document.getElementById('image_path');
+      if (!nameInput || !pathInput) return;
+
+      const slugify = (value) => value
+        .toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+
+      const refreshPath = () => {
+        if (pathInput.dataset.autoPath !== '1') return;
+        const slug = slugify(nameInput.value);
+        pathInput.value = slug ? `/assets/img/products/${slug}.jpg` : '';
+      };
+
+      pathInput.addEventListener('input', () => {
+        const value = pathInput.value.trim();
+        pathInput.dataset.autoPath = value === '' ? '1' : '0';
+      });
+
+      nameInput.addEventListener('input', refreshPath);
+      refreshPath();
+    })();
+    </script>
+</body>
+</html>

@@ -60,7 +60,7 @@ unset($_SESSION['admin_message']);
                     <p><?php echo $total; ?> cliente(s) cadastrado(s)</p>
                 </div>
                 <div class="admin-actions">
-                    <button class="btn btn-secondary"><i class="fas fa-file-export"></i> Exportar</button>
+                    <button class="btn btn-secondary" aria-label="Exportar clientes"><i class="fas fa-file-export"></i> Exportar</button>
                 </div>
             </header>
             <?php if ($message): ?>
@@ -70,7 +70,7 @@ unset($_SESSION['admin_message']);
                 <div class="admin-table-header">
                     <form method="GET" style="display:flex; gap:10px;">
                         <input type="text" name="q" placeholder="Buscar por nome, e-mail ou usuário..." value="<?php echo htmlspecialchars($search, ENT_QUOTES, 'UTF-8'); ?>" style="padding: 8px 15px; border: 1px solid var(--color-border); border-radius: 5px; background: var(--color-black); color: var(--color-white); width: 300px;">
-                        <button type="submit" class="btn btn-secondary"><i class="fas fa-search"></i></button>
+                        <button type="submit" class="btn btn-secondary" aria-label="Buscar clientes"><i class="fas fa-search"></i></button>
                     </form>
                 </div>
                 <table class="admin-table">

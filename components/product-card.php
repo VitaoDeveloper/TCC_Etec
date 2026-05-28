@@ -18,10 +18,13 @@
 
 <?php
 $imageCandidate = (string) ($product_image ?? '');
+$base = $base_path ?? '';
 if ($imageCandidate === '') {
-    $imageCandidate = ($base_path ?? '') . 'assets/img/placeholder-product.svg';
-} elseif (!preg_match('#^(?:https?://|/)#', $imageCandidate)) {
-    $imageCandidate = ($base_path ?? '') . ltrim($imageCandidate, '/');
+    $imageCandidate = $base . 'assets/img/placeholder-product.svg';
+} elseif (preg_match('#^/#', $imageCandidate)) {
+    $imageCandidate = $base . ltrim($imageCandidate, '/');
+} elseif (!preg_match('#^https?://#i', $imageCandidate)) {
+    $imageCandidate = $base . $imageCandidate;
 }
 ?>
 
@@ -35,7 +38,7 @@ if ($imageCandidate === '') {
         <span class="product-badge featured">Destaque</span>
         <?php endif; ?>
         
-        <img src="<?php echo htmlspecialchars($imageCandidate, ENT_QUOTES, 'UTF-8'); ?>" style="width:100%; height:100%; object-fit:cover;" 
+        <img src="<?php echo htmlspecialchars($imageCandidate, ENT_QUOTES, 'UTF-8'); ?>" style="width:100%; height:100%;" 
              alt="<?php echo $product_name ?? 'Produto'; ?>">
         
         <div class="product-actions">
@@ -73,7 +76,7 @@ if ($imageCandidate === '') {
         </div>
         <?php endif; ?>
         
-        <button class="btn-add-cart require-auth" data-auth-target="carrinho">
+        <button class="btn-add-cart js-require-auth" data-auth-target="carrinho" aria-label="Adicionar ao carrinho">
             <i class="fas fa-shopping-bag"></i>
             Adicionar ao Carrinho
         </button>

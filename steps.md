@@ -61,7 +61,8 @@
 | `assets/img/placeholder-avatar.svg` | ✅ Criado (SVG) |
 | `assets/img/hero-bg.jpg` | ✅ Existe |
 | `assets/img/banner-bg.svg` | ✅ Criado (SVG) |
-| `.htaccess` ou `config.php` | ❌ Pendente (configuração global/URLs amigáveis)
+| `.htaccess` | ✅ Resolvido (segurança + URLs amigáveis + cache + página 404) |
+| `config.php` | ✅ Resolvido (`config.example.php` disponível, `connection.php` com fallback, incluso no `.gitignore`)
 
 ---
 
@@ -118,23 +119,28 @@
 
 ---
 
-## 7. 🎨 Inconsistências de UI/UX
+## 7. 🎨 Inconsistências de UI/UX (✅ Resolvido)
 
-- **Dois designs de login diferentes**: `pages/admin/login.php` e `pages/auth/login.php` têm aparências distintas sem motivo claro
-- **Breadcrumb** usa `padding: 120px 0 40px` fixo — em mobile, onde o header é menor, gera espaço excessivo
-- **Sidebar mobile do admin** abre mas não tem overlay/backdrop clicável para fechar
-- **`product-detail.php`** já existe e está funcional (corrigido em sessão anterior)
-- **CEP no cadastro**: campo `type="number"` apaga zeros à esquerda (ex: `01310100` vira `1310100`)
+| Item | Status |
+|------|--------|
+| Designs de login diferentes | ✅ Unificados: ambos usam `login.css` com layout premium (gradiente, box centralizado, borda, logo) |
+| Breadcrumb padding fixo | ✅ Substituído por `clamp(80px, 10vh, 120px)` — responsivo em mobile |
+| Sidebar sem backdrop | ✅ Backdrop escuro com opacidade animada + fechamento ao clicar ou pressionar Escape |
+| CEP type=number | ✅ Já estava `type="text"` com `pattern` e `inputmode="numeric"` (corrigido em sessão anterior) |
+| Register | ✅ Alinhado ao mesmo visual premium do login (gradiente, box, logo, inputs) |
 
 ---
 
-## 8. 🔍 SEO e Acessibilidade
+## 8. 🔍 SEO e Acessibilidade (✅ Resolvido)
 
-- Nenhuma página tem `<meta name="description">`
-- Sem Open Graph (`og:title`, `og:image`) para compartilhamento
-- Sem `sitemap.xml` e `robots.txt`
-- Botões de ação (favorito, carrinho, visualizar) sem `aria-label` — ilegíveis por leitores de tela
-- Imagens placeholder sem `alt` significativo
+| Item | Status |
+|------|--------|
+| `<meta name="description">` | ✅ Dinâmico via `$page_description` no `header.php` |
+| Open Graph (`og:title`, `og:image`, `og:description`, `og:type`, `og:site_name`) | ✅ Tags dinâmicas no `header.php` com fallbacks |
+| `sitemap.xml` | ✅ Criado com URLs principais |
+| `robots.txt` | ✅ Criado (bloqueia `includes/`, `database/`, `admin/`, `config.php`) |
+| `aria-label` em botões | ✅ Adicionado em 17 botões icônicos (busca, menu mobile, carrinho, admin, toggle senha, etc.) |
+| `alt` em imagens | ✅ Corrigido em 6 imagens (carrinho, histórico de pedidos, admin dashboard) |
 
 ---
 

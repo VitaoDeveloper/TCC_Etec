@@ -137,13 +137,6 @@ unset($_SESSION['admin_message']);
             </form>
         </main>
     </div>
-    <style>
-    .settings-sidebar { background: var(--color-black-light); border: 1px solid var(--color-border); border-radius: 10px; padding: 20px; height: fit-content; position: sticky; top: 100px; }
-    .settings-nav { display: flex; flex-direction: column; gap: 5px; }
-    .settings-link { display: flex; align-items: center; gap: 12px; padding: 15px 20px; color: var(--color-gray-light); border-radius: 8px; transition: var(--transition); }
-    .settings-link:hover, .settings-link.active { background: rgba(212, 175, 55, 0.1); color: var(--color-primary); }
-    .settings-content .admin-file-upload { text-align: center; cursor: pointer; }
-    </style>
     <script src="../../assets/js/script.js"></script>
 </body>
 </html>

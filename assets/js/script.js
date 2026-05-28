@@ -172,7 +172,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // ========================================
     // Require authentication for ecommerce actions
     // ========================================
-    const protectedActions = document.querySelectorAll('.require-auth');
+    const protectedActions = document.querySelectorAll('.js-require-auth');
     const loggedFlag = document.body.getAttribute('data-logged-in') === '1';
 
     protectedActions.forEach((btn) => {
@@ -233,20 +233,38 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // ========================================
-    // Admin Sidebar Toggle
+    // Admin Sidebar Toggle + Backdrop
     // ========================================
     const sidebarToggle = document.querySelector('.sidebar-toggle');
     const adminSidebar = document.querySelector('.admin-sidebar');
+    let sidebarBackdrop = document.querySelector('.admin-sidebar-backdrop');
     
-    if (sidebarToggle && adminSidebar) {
+    if (sidebarToggle && adminSidebar && !sidebarBackdrop) {
+        sidebarBackdrop = document.createElement('div');
+        sidebarBackdrop.className = 'admin-sidebar-backdrop';
+        document.body.appendChild(sidebarBackdrop);
+    }
+    
+    function toggleSidebar(open) {
+        if (!adminSidebar || !sidebarBackdrop) return;
+        const isOpen = open !== undefined ? open : !adminSidebar.classList.contains('active');
+        adminSidebar.classList.toggle('active', isOpen);
+        sidebarBackdrop.classList.toggle('active', isOpen);
+        document.body.style.overflow = isOpen ? 'hidden' : '';
+    }
+    
+    if (sidebarToggle && adminSidebar && sidebarBackdrop) {
         sidebarToggle.addEventListener('click', function() {
-            adminSidebar.classList.toggle('active');
+            toggleSidebar();
         });
         
-        // Close sidebar when clicking outside
-        document.addEventListener('click', function(e) {
-            if (!adminSidebar.contains(e.target) && !sidebarToggle.contains(e.target)) {
-                adminSidebar.classList.remove('active');
+        sidebarBackdrop.addEventListener('click', function() {
+            toggleSidebar(false);
+        });
+        
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && adminSidebar.classList.contains('active')) {
+                toggleSidebar(false);
             }
         });
     }

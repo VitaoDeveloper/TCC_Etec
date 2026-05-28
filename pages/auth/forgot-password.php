@@ -34,14 +34,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 include '../../components/header.php';
 ?>
-<section class="section"><div class="container" style="max-width:480px; margin:0 auto;">
+<section class="section"><div class="container max-w-480 mx-auto">
     <div class="section-header"><h2>Recuperar Senha</h2><p>Informe seu e-mail para receber o link de redefinição</p></div>
     <?php if ($successMessage): ?><div class="auth-feedback auth-feedback-success"><?php echo $successMessage; ?></div><?php endif; ?>
     <?php if ($errorMessage): ?><div class="auth-feedback auth-feedback-error"><?php echo htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
     <form method="POST" class="admin-table-container" style="padding:30px;">
         <div class="admin-form-group"><label for="email">E-mail</label><input type="email" id="email" name="email" placeholder="seu@email.com" required></div>
         <?php echo csrf_field(); ?>
-        <button type="submit" class="btn btn-primary" style="width:100%;"><i class="fas fa-paper-plane"></i> Enviar Link</button>
+        <button type="submit" class="btn btn-primary btn-block"><i class="fas fa-paper-plane"></i> Enviar Link</button>
         <div style="text-align:center; margin-top:15px;"><a href="login.php" style="color:var(--color-gray);">Voltar ao login</a></div>
     </form>
 </div></section>

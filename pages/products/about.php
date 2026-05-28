@@ -7,8 +7,6 @@ $base_path = '../../';
 
 include '../../components/header.php';
 ?>
-<link rel="stylesheet" href="<?php echo $base_path.'assets/css/style.css' ?>">
-<link rel="stylesheet" href="<?php echo $base_path.'assets/css/admin.css' ?>">
 <section class="section" style="padding: 100px 0 60px;">
     <div class="container">
         <div class="section-header">
@@ -21,7 +19,7 @@ include '../../components/header.php';
 <!-- About Content -->
 <section class="section">
     <div class="container">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center;">
+        <div class="grid-2col">
             <div>
                 <h3 style="margin-bottom: 20px;">Nossa História</h3>
                 <p style="color: var(--color-gray-light); margin-bottom: 20px;">
@@ -129,30 +127,30 @@ include '../../components/header.php';
             <h2> Nossa Equipe</h2>
             <p>Profissionais dedicados ao seu sucesso</p>
         </div>
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 30px;">
-            <div class="team-member" style="text-align: center;">
+        <div class="grid-4col">
+            <div class="team-member">
                 <div class="placeholder" style="min-height: 250px; border-radius: 10px; margin-bottom: 20px;">
                     <i class="fas fa-user"></i>
                 </div>
                 <h4>João Silva</h4>
                 <span style="color: var(--color-primary);">CEO & Fundador</span>
             </div>
-            <div class="team-member" style="text-align: center;">
-                <div class="placeholder" style="min-height: 250px; border-radius: 10px; margin-bottom: 20px;">
+            <div class="team-member">
+                <div class="placeholder">
                     <i class="fas fa-user"></i>
                 </div>
                 <h4>Maria Santos</h4>
                 <span style="color: var(--color-primary);">Diretora Comercial</span>
             </div>
-            <div class="team-member" style="text-align: center;">
-                <div class="placeholder" style="min-height: 250px; border-radius: 10px; margin-bottom: 20px;">
+            <div class="team-member">
+                <div class="placeholder">
                     <i class="fas fa-user"></i>
                 </div>
                 <h4>Pedro Costa</h4>
                 <span style="color: var(--color-primary);">Gerente de Produtos</span>
             </div>
-            <div class="team-member" style="text-align: center;">
-                <div class="placeholder" style="min-height: 250px; border-radius: 10px; margin-bottom: 20px;">
+            <div class="team-member">
+                <div class="placeholder">
                     <i class="fas fa-user"></i>
                 </div>
                 <h4>Ana Oliveira</h4>

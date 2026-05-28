@@ -1,0 +1,106 @@
+# ============================================================
+# .htaccess — Royal Tech E-commerce
+# ============================================================
+
+RewriteEngine On
+
+# ============================================================
+# SEGURANÇA
+# ============================================================
+
+# Bloquear acesso a diretórios sensíveis
+RedirectMatch 403 ^/includes/.*$
+RedirectMatch 403 ^/database/.*$
+RedirectMatch 403 ^/config\.php$
+RedirectMatch 403 ^/config\.example\.php$
+RedirectMatch 403 ^/opencode\.json$
+RedirectMatch 403 ^/steps\.md$
+RedirectMatch 403 ^/\.gitignore$
+RedirectMatch 403 ^/nul$
+
+# Desligar listagem de diretórios
+Options -Indexes
+
+# Bloquear acesso a arquivos ocultos
+RedirectMatch 403 /\..*$
+
+# Headers de segurança
+<IfModule mod_headers.c>
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# ============================================================
+# CACHE DE ASSETS
+# ============================================================
+
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType image/webp "access plus 1 year"
+    ExpiresByType image/svg+xml "access plus 1 year"
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+    ExpiresByType font/woff2 "access plus 1 year"
+</IfModule>
+
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/css application/javascript image/svg+xml font/woff2
+</IfModule>
+
+# ============================================================
+# PÁGINA DE ERRO PERSONALIZADA
+# ============================================================
+
+ErrorDocument 404 /TCC_Etec/pages/404.php
+ErrorDocument 500 /TCC_Etec/pages/404.php
+
+# ============================================================
+# URL REWRITING — AMIGÁVEIS
+# ============================================================
+
+# Produto individual: /produto/123
+RewriteRule ^produto/([0-9]+)$ pages/products/product-detail.php?id=$1 [L,QSA]
+
+# Categoria: /categoria/slug-da-categoria
+RewriteRule ^categoria/([a-zA-Z0-9_-]+)$ pages/products/categories.php?slug=$1 [L,QSA]
+
+# Páginas principais
+RewriteRule ^produtos$ pages/products/products.php [L,QSA]
+RewriteRule ^carrinho$ pages/cart/cart.php [L,QSA]
+RewriteRule ^checkout$ pages/cart/checkout.php [L,QSA]
+RewriteRule ^login$ pages/auth/login.php [L,QSA]
+RewriteRule ^cadastro$ pages/auth/register.php [L,QSA]
+RewriteRule ^contato$ pages/products/contact.php [L,QSA]
+RewriteRule ^sobre$ pages/products/about.php [L,QSA]
+RewriteRule ^perfil$ pages/auth/profile.php [L,QSA]
+RewriteRule ^meus-pedidos$ pages/auth/orders.php [L,QSA]
+RewriteRule ^esqueci-senha$ pages/auth/forgot-password.php [L,QSA]
+
+# Admin
+RewriteRule ^admin$ pages/admin/index.php [L,QSA]
+RewriteRule ^admin/produtos$ pages/admin/products.php [L,QSA]
+RewriteRule ^admin/pedidos$ pages/admin/orders.php [L,QSA]
+RewriteRule ^admin/clientes$ pages/admin/customers.php [L,QSA]
+RewriteRule ^admin/categorias$ pages/admin/categories.php [L,QSA]
+RewriteRule ^admin/banners$ pages/admin/banners.php [L,QSA]
+RewriteRule ^admin/relatorios$ pages/admin/reports.php [L,QSA]
+RewriteRule ^admin/configuracoes$ pages/admin/settings.php [L,QSA]
+
+# ============================================================
+# REDIRECIONAMENTO WWW (opcional — descomente para ativar)
+# ============================================================
+
+# RewriteCond %{HTTP_HOST} !^www\. [NC]
+# RewriteRule ^(.*)$ https://www.%{HTTP_HOST}/$1 [R=301,L]
+
+# ============================================================
+# PROTEÇÃO CONTRA HOTLINK (opcional)
+# ============================================================
+
+# RewriteCond %{HTTP_REFERER} !^$
+# RewriteCond %{HTTP_REFERER} !^https?://(www\.)?seudominio\.com [NC]
+# RewriteRule \.(jpg|jpeg|png|gif|webp|svg)$ - [F]

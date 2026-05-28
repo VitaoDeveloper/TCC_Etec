@@ -116,8 +116,8 @@ include $base_path . 'components/header.php';
                 <form method="POST" style="margin-top:25px;">
                     <p style="margin-bottom:15px; font-size:0.9rem; color:var(--color-gray);"><i class="fas fa-info-circle"></i> Ao finalizar, você concorda com nossos termos de compra. O pagamento será processado na entrega.</p>
                     <?php echo csrf_field(); ?>
-                    <button type="submit" class="btn btn-primary" style="width:100%; padding:14px; font-size:1.1rem;"><i class="fas fa-check"></i> Confirmar Pedido</button>
-                    <a href="cart.php" class="btn btn-secondary" style="width:100%; margin-top:8px;"><i class="fas fa-arrow-left"></i> Voltar ao Carrinho</a>
+                    <button type="submit" class="btn btn-primary btn-block" style="padding:14px; font-size:1.1rem;"><i class="fas fa-check"></i> Confirmar Pedido</button>
+                    <a href="cart.php" class="btn btn-secondary btn-block mt-20"><i class="fas fa-arrow-left"></i> Voltar ao Carrinho</a>
                 </form>
             </div>
         </div>

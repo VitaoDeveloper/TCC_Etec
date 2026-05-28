@@ -124,7 +124,7 @@ unset($_SESSION['admin_message']);
                                         <option value="<?php echo $k; ?>" <?php echo $k === $o['status'] ? 'selected' : ''; ?>><?php echo $v['label']; ?></option>
                                         <?php endforeach; ?>
                                     </select>
-                                    <button type="submit" class="btn btn-secondary" style="padding:4px 10px; font-size:0.8rem;"><i class="fas fa-check"></i></button>
+                                    <button type="submit" class="btn btn-secondary" style="padding:4px 10px; font-size:0.8rem;" aria-label="Atualizar status do pedido"><i class="fas fa-check"></i></button>
                                 </form>
                             </td>
                         </tr>
