@@ -22,7 +22,7 @@ function normalizeImagePath(string $rawPath): string
     }
 
     if ($path[0] !== '/') {
-        $path = '/assets/img/products/' . ltrim($path, '/');
+        $path = 'assets/img/products/' . ltrim($path, '/');
     }
 
     return $path;

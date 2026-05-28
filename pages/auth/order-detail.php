@@ -52,8 +52,12 @@ include '../../components/header.php';
             <tbody>
             <?php foreach ($items as $item):
                 $img = (string) ($item['image_path'] ?? '');
-                if ($img === '' || !preg_match('#^(?:https?://|/)#', $img)) {
+                if ($img === '') {
                     $img = $base_path . 'assets/img/placeholder-product.svg';
+                } elseif (preg_match('#^/#', $img)) {
+                    $img = $base_path . ltrim($img, '/');
+                } elseif (!preg_match('#^https?://#i', $img)) {
+                    $img = $base_path . $img;
                 }
             ?>
                 <tr>

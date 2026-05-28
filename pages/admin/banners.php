@@ -15,7 +15,7 @@ function normalizeBannerPath(string $rawPath): string
         return $path;
     }
     if ($path[0] !== '/') {
-        $path = '/assets/img/banners/' . ltrim($path, '/');
+        $path = 'assets/img/banners/' . ltrim($path, '/');
     }
     return $path;
 }

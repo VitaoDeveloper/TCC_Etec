@@ -18,10 +18,13 @@
 
 <?php
 $imageCandidate = (string) ($product_image ?? '');
+$base = $base_path ?? '';
 if ($imageCandidate === '') {
-    $imageCandidate = ($base_path ?? '') . 'assets/img/placeholder-product.svg';
-} elseif (!preg_match('#^(?:https?://|/)#', $imageCandidate)) {
-    $imageCandidate = ($base_path ?? '') . ltrim($imageCandidate, '/');
+    $imageCandidate = $base . 'assets/img/placeholder-product.svg';
+} elseif (preg_match('#^/#', $imageCandidate)) {
+    $imageCandidate = $base . ltrim($imageCandidate, '/');
+} elseif (!preg_match('#^https?://#i', $imageCandidate)) {
+    $imageCandidate = $base . $imageCandidate;
 }
 ?>
 

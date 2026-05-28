@@ -19,8 +19,10 @@ $product = $stmt->fetch();
 $imagePath = (string) ($product['image_path'] ?? '');
 if ($imagePath === '') {
     $imagePath = $base_path . 'assets/img/placeholder-product.svg';
-} elseif (!preg_match('#^(?:https?://|/)#', $imagePath)) {
+} elseif (preg_match('#^/#', $imagePath)) {
     $imagePath = $base_path . ltrim($imagePath, '/');
+} elseif (!preg_match('#^https?://#i', $imagePath)) {
+    $imagePath = $base_path . $imagePath;
 }
 
 include '../../components/header.php';
