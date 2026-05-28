@@ -342,7 +342,7 @@ h6 { font-size: 1rem; }
    Breadcrumb
    ======================================== */
 .breadcrumb-section {
-    padding: 120px 0 40px;
+    padding: clamp(80px, 10vh, 120px) 0 clamp(30px, 4vh, 40px);
     background: var(--color-black-light);
 }
 

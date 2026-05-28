@@ -119,13 +119,15 @@
 
 ---
 
-## 7. 🎨 Inconsistências de UI/UX
+## 7. 🎨 Inconsistências de UI/UX (✅ Resolvido)
 
-- **Dois designs de login diferentes**: `pages/admin/login.php` e `pages/auth/login.php` têm aparências distintas sem motivo claro
-- **Breadcrumb** usa `padding: 120px 0 40px` fixo — em mobile, onde o header é menor, gera espaço excessivo
-- **Sidebar mobile do admin** abre mas não tem overlay/backdrop clicável para fechar
-- **`product-detail.php`** já existe e está funcional (corrigido em sessão anterior)
-- **CEP no cadastro**: campo `type="number"` apaga zeros à esquerda (ex: `01310100` vira `1310100`)
+| Item | Status |
+|------|--------|
+| Designs de login diferentes | ✅ Unificados: ambos usam `login.css` com layout premium (gradiente, box centralizado, borda, logo) |
+| Breadcrumb padding fixo | ✅ Substituído por `clamp(80px, 10vh, 120px)` — responsivo em mobile |
+| Sidebar sem backdrop | ✅ Backdrop escuro com opacidade animada + fechamento ao clicar ou pressionar Escape |
+| CEP type=number | ✅ Já estava `type="text"` com `pattern` e `inputmode="numeric"` (corrigido em sessão anterior) |
+| Register | ✅ Alinhado ao mesmo visual premium do login (gradiente, box, logo, inputs) |
 
 ---
 

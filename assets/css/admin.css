@@ -406,6 +406,7 @@
     .admin-sidebar {
         transform: translateX(-100%);
         transition: var(--transition);
+        z-index: 1001;
     }
     
     .admin-sidebar.active {
@@ -424,6 +425,28 @@
     
     .admin-cards {
         grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* Sidebar backdrop */
+.admin-sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.admin-sidebar-backdrop.active {
+    display: block;
+    opacity: 1;
+}
+
+@media (max-width: 992px) {
+    .admin-sidebar-backdrop.active {
+        display: block;
     }
 }
 
