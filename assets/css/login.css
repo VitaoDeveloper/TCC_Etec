@@ -171,31 +171,6 @@
     color: var(--color-primary);
 }
 
-.auth-feedback {
-    margin-bottom: 20px;
-    padding: 12px 14px;
-    border-radius: 8px;
-    font-weight: 600;
-    text-align: left;
-}
-
-.auth-feedback-error {
-    background: #3a1010;
-    color: #ffb3b3;
-    border: 1px solid #c54242;
-}
-
-.auth-feedback-success {
-    background: #103a1f;
-    color: #b5f5cb;
-    border: 1px solid #41a967;
-}
-
-.auth-feedback ul {
-    margin: 8px 0 0 18px;
-    font-weight: 400;
-}
-
 .auth-footer {
     text-align: center;
     margin-top: 30px;

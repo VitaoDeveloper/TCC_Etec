@@ -33,6 +33,7 @@ if ($isLoggedIn) {
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Royal Tech">
     <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/style.css">
+    <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/admin.css">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -81,7 +82,7 @@ if ($isLoggedIn) {
                         <button id="header-search-btn" aria-label="Buscar produtos"><i class="fas fa-search"></i></button>
                     </div>
                     <div class="user-actions">
-                        <a href="#" class="action-btn require-auth" data-auth-target="favoritos"><i class="far fa-heart"></i></a>
+                        <a href="#" class="action-btn js-require-auth" data-auth-target="favoritos"><i class="far fa-heart"></i></a>
                         <a href="<?php echo $basePath; ?>pages/cart/cart.php" class="action-btn cart-btn">
                             <i class="fas fa-shopping-cart"></i>
                             <?php if ($cartCount > 0): ?><span class="cart-badge"><?php echo $cartCount; ?></span><?php endif; ?>

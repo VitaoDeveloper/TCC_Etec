@@ -172,7 +172,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // ========================================
     // Require authentication for ecommerce actions
     // ========================================
-    const protectedActions = document.querySelectorAll('.require-auth');
+    const protectedActions = document.querySelectorAll('.js-require-auth');
     const loggedFlag = document.body.getAttribute('data-logged-in') === '1';
 
     protectedActions.forEach((btn) => {

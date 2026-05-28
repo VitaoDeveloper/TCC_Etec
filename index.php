@@ -340,16 +340,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['newsletter_email'])) 
         <div style="max-width: 600px; margin: 0 auto; text-align: center;">
             <form method="POST" style="display: flex; gap: 15px;">
                 <?php echo csrf_field(); ?>
-                <input type="email" name="newsletter_email" placeholder="Seu melhor e-mail..." required style="
-                    flex: 1;
-                    padding: 15px 25px;
-                    border: 1px solid var(--color-border);
-                    border-radius: 30px;
-                    background: var(--color-black);
-                    color: var(--color-white);
-                    font-family: var(--font-primary);
-                    font-size: 1rem;
-                ">
+                <input type="email" name="newsletter_email" placeholder="Seu melhor e-mail..." required class="newsletter-input" style="border-radius:30px;">
                 <button type="submit" class="btn btn-primary">
                     <i class="fas fa-paper-plane"></i>
                     Inscrever-se

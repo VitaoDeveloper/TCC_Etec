@@ -110,7 +110,7 @@ include '../../components/header.php';
             <div class="admin-form-group"><label for="new_password">Nova Senha</label><input type="password" id="new_password" name="new_password" placeholder="Mínimo 6 caracteres" minlength="6"></div>
         </div>
         <?php echo csrf_field(); ?>
-        <button type="submit" class="btn btn-primary" style="width:100%; margin-top:20px;"><i class="fas fa-save"></i> Salvar Alterações</button>
+        <button type="submit" class="btn btn-primary btn-block mt-20"><i class="fas fa-save"></i> Salvar Alterações</button>
     </form>
     <div style="text-align:center; margin-top:15px;"><a href="orders.php" class="btn btn-secondary"><i class="fas fa-box"></i> Meus Pedidos</a></div>
 </div></section>

@@ -35,7 +35,7 @@ if ($imageCandidate === '') {
         <span class="product-badge featured">Destaque</span>
         <?php endif; ?>
         
-        <img src="<?php echo htmlspecialchars($imageCandidate, ENT_QUOTES, 'UTF-8'); ?>" style="width:100%; height:100%; object-fit:cover;" 
+        <img src="<?php echo htmlspecialchars($imageCandidate, ENT_QUOTES, 'UTF-8'); ?>" style="width:100%; height:100%;" 
              alt="<?php echo $product_name ?? 'Produto'; ?>">
         
         <div class="product-actions">
@@ -73,7 +73,7 @@ if ($imageCandidate === '') {
         </div>
         <?php endif; ?>
         
-        <button class="btn-add-cart require-auth" data-auth-target="carrinho" aria-label="Adicionar ao carrinho">
+        <button class="btn-add-cart js-require-auth" data-auth-target="carrinho" aria-label="Adicionar ao carrinho">
             <i class="fas fa-shopping-bag"></i>
             Adicionar ao Carrinho
         </button>

@@ -8,9 +8,6 @@ http_response_code(404);
 
 include '../components/header.php';
 ?>
-<link rel="stylesheet" href="<?php echo $base_path; ?>assets/css/style.css">
-<link rel="stylesheet" href="<?php echo $base_path; ?>assets/css/admin.css">
-
 <section class="section" style="padding: 120px 0 80px;">
     <div class="container">
         <div style="max-width: 600px; margin: 0 auto; text-align: center;">

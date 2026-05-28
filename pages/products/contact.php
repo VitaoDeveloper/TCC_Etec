@@ -39,8 +39,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 include '../../components/header.php';
 ?>
-<link rel="stylesheet" href="<?php echo $base_path.'assets/css/style.css' ?>">
-<link rel="stylesheet" href="<?php echo $base_path.'assets/css/admin.css' ?>">
 <section class="section" style="padding: 100px 0 60px;">
     <div class="container">
         <div class="section-header">
@@ -101,70 +99,26 @@ include '../../components/header.php';
             <!-- Contact Info -->
             <div>
                 <h3 style="margin-bottom: 30px;">Informações de Contato</h3>
-                
-                <div class="contact-info-cards" style="display: flex; flex-direction: column; gap: 20px;">
-                    <div class="admin-table-container" style="padding: 30px;">
-                        <div style="display: flex; align-items: flex-start; gap: 20px;">
-                            <div style="width: 60px; height: 60px; background: var(--color-black); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                                <i class="fas fa-map-marker-alt" style="font-size: 1.5rem; color: var(--color-primary);"></i>
-                            </div>
-                            <div>
-                                <h4 style="margin-bottom: 10px;">Endereço</h4>
-                                <p style="color: var(--color-gray-light);">
-                                    Av. Paulista, 1000<br>
-                                    Bela Vista, São Paulo - SP<br>
-                                    CEP: 01310-100
-                                </p>
-                            </div>
-                        </div>
+                <div class="contact-info-cards">
+                    <div class="contact-info-card">
+                        <div class="icon-box"><i class="fas fa-map-marker-alt"></i></div>
+                        <h4>Endereço</h4>
+                        <p>Av. Paulista, 1000<br>Bela Vista, São Paulo - SP<br>CEP: 01310-100</p>
                     </div>
-                    
-                    <div class="admin-table-container" style="padding: 30px;">
-                        <div style="display: flex; align-items: flex-start; gap: 20px;">
-                            <div style="width: 60px; height: 60px; background: var(--color-black); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                                <i class="fas fa-phone-alt" style="font-size: 1.5rem; color: var(--color-primary);"></i>
-                            </div>
-                            <div>
-                                <h4 style="margin-bottom: 10px;">Telefones</h4>
-                                <p style="color: var(--color-gray-light);">
-                                    (11) 99999-9999<br>
-                                    (11) 3333-3333<br>
-                                    <small style="color: var(--color-gray);">WhatsApp disponível</small>
-                                </p>
-                            </div>
-                        </div>
+                    <div class="contact-info-card">
+                        <div class="icon-box"><i class="fas fa-phone-alt"></i></div>
+                        <h4>Telefones</h4>
+                        <p>(11) 99999-9999<br>(11) 3333-3333<br><small>WhatsApp disponível</small></p>
                     </div>
-                    
-                    <div class="admin-table-container" style="padding: 30px;">
-                        <div style="display: flex; align-items: flex-start; gap: 20px;">
-                            <div style="width: 60px; height: 60px; background: var(--color-black); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                                <i class="fas fa-envelope" style="font-size: 1.5rem; color: var(--color-primary);"></i>
-                            </div>
-                            <div>
-                                <h4 style="margin-bottom: 10px;">E-mail</h4>
-                                <p style="color: var(--color-gray-light);">
-                                    contato@royaltech.com.br<br>
-                                    suporte@royaltech.com.br<br>
-                                    vendas@royaltech.com.br
-                                </p>
-                            </div>
-                        </div>
+                    <div class="contact-info-card">
+                        <div class="icon-box"><i class="fas fa-envelope"></i></div>
+                        <h4>E-mail</h4>
+                        <p>contato@royaltech.com.br<br>suporte@royaltech.com.br<br>vendas@royaltech.com.br</p>
                     </div>
-                    
-                    <div class="admin-table-container" style="padding: 30px;">
-                        <div style="display: flex; align-items: flex-start; gap: 20px;">
-                            <div style="width: 60px; height: 60px; background: var(--color-black); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                                <i class="fas fa-clock" style="font-size: 1.5rem; color: var(--color-primary);"></i>
-                            </div>
-                            <div>
-                                <h4 style="margin-bottom: 10px;">Horário de Funcionamento</h4>
-                                <p style="color: var(--color-gray-light);">
-                                    Segunda a Sexta: 09h às 18h<br>
-                                    Sábado: 09h às 13h<br>
-                                    Domingo: Fechado
-                                </p>
-                            </div>
-                        </div>
+                    <div class="contact-info-card">
+                        <div class="icon-box"><i class="fas fa-clock"></i></div>
+                        <h4>Horário de Funcionamento</h4>
+                        <p>Segunda a Sexta: 09h às 18h<br>Sábado: 09h às 13h<br>Domingo: Fechado</p>
                     </div>
                 </div>
                 

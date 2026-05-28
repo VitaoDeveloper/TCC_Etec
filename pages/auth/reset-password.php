@@ -42,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $token !== '') {
 
 include '../../components/header.php';
 ?>
-<section class="section"><div class="container" style="max-width:480px; margin:0 auto;">
+<section class="section"><div class="container max-w-480 mx-auto">
     <div class="section-header"><h2>Redefinir Senha</h2></div>
     <?php if ($successMessage): ?><div class="auth-feedback auth-feedback-success"><?php echo $successMessage; ?></div><?php endif; ?>
     <?php if ($errorMessage): ?><div class="auth-feedback auth-feedback-error"><?php echo htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
@@ -51,7 +51,7 @@ include '../../components/header.php';
         <div class="admin-form-group"><label for="password">Nova Senha</label><input type="password" id="password" name="password" placeholder="Mínimo 6 caracteres" required minlength="6"></div>
         <div class="admin-form-group"><label for="confirm_password">Confirmar Senha</label><input type="password" id="confirm_password" name="confirm_password" placeholder="Repita a senha" required minlength="6"></div>
         <?php echo csrf_field(); ?>
-        <button type="submit" class="btn btn-primary" style="width:100%;"><i class="fas fa-check"></i> Redefinir Senha</button>
+        <button type="submit" class="btn btn-primary btn-block"><i class="fas fa-check"></i> Redefinir Senha</button>
     </form>
     <?php endif; ?>
 </div></section>
