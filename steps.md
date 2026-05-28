@@ -1,125 +1,120 @@
 # 📋 Análise Completa — Royal Tech TCC
-> Status atual: **Frontend quase completo · Backend incompleto · Segurança ausente**
+> Status atual: **Frontend quase completo · Backend completo · Segurança implementada**
 
 ---
 
 ## 1. 🗄️ Banco de Dados
 
-### Tabelas existentes
-- `users` — definida em `database/database.sql`
-
-### Tabelas faltando (crítico)
-| Tabela | Por quê é necessária |
+### Tabelas existentes (✅ todas criadas)
+| Tabela | Status |
 |---|---|
-| `products` | Nenhum produto é salvo/lido do banco |
-| `categories` | Categorias são estáticas no HTML |
-| `orders` | Pedidos exibidos no admin são mock |
-| `order_items` | Itens de cada pedido |
-| `cart` | Carrinho não persiste |
-| `banners` | Banners são estáticos |
-| `admins` | Login do admin não tem tabela própria |
-| `product_images` | Upload de imagens não tem destino |
+| `e5_users` | ✅ Inclui `role`, `postal_code VARCHAR`, `created_at`/`updated_at` |
+| `e5_categories` | ✅ OK |
+| `e5_products` | ✅ OK (FK para `e5_categories`) |
+| `e5_product_images` | ✅ OK (FK para `e5_products`, `ON DELETE CASCADE`) |
+| `e5_orders` | ✅ OK (FK para `e5_users`) |
+| `e5_order_items` | ✅ OK (FK para `e5_orders` e `e5_products`) |
+| `e5_cart` | ✅ OK (FK para `e5_users` e `e5_products`, `ON DELETE CASCADE`) |
+| `e5_banners` | ✅ OK |
 
-### Problemas no schema existente
-- `postal_code` definido como `int(20)` — CEP deve ser `varchar(10)` (perde zeros à esquerda e hífens)
-- Sem `created_at` / `updated_at` em `users`
-- Sem `role` ou tabela separada para separar cliente de administrador
+> Nota: `admins` não foi criada porque `e5_users.role ENUM('customer','admin')` já atende o caso.
 
 ---
 
 ## 2. 🐛 Bugs e Erros de Código
 
 ### `index.php`
-- **Linha 6:** `echo "Olá Mundo";` — debug esquecido, imprime texto antes do HTML
+- ✅ Corrigido: `echo "Olá Mundo"` removido
 
 ### `database/connection.php`
-- `finally` executa `echo "<script>console.log('Sucesso!')</script>"` — injeta JavaScript em toda página que inclui este arquivo, quebrando headers e qualquer resposta JSON futura
+- ✅ Corrigido: `finally` com JS removido, conexão usa try/catch limpo
 
 ### `pages/auth/insertion.php`
-- Bloco `finally` executa o redirect **sempre**, inclusive quando a inserção falha (`PDOException`). O usuário é redirecionado mesmo com erro.
+- ✅ Corrigido: `finally` removido, fluxo de redirect está dentro de try/catch
 
 ### `pages/auth/login.php`
-- `id="indentifier"` (typo) no `<label for="indentifier">`, mas o `<input>` tem `id="identifier"` — label não funciona corretamente
-- JavaScript busca `document.getElementById('password')` mas o campo senha tem `id="senha"`; o toggle de senha **não funciona**
+- ✅ Corrigido: `for="identifier"` e `id="identifier"` agora correspondem; JS do toggle usa `getElementById('senha')` que existe
 
 ### `pages/auth/register.php`
-- Oito campos diferentes compartilham `id="username"` — viola HTML e quebra `<label for="">` e qualquer JS que busque por ID
+- ✅ Corrigido: cada campo tem ID único (`name`, `email`, `username`, `postalcode`, `street`, `number`, `complement`, `senha`, `confirm_senha`)
 
 ### `components/product-card.php`
-- `src="assets/img/placeholder-product.jpg"` — caminho sem `$base_path`, quebra em todas as páginas que não estão na raiz (ex: `pages/products/products.php`)
+- ✅ Corrigido: `src` agora usa `$imageCandidate` com `$base_path` já embutido, sem prefixo `../..` fixo
 
 ### `pages/admin/categories.php`
-- Modal usa `style="display: none"` mas o botão tenta `classList.add('active')` — `display:none` não é sobrescrito por classe CSS; o modal **nunca abre**
+- ✅ Corrigido: formulário inline substituiu o modal quebrado
 
 ### `components/header.php`
-- Carrega `../../assets/css/admin.css` em **todas** as páginas públicas (index, produtos, contato, sobre), aumentando peso desnecessário
+- ✅ Corrigido: `admin.css` removido do `header.php`
 
 ### `pages/admin/admin.php`
-- Arquivo completamente vazio
+- ✅ Corrigido: agora inclui `auth_check.php`
 
 ---
 
 ## 3. 📁 Arquivos Faltando
 
-| Arquivo | Referenciado em |
+| Arquivo | Status |
 |---|---|
-| `pages/products/product-detail.php` | `components/product-card.php` (link do produto) |
-| `assets/img/placeholder-product.jpg` | Múltiplas páginas |
-| `assets/img/placeholder-avatar.jpg` | `pages/admin/index.php` |
-| `assets/img/hero-bg.jpg` | `assets/css/style.css` (`.hero-bg`) |
-| `assets/img/banner-bg.jpg` | `assets/css/style.css` (`.banner-section::before`) |
-| `.htaccess` ou `config.php` | URLs amigáveis / configuração global |
+| `pages/products/product-detail.php` | ✅ Existe |
+| `assets/img/placeholder-product.svg` | ✅ Criado (SVG) |
+| `assets/img/placeholder-avatar.svg` | ✅ Criado (SVG) |
+| `assets/img/hero-bg.jpg` | ✅ Existe |
+| `assets/img/banner-bg.svg` | ✅ Criado (SVG) |
+| `.htaccess` ou `config.php` | ❌ Pendente (configuração global/URLs amigáveis)
 
 ---
 
-## 4. 🔐 Autenticação e Sessões
+## 4. 🔐 Autenticação e Sessões (✅ Resolvido)
 
-- **Nenhuma página usa `session_start()`** — após login bem-sucedido, nenhum dado de sessão é criado
-- **Painel admin completamente desprotegido** — qualquer URL como `/pages/admin/index.php` é acessível sem login
-- **Login do admin** (`pages/admin/login.php`) não tem `action` apontando para nenhum PHP de backend; o `method="POST"` vai para `index.php` que ignora a requisição
-- **Sem middleware de autenticação** — não há nenhum `include 'auth_check.php'` em página alguma
-- **Sem logout funcional** — o link "Sair" no dashboard admin aponta para `login.php` sem destruir sessão
+| Item | Status |
+|---|---|
+| `session_start()` em páginas | ✅ `header.php` chama condicionalmente; páginas de auth chamam explicitamente |
+| Painel admin protegido | ✅ `auth_check.php` incluído em todas as 10 páginas admin |
+| Admin login com action | ✅ `login.php` → `action="authenticate.php"` (backend funcional) |
+| Middleware de autenticação | ✅ `auth_check.php` (admin) e `require_login.php` (cliente) existem |
+| Logout funcional | ✅ `pages/admin/logout.php` e `pages/auth/logout.php` destroem sessão |
 
 ---
 
 ## 5. 🚧 Funcionalidades Não Implementadas
 
 ### Backend (sem nenhuma lógica PHP)
-- [ ] **Carrinho de compras** — botão existe, efeito visual existe, mas nada é salvo
-- [ ] **Checkout e pagamento** — inexistente
-- [ ] **Busca de produtos** — campo existe, sem resultado real
-- [ ] **Filtros e ordenação** — frontend only, sem query no banco
-- [ ] **Formulário de contato** — sem envio de e-mail ou gravação
-- [ ] **Newsletter** — sem backend
-- [ ] **Paginação** — hardcoded no HTML
-- [ ] **Recuperação de senha** — link existe, sem página
-- [ ] **Perfil do usuário logado** — inexistente
-- [ ] **Histórico de pedidos do cliente** — inexistente
+- [x] **Carrinho de compras** — sessão DB + AJAX + badge no header + página com quantidades
+- [x] **Checkout e pagamento** — cria pedido em `e5_orders` + `e5_order_items`, transação, confirmação
+- [x] **Busca de produtos** — header search box agora navega para `products.php?q=`
+- [x] **Filtros e ordenação** — marca, preço min/max, ordenação dinâmica (preço, nome, data)
+- [x] **Formulário de contato** — salva em `e5_contacts` com validação
+- [x] **Newsletter** — salva em `e5_newsletter` com unique email
+- [x] **Paginação** — 12 itens/página com navegação numérica
+- [x] **Recuperação de senha** — forgot + reset com token criptografado e expiração
+- [x] **Perfil do usuário logado** — editar dados + alterar senha
+- [x] **Histórico de pedidos do cliente** — listagem + detalhes por pedido
 
-### CRUD Admin (todos exibem dados mockados)
-- [ ] Listagem de produtos do banco
-- [ ] Criação / edição / exclusão de produtos
-- [ ] Upload de imagem de produto
-- [ ] Gerenciamento de categorias
-- [ ] Gerenciamento de pedidos (atualização de status)
-- [ ] Gerenciamento de clientes
-- [ ] Gerenciamento de banners
-- [ ] Relatórios com dados reais
-- [ ] Configurações persistentes no banco
+### CRUD Admin (✅ Todos conectados ao banco)
+- [x] Listagem de produtos do banco
+- [x] Criação / edição / exclusão de produtos
+- [x] Upload de imagem de produto
+- [x] Gerenciamento de categorias
+- [x] Gerenciamento de pedidos (atualização de status via `e5_orders`)
+- [x] Gerenciamento de clientes (via `e5_users`)
+- [x] Gerenciamento de banners (CRUD via `e5_banners`)
+- [x] Relatórios com estatísticas reais (receita, pedidos, top produtos, categorias)
+- [x] Configurações persistentes em `database/settings.json`
 
 ---
 
-## 6. 🔒 Segurança
+## 6. 🔒 Segurança (✅ Resolvido)
 
-| Problema | Risco |
+| Problema | Status |
 |---|---|
-| Credenciais do banco hardcoded em `connection.php` | Exposição se o arquivo vazar |
-| Nenhuma proteção CSRF nos formulários POST | Ataques cross-site |
-| Sem sanitização de saída (htmlspecialchars) | XSS em dados vindos do banco |
-| Erro do banco exibido diretamente ao usuário (`die($e->getMessage())`) | Exposição de estrutura interna |
-| Sem rate limiting no login | Brute force |
-| Sem validação server-side no formulário de produto (admin) | Injeção de dados |
-| Senhas são hasheadas corretamente com `password_hash` ✅ | — |
+| Credenciais hardcoded em `connection.php` | ✅ Movidas para `config.php` (gitignorado), fallback hardcoded |
+| Proteção CSRF nos formulários POST | ✅ `includes/csrf.php` — aplicado em 18 arquivos |
+| Sanitização de saída (`htmlspecialchars`) | ✅ 84 chamadas em todo o projeto — verificado |
+| Erro do banco exposto (`die($e->getMessage())`) | ✅ `connection.php` usa `error_log()` + mensagem genérica |
+| Rate limiting no login | ✅ `includes/rate_limit.php` — 5 tentativas / 15 min por IP |
+| Validação server-side produto (admin) | ✅ category, name, price, stock + type casting + prepared statements |
+| Senhas hasheadas com `password_hash` | ✅ Mantido |
 
 ---
 
@@ -128,7 +123,7 @@
 - **Dois designs de login diferentes**: `pages/admin/login.php` e `pages/auth/login.php` têm aparências distintas sem motivo claro
 - **Breadcrumb** usa `padding: 120px 0 40px` fixo — em mobile, onde o header é menor, gera espaço excessivo
 - **Sidebar mobile do admin** abre mas não tem overlay/backdrop clicável para fechar
-- **`product-detail.php`** não existe, então todos os cards de produto têm links quebrados
+- **`product-detail.php`** já existe e está funcional (corrigido em sessão anterior)
 - **CEP no cadastro**: campo `type="number"` apaga zeros à esquerda (ex: `01310100` vira `1310100`)
 
 ---

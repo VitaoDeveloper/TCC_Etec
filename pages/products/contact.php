@@ -4,6 +4,38 @@ $show_breadcrumb = true;
 $breadcrumb_title = 'Contato';
 $current_page = 'contato';
 $base_path = '../../';
+require_once __DIR__ . '/../../includes/csrf.php';
+
+$contactMessage = null;
+$contactError = null;
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!csrf_verify($_POST['_csrf_token'] ?? null)) {
+        http_response_code(419);
+        exit('Sessão expirada. Recarregue a página.');
+    }
+    $name = trim((string) ($_POST['name'] ?? ''));
+    $email = trim((string) ($_POST['email'] ?? ''));
+    $phone = trim((string) ($_POST['phone'] ?? ''));
+    $subject = trim((string) ($_POST['subject'] ?? ''));
+    $message = trim((string) ($_POST['message'] ?? ''));
+
+    if ($name === '' || $email === '' || $subject === '' || $message === '') {
+        $contactError = 'Preencha todos os campos obrigatórios.';
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $contactError = 'E-mail inválido.';
+    } else {
+        try {
+            include $base_path . 'database/connection.php';
+            $stmt = $pdo->prepare('INSERT INTO e5_contacts (name, email, phone, subject, message) VALUES (:name, :email, :phone, :subject, :message)');
+            $stmt->execute([':name' => $name, ':email' => $email, ':phone' => $phone ?: null, ':subject' => $subject, ':message' => $message]);
+            $contactMessage = 'Mensagem enviada com sucesso! Responderemos em breve.';
+        } catch (Throwable $e) {
+            $contactError = 'Erro ao enviar mensagem. Tente novamente.';
+            error_log('Contact error: ' . $e->getMessage());
+        }
+    }
+}
 
 include '../../components/header.php';
 ?>
@@ -21,12 +53,14 @@ include '../../components/header.php';
 <!-- Contact Content -->
 <section class="section">
     <div class="container">
+        <?php if ($contactMessage): ?><div class="auth-feedback auth-feedback-success"><?php echo htmlspecialchars($contactMessage, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
+        <?php if ($contactError): ?><div class="auth-feedback auth-feedback-error"><?php echo htmlspecialchars($contactError, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 60px;">
             
             <!-- Contact Form -->
             <div>
                 <h3 style="margin-bottom: 30px;">Enviar Mensagem</h3>
-                <form class="contact-form">
+                <form class="contact-form" method="POST">
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                         <div class="admin-form-group">
                             <label for="name">Seu Nome *</label>
@@ -56,6 +90,7 @@ include '../../components/header.php';
                         <label for="message">Mensagem *</label>
                         <textarea id="message" name="message" rows="5" placeholder="Sua mensagem..." required></textarea>
                     </div>
+                    <?php echo csrf_field(); ?>
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-paper-plane"></i>
                         Enviar Mensagem

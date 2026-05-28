@@ -1,5 +1,6 @@
 <?php
 $page_title = 'Login Administrativo - Royal Tech';
+require_once __DIR__ . '/../../includes/csrf.php';
 ?>
 
 <!DOCTYPE html>
@@ -25,7 +26,8 @@ $page_title = 'Login Administrativo - Royal Tech';
                 <p>Faça login para gerenciar sua loja</p>
             </div>
             
-            <form class="login-form" action="index.php" method="POST">
+            <form class="login-form" action="authenticate.php" method="POST">
+                <?php echo csrf_field(); ?>
                 <div class="admin-form-group">
                     <label for="email">E-mail</label>
                     <input type="email" id="email" name="email" placeholder="Seu e-mail" required>
@@ -41,7 +43,7 @@ $page_title = 'Login Administrativo - Royal Tech';
                         <input type="checkbox" name="remember">
                         <span>Lembrar-me</span>
                     </label>
-                    <a href="#" class="forgot-password">Esqueceu a senha?</a>
+                    <a href="../auth/forgot-password.php" class="forgot-password">Esqueceu a senha?</a>
                 </div>
                 
                 <button type="submit" class="btn btn-primary" style="width: 100%;">

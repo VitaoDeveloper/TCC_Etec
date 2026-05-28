@@ -3,7 +3,7 @@ $page_title = 'Royal Tech - Loja de Tecnologia Premium';
 $show_breadcrumb = false;
 $current_page = 'inicio';
 $base_path = '';
-echo "Olá Mundo";
+require_once __DIR__ . '/includes/csrf.php';
 
 // Include header
 include 'components/header.php';
@@ -163,7 +163,7 @@ include 'components/header.php';
                     'product_name' => 'Notebook Premium Pro',
                     'product_price' => 8999.00,
                     'product_old_price' => 9999.00,
-                    'product_image' => 'assets/img/placeholder-product.jpg',
+                    'product_image' => 'assets/img/placeholder-product.svg',
                     'product_category' => 'Notebooks',
                     'product_brand' => 'Royal Tech',
                     'product_installments' => '12x',
@@ -174,7 +174,7 @@ include 'components/header.php';
                     'product_id' => 2,
                     'product_name' => 'Smartphone Ultra X',
                     'product_price' => 4999.00,
-                    'product_image' => 'assets/img/placeholder-product.jpg',
+                    'product_image' => 'assets/img/placeholder-product.svg',
                     'product_category' => 'Smartphones',
                     'product_brand' => 'Royal Tech',
                     'product_installments' => '12x',
@@ -184,7 +184,7 @@ include 'components/header.php';
                     'product_id' => 3,
                     'product_name' => 'Fone Premium Wireless',
                     'product_price' => 899.00,
-                    'product_image' => 'assets/img/placeholder-product.jpg',
+                    'product_image' => 'assets/img/placeholder-product.svg',
                     'product_category' => 'Áudio',
                     'product_brand' => 'Royal Audio',
                     'product_installments' => '6x',
@@ -194,7 +194,7 @@ include 'components/header.php';
                     'product_id' => 4,
                     'product_name' => 'Teclado Mecânico RGB',
                     'product_price' => 449.00,
-                    'product_image' => 'assets/img/placeholder-product.jpg',
+                    'product_image' => 'assets/img/placeholder-product.svg',
                     'product_category' => 'Periféricos',
                     'product_brand' => 'Royal Gear',
                     'product_installments' => '6x',
@@ -258,7 +258,7 @@ include 'components/header.php';
                     'product_id' => 5,
                     'product_name' => 'Smartwatch Elite',
                     'product_price' => 2499.00,
-                    'product_image' => 'assets/img/placeholder-product.jpg',
+                    'product_image' => 'assets/img/placeholder-product.svg',
                     'product_category' => 'Wearables',
                     'product_brand' => 'Royal Tech',
                     'product_installments' => '10x',
@@ -268,7 +268,7 @@ include 'components/header.php';
                     'product_id' => 6,
                     'product_name' => 'Tablet Pro 12"',
                     'product_price' => 5999.00,
-                    'product_image' => 'assets/img/placeholder-product.jpg',
+                    'product_image' => 'assets/img/placeholder-product.svg',
                     'product_category' => 'Tablets',
                     'product_brand' => 'Royal Tech',
                     'product_installments' => '12x',
@@ -278,7 +278,7 @@ include 'components/header.php';
                     'product_id' => 7,
                     'product_name' => 'Monitor 4K Premium',
                     'product_price' => 3299.00,
-                    'product_image' => 'assets/img/placeholder-product.jpg',
+                    'product_image' => 'assets/img/placeholder-product.svg',
                     'product_category' => 'Monitores',
                     'product_brand' => 'Royal Vision',
                     'product_installments' => '10x',
@@ -288,7 +288,7 @@ include 'components/header.php';
                     'product_id' => 8,
                     'product_name' => 'Console Gaming Pro',
                     'product_price' => 4499.00,
-                    'product_image' => 'assets/img/placeholder-product.jpg',
+                    'product_image' => 'assets/img/placeholder-product.svg',
                     'product_category' => 'Games',
                     'product_brand' => 'Royal Play',
                     'product_installments' => '12x',
@@ -308,15 +308,39 @@ include 'components/header.php';
 </section>
 
 <!-- Newsletter Section -->
+<?php
+$newsletterMessage = null;
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['newsletter_email'])) {
+    if (!csrf_verify($_POST['_csrf_token'] ?? null)) {
+        http_response_code(419);
+        exit('Sessão expirada. Recarregue a página.');
+    }
+    $email = trim((string) $_POST['newsletter_email']);
+    if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        try {
+            include 'database/connection.php';
+            $stmt = $pdo->prepare('INSERT IGNORE INTO e5_newsletter (email) VALUES (:email)');
+            $stmt->execute([':email' => $email]);
+            $newsletterMessage = 'E-mail cadastrado com sucesso!';
+        } catch (Throwable $e) {
+            $newsletterMessage = 'Erro ao cadastrar. Tente novamente.';
+        }
+    } else {
+        $newsletterMessage = 'E-mail inválido.';
+    }
+}
+?>
 <section class="section section-dark">
     <div class="container">
         <div class="section-header">
             <h2>Receba Ofertas Exclusivas</h2>
             <p>Cadastre-se em nossa newsletter e seja o primeiro a saber sobre promoções e lançamentos</p>
         </div>
+        <?php if ($newsletterMessage): ?><div style="text-align:center; margin-bottom:15px; color:var(--color-primary);"><?php echo htmlspecialchars($newsletterMessage, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
         <div style="max-width: 600px; margin: 0 auto; text-align: center;">
-            <form class="newsletter-form" style="display: flex; gap: 15px;">
-                <input type="email" placeholder="Seu melhor e-mail..." style="
+            <form method="POST" style="display: flex; gap: 15px;">
+                <?php echo csrf_field(); ?>
+                <input type="email" name="newsletter_email" placeholder="Seu melhor e-mail..." required style="
                     flex: 1;
                     padding: 15px 25px;
                     border: 1px solid var(--color-border);
