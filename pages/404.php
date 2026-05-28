@@ -2,11 +2,13 @@
 $page_title = 'Página Não Encontrada - Royal Tech';
 $show_breadcrumb = false;
 $current_page = '';
-$base_path = '../';
+
+$scriptDir = dirname($_SERVER['SCRIPT_NAME']);
+$base_path = rtrim(dirname($scriptDir), '/\\') . '/';
 
 http_response_code(404);
 
-include '../components/header.php';
+include __DIR__ . '/../components/header.php';
 ?>
 <section class="section" style="padding: 120px 0 80px;">
     <div class="container">
@@ -34,5 +36,5 @@ include '../components/header.php';
 </section>
 
 <?php
-include '../components/footer.php';
+include __DIR__ . '/../components/footer.php';
 ?>
