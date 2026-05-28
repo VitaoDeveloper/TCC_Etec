@@ -47,7 +47,7 @@ include $base_path . 'components/header.php';
                 ?>
                     <tr data-product-id="<?php echo (int)$item['product_id']; ?>">
                         <td style="display:flex; align-items:center; gap:12px;">
-                            <img src="<?php echo htmlspecialchars($img, ENT_QUOTES, 'UTF-8'); ?>" alt="" style="width:60px; height:60px; object-fit:cover; border-radius:6px;">
+                            <img src="<?php echo htmlspecialchars($img, ENT_QUOTES, 'UTF-8'); ?>" alt="<?php echo htmlspecialchars($item['name'], ENT_QUOTES, 'UTF-8'); ?>" style="width:60px; height:60px; object-fit:cover; border-radius:6px;">
                             <div>
                                 <strong><?php echo htmlspecialchars($item['name'], ENT_QUOTES, 'UTF-8'); ?></strong><br>
                                 <small><?php echo htmlspecialchars($item['brand'] ?? '', ENT_QUOTES, 'UTF-8'); ?></small>
@@ -58,7 +58,7 @@ include $base_path . 'components/header.php';
                             <input type="number" class="cart-qty" value="<?php echo (int)$item['quantity']; ?>" min="0" max="<?php echo (int)$item['stock']; ?>" style="width:60px; padding:4px 8px; text-align:center;">
                         </td>
                         <td class="cart-subtotal">R$ <?php echo number_format($subtotal, 2, ',', '.'); ?></td>
-                        <td><button class="cart-remove" title="Remover" style="background:none; border:none; color:#f44336; cursor:pointer; font-size:18px;"><i class="fas fa-trash-alt"></i></button></td>
+                        <td><button class="cart-remove" title="Remover" aria-label="Remover item do carrinho" style="background:none; border:none; color:#f44336; cursor:pointer; font-size:18px;"><i class="fas fa-trash-alt"></i></button></td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>

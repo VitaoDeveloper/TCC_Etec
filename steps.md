@@ -129,13 +129,16 @@
 
 ---
 
-## 8. 🔍 SEO e Acessibilidade
+## 8. 🔍 SEO e Acessibilidade (✅ Resolvido)
 
-- Nenhuma página tem `<meta name="description">`
-- Sem Open Graph (`og:title`, `og:image`) para compartilhamento
-- Sem `sitemap.xml` e `robots.txt`
-- Botões de ação (favorito, carrinho, visualizar) sem `aria-label` — ilegíveis por leitores de tela
-- Imagens placeholder sem `alt` significativo
+| Item | Status |
+|------|--------|
+| `<meta name="description">` | ✅ Dinâmico via `$page_description` no `header.php` |
+| Open Graph (`og:title`, `og:image`, `og:description`, `og:type`, `og:site_name`) | ✅ Tags dinâmicas no `header.php` com fallbacks |
+| `sitemap.xml` | ✅ Criado com URLs principais |
+| `robots.txt` | ✅ Criado (bloqueia `includes/`, `database/`, `admin/`, `config.php`) |
+| `aria-label` em botões | ✅ Adicionado em 17 botões icônicos (busca, menu mobile, carrinho, admin, toggle senha, etc.) |
+| `alt` em imagens | ✅ Corrigido em 6 imagens (carrinho, histórico de pedidos, admin dashboard) |
 
 ---
 

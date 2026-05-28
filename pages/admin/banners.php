@@ -80,7 +80,7 @@ unset($_SESSION['admin_message']);
                     <p><?php echo count($banners); ?> banner(es) cadastrado(s)</p>
                 </div>
                 <div class="admin-actions">
-                    <button class="btn btn-primary" onclick="document.getElementById('createForm').style.display='block'"><i class="fas fa-plus"></i> Novo Banner</button>
+                    <button class="btn btn-primary" onclick="document.getElementById('createForm').style.display='block'" aria-label="Criar novo banner"><i class="fas fa-plus"></i> Novo Banner</button>
                 </div>
             </header>
             <?php if ($message): ?>
@@ -96,7 +96,7 @@ unset($_SESSION['admin_message']);
                     <input type="text" name="subtitle" placeholder="Subtítulo (opcional)" style="padding:10px; border:1px solid var(--color-border); border-radius:5px; background:var(--color-black); color:var(--color-white);">
                     <input type="text" name="image_path" placeholder="Caminho da imagem (ex: /assets/img/banner.jpg)" required style="padding:10px; border:1px solid var(--color-border); border-radius:5px; background:var(--color-black); color:var(--color-white);">
                     <input type="text" name="link_url" placeholder="Link (opcional)" style="padding:10px; border:1px solid var(--color-border); border-radius:5px; background:var(--color-black); color:var(--color-white);">
-                    <button type="submit" class="btn btn-primary">Salvar</button>
+                    <button type="submit" class="btn btn-primary" aria-label="Salvar banner">Salvar</button>
                 </form>
             </div>
 
@@ -125,7 +125,7 @@ unset($_SESSION['admin_message']);
                                 <input type="hidden" name="action" value="toggle">
                                 <?php echo csrf_field(); ?>
                                 <input type="hidden" name="banner_id" value="<?php echo (int) $b['id']; ?>">
-                                <button type="submit" class="btn btn-secondary" style="width:100%; padding:8px;">
+                                <button type="submit" class="btn btn-secondary" style="width:100%; padding:8px;" aria-label="Ativar ou desativar banner">
                                     <i class="fas <?php echo $b['is_active'] ? 'fa-eye-slash' : 'fa-eye'; ?>"></i>
                                 </button>
                             </form>
@@ -133,7 +133,7 @@ unset($_SESSION['admin_message']);
                                 <input type="hidden" name="action" value="delete">
                                 <?php echo csrf_field(); ?>
                                 <input type="hidden" name="banner_id" value="<?php echo (int) $b['id']; ?>">
-                                <button type="submit" class="btn btn-secondary delete" style="width:100%; padding:8px; color:#f44336;">
+                                <button type="submit" class="btn btn-secondary delete" style="width:100%; padding:8px; color:#f44336;" aria-label="Excluir banner">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </form>

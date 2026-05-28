@@ -75,7 +75,7 @@ $totalCatQty = array_sum(array_column($categorySales, 'qty'));
                     <p>Análise detalhada do desempenho da sua loja</p>
                 </div>
                 <div class="admin-actions">
-                    <button class="btn btn-primary"><i class="fas fa-download"></i> Exportar PDF</button>
+                    <button class="btn btn-primary" aria-label="Exportar relatório em PDF"><i class="fas fa-download"></i> Exportar PDF</button>
                 </div>
             </header>
 

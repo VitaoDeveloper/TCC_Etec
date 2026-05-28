@@ -51,7 +51,7 @@ unset($_SESSION['auth_errors'], $_SESSION['auth_old']);
     <div class="admin-form-group"><label for="street">Rua</label><input type="text" id="street" name="street" value="<?php echo htmlspecialchars($old['street'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" required minlength="4"></div>
     <div class="admin-form-group"><label for="number">Número</label><input type="number" id="number" name="number" value="<?php echo htmlspecialchars($old['number'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" required></div>
     <div class="admin-form-group"><label for="complement">Complemento (Apto, etc)</label><input type="text" id="complement" name="complement" value="<?php echo htmlspecialchars($old['complement'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"></div>
-    <div class="admin-form-group"><label for="senha">Senha</label><input type="password" id="senha" name="password" required minlength="8"><button type="button" class="password-toggle" id="togglePassword"><i class="fas fa-eye"></i></button></div>
+    <div class="admin-form-group"><label for="senha">Senha</label><input type="password" id="senha" name="password" required minlength="8"><button type="button" class="password-toggle" id="togglePassword" aria-label="Mostrar ou ocultar senha"><i class="fas fa-eye"></i></button></div>
     <div class="admin-form-group"><label for="confirm_senha">Confirmar senha</label><input type="password" id="confirm_senha" required></div>
     <button type="submit" class="btn-register register"><i class="fas fa-user-plus"></i> Cadastrar</button>
   </form>

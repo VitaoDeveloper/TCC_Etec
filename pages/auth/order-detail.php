@@ -58,7 +58,7 @@ include '../../components/header.php';
             ?>
                 <tr>
                     <td style="display:flex; align-items:center; gap:10px;">
-                        <img src="<?php echo htmlspecialchars($img, ENT_QUOTES, 'UTF-8'); ?>" alt="" style="width:50px; height:50px; object-fit:cover; border-radius:6px;">
+                        <img src="<?php echo htmlspecialchars($img, ENT_QUOTES, 'UTF-8'); ?>" alt="<?php echo htmlspecialchars($item['name'], ENT_QUOTES, 'UTF-8'); ?>" style="width:50px; height:50px; object-fit:cover; border-radius:6px;">
                         <div><strong><?php echo htmlspecialchars($item['name'], ENT_QUOTES, 'UTF-8'); ?></strong><br><small><?php echo htmlspecialchars($item['brand'] ?? '', ENT_QUOTES, 'UTF-8'); ?></small></div>
                     </td>
                     <td><?php echo (int)$item['quantity']; ?></td>

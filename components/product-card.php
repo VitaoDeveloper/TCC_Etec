@@ -73,7 +73,7 @@ if ($imageCandidate === '') {
         </div>
         <?php endif; ?>
         
-        <button class="btn-add-cart require-auth" data-auth-target="carrinho">
+        <button class="btn-add-cart require-auth" data-auth-target="carrinho" aria-label="Adicionar ao carrinho">
             <i class="fas fa-shopping-bag"></i>
             Adicionar ao Carrinho
         </button>
