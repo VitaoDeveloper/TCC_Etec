@@ -61,7 +61,8 @@
 | `assets/img/placeholder-avatar.svg` | ✅ Criado (SVG) |
 | `assets/img/hero-bg.jpg` | ✅ Existe |
 | `assets/img/banner-bg.svg` | ✅ Criado (SVG) |
-| `.htaccess` ou `config.php` | ❌ Pendente (configuração global/URLs amigáveis)
+| `.htaccess` | ✅ Resolvido (segurança + URLs amigáveis + cache + página 404) |
+| `config.php` | ✅ Resolvido (`config.example.php` disponível, `connection.php` com fallback, incluso no `.gitignore`)
 
 ---
 
