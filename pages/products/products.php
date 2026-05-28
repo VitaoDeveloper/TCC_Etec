@@ -40,7 +40,7 @@ $allowedSort = [
 ];
 $sql .= ' ORDER BY ' . ($allowedSort[$sortOrder] ?? 'p.created_at DESC');
 
-$countSql = 'SELECT COUNT(*)' . substr($sql, strpos($sql, 'FROM'));
+$countSql = 'SELECT COUNT(*)' . substr($sql, strrpos($sql, 'FROM'));
 $countStmt = $pdo->prepare($countSql);
 $countStmt->execute($params);
 $totalProducts = (int) $countStmt->fetchColumn();
