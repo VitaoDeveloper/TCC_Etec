@@ -466,6 +466,13 @@
     }
 }
 
+/* Empty state */
+.empty-state {
+    text-align: center;
+    color: var(--color-gray);
+    padding: 40px;
+}
+
 /* Sidebar backdrop */
 .admin-sidebar-backdrop {
     display: none;
