@@ -4,8 +4,11 @@ $show_breadcrumb = false;
 $current_page = 'inicio';
 $base_path = '';
 require_once __DIR__ . '/includes/csrf.php';
+include __DIR__ . '/database/connection.php';
 
-// Include header
+$activeBanners = $pdo->query('SELECT * FROM e5_banners WHERE is_active = 1 ORDER BY created_at DESC LIMIT 1')->fetchAll();
+$featuredBanner = $activeBanners[0] ?? null;
+
 include 'components/header.php';
 ?>
 <div class="hero-bg">
@@ -220,29 +223,68 @@ include 'components/header.php';
 </section>
 
 <!-- Banner Section -->
+<?php if ($featuredBanner):
+    $bannerImg = '';
+    if (preg_match('#^https?://#i', $featuredBanner['image_path'])) {
+        $bannerImg = $featuredBanner['image_path'];
+    } elseif ($featuredBanner['image_path'] !== '') {
+        $bannerImg = ltrim($featuredBanner['image_path'], '/');
+    }
+    $bannerLink = $featuredBanner['link_url'] ?: '#';
+    $linkIsExternal = preg_match('#^https?://#i', $bannerLink);
+    if (!$linkIsExternal && $bannerLink !== '#' && $bannerLink[0] === '/') {
+        $bannerLink = ltrim($bannerLink, '/');
+    }
+?>
+<section class="banner-section">
+    <div class="container">
+        <div class="banner-content">
+            <div class="banner-text">
+                <h2><?php echo htmlspecialchars($featuredBanner['title'], ENT_QUOTES, 'UTF-8'); ?><?php if ($featuredBanner['subtitle']): ?> <span><?php echo htmlspecialchars($featuredBanner['subtitle'], ENT_QUOTES, 'UTF-8'); ?></span><?php endif; ?></h2>
+                <p><?php echo htmlspecialchars($featuredBanner['subtitle'] ?? '', ENT_QUOTES, 'UTF-8'); ?></p>
+                <a href="<?php echo htmlspecialchars($bannerLink, ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-primary" <?php echo $linkIsExternal ? 'target="_blank" rel="noopener"' : ''; ?>>
+                    <i class="fas fa-tags"></i>
+                    Conferir
+                </a>
+            </div>
+            <div class="banner-image">
+                <?php if ($bannerImg): ?>
+                <img src="<?php echo htmlspecialchars($bannerImg, ENT_QUOTES, 'UTF-8'); ?>" alt="<?php echo htmlspecialchars($featuredBanner['title'], ENT_QUOTES, 'UTF-8'); ?>" style="width:100%; max-height:400px; object-fit:cover; border-radius:10px;">
+                <?php else: ?>
+                <div class="placeholder" style="min-height:300px;">
+                    <i class="fas fa-gift"></i>
+                    <h4><?php echo htmlspecialchars($featuredBanner['title'], ENT_QUOTES, 'UTF-8'); ?></h4>
+                    <p>Adicione uma imagem pelo painel admin</p>
+                </div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+</section>
+<?php else: ?>
 <section class="banner-section">
     <div class="container">
         <div class="banner-content">
             <div class="banner-text">
                 <h2>Promoção <span>Especial</span></h2>
                 <p>Aproveite nossas ofertas exclusivas e transforme sua experiência tecnológica. Produtos premium com até 30% de desconto por tempo limitado.</p>
-                <a href="pages/products/products.php?promo=true" class="btn btn-primary">
+                <a href="pages/products/products.php" class="btn btn-primary">
                     <i class="fas fa-tags"></i>
-                    Ver Ofertas
+                    Ver Produtos
                 </a>
             </div>
             <div class="banner-image">
-                <!-- Espaço para banner secundário -->
-                <div class="placeholder" style="min-height: 300px;">
+                <div class="placeholder" style="min-height:300px;">
                     <i class="fas fa-gift"></i>
                     <h4>Banner Promocional</h4>
-                    <p>Insira uma imagem promocional ou coleção especial aqui</p>
+                    <p>Crie um banner no painel administrativo</p>
                     <small>Dimensões: 600x400px</small>
                 </div>
             </div>
         </div>
     </div>
 </section>
+<?php endif; ?>
 
 <!-- New Arrivals Section -->
 <section class="section">
