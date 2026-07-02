@@ -20,7 +20,7 @@ jobs:
 
           FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
 
-          FORBIDDEN='^(\.opencode/|\.vscode/|node_modules/|opencode.json)'
+          FORBIDDEN='^(\.opencode/|\.vscode/|node_modules/|AGENTS.md|opencode.json)'
           MATCHES=$(echo "$FILES" | grep -E "$FORBIDDEN" || true)
 
           if [ -n "$MATCHES" ]; then
