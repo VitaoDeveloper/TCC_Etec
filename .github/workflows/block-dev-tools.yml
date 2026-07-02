@@ -1,0 +1,32 @@
+name: Block dev tool folders on main
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  check-forbidden-paths:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for forbidden paths in diff
+        run: |
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+
+          FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+
+          FORBIDDEN='^(\.opencode/|\.vscode/|node_modules/|opencode.json)'
+          MATCHES=$(echo "$FILES" | grep -E "$FORBIDDEN" || true)
+
+          if [ -n "$MATCHES" ]; then
+            echo "PR contém pastas de ferramentas de dev que não devem ir para main:"
+            echo "$MATCHES"
+            exit 1
+          fi
+
+          echo "Nenhuma pasta proibida encontrada no diff."
