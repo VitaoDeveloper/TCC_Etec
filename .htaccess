@@ -90,17 +90,4 @@ RewriteRule ^admin/banners$ pages/admin/banners.php [L,QSA]
 RewriteRule ^admin/relatorios$ pages/admin/reports.php [L,QSA]
 RewriteRule ^admin/configuracoes$ pages/admin/settings.php [L,QSA]
 
-# ============================================================
-# REDIRECIONAMENTO WWW (opcional — descomente para ativar)
-# ============================================================
 
-# RewriteCond %{HTTP_HOST} !^www\. [NC]
-# RewriteRule ^(.*)$ https://www.%{HTTP_HOST}/$1 [R=301,L]
-
-# ============================================================
-# PROTEÇÃO CONTRA HOTLINK (opcional)
-# ============================================================
-
-# RewriteCond %{HTTP_REFERER} !^$
-# RewriteCond %{HTTP_REFERER} !^https?://(www\.)?seudominio\.com [NC]
-# RewriteRule \.(jpg|jpeg|png|gif|webp|svg)$ - [F]
