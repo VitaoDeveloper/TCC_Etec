@@ -1,6 +1,5 @@
 <?php
 $page_title = 'Meu Perfil - Royal Tech';
-$show_breadcrumb = true;
 $breadcrumb_title = 'Meu Perfil';
 $current_page = 'perfil';
 $base_path = '../../';
@@ -29,10 +28,7 @@ $successMessage = null;
 $errorMessage = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!csrf_verify($_POST['_csrf_token'] ?? null)) {
-        http_response_code(419);
-        exit('Sessão expirada. Recarregue a página.');
-    }
+    csrf_require_valid();
     $name = trim((string) ($_POST['name'] ?? ''));
     $email = trim((string) ($_POST['email'] ?? ''));
     $username = trim((string) ($_POST['username'] ?? ''));

@@ -6,10 +6,7 @@ $successMessage = null;
 $errorMessage = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!csrf_verify($_POST['_csrf_token'] ?? null)) {
-        http_response_code(419);
-        exit('Sessão expirada. Recarregue a página.');
-    }
+    csrf_require_valid();
     $email = trim((string) ($_POST['email'] ?? ''));
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $errorMessage = 'E-mail inválido.';
