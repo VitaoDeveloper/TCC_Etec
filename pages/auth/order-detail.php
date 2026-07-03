@@ -72,6 +72,27 @@ include '../../components/header.php';
             </tbody>
             <tfoot><tr><td colspan="3" style="text-align:right; font-weight:600;">Total:</td><td style="font-weight:700; color:var(--color-gold);">R$ <?php echo number_format((float)$order['total'], 2, ',', '.'); ?></td></tr></tfoot>
         </table>
+        <?php if ($order['shipping_method'] || $order['payment_method']): ?>
+        <div style="margin-top:20px; display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+            <div>
+                <h4 style="margin-bottom:8px;"><i class="fas fa-truck" style="color:var(--color-primary);"></i> Frete</h4>
+                <p style="font-size:0.9rem; color:var(--color-gray-light);">
+                    <?php echo htmlspecialchars($order['shipping_method'] ?? '—', ENT_QUOTES, 'UTF-8'); ?><br>
+                    <?php if ((float)$order['shipping_cost'] > 0): ?>Custo: R$ <?php echo number_format((float)$order['shipping_cost'], 2, ',', '.'); ?><?php else: ?><span style="color:#4caf50;">Grátis</span><?php endif; ?>
+                </p>
+            </div>
+            <div>
+                <h4 style="margin-bottom:8px;"><i class="fas fa-credit-card" style="color:var(--color-primary);"></i> Pagamento</h4>
+                <p style="font-size:0.9rem; color:var(--color-gray-light);">
+                    <?php
+                    $payLabels = ['pix'=>'Pix','boleto'=>'Boleto','credit'=>'Cartão de Crédito','delivery'=>'Pagamento na Entrega'];
+                    echo htmlspecialchars($payLabels[$order['payment_method']] ?? $order['payment_method'] ?? '—', ENT_QUOTES, 'UTF-8');
+                    ?><br>
+                    Status: <?php echo $order['payment_status'] === 'paid' ? '<span style="color:#4caf50;">Pago</span>' : '<span style="color:var(--color-gray);">Pendente</span>'; ?>
+                </p>
+            </div>
+        </div>
+        <?php endif; ?>
         <div style="margin-top:20px;"><a href="orders.php" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Voltar</a></div>
     </div>
 </div></section>
