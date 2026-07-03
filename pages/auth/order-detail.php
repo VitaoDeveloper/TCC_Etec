@@ -11,8 +11,28 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 include '../../database/connection.php';
+require_once $base_path . 'includes/csrf.php';
 $userId = (int) $_SESSION['user_id'];
 $orderId = (int) ($_GET['id'] ?? 0);
+$message = null;
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'cancel') {
+    csrf_require_valid();
+    $stmt = $pdo->prepare('SELECT status FROM e5_orders WHERE id = :id AND user_id = :uid LIMIT 1');
+    $stmt->execute([':id' => $orderId, ':uid' => $userId]);
+    $ord = $stmt->fetch();
+    if ($ord && $ord['status'] === 'pending') {
+        $items = $pdo->prepare('SELECT product_id, quantity FROM e5_order_items WHERE order_id = :oid');
+        $items->execute([':oid' => $orderId]);
+        foreach ($items as $it) {
+            $pdo->prepare('UPDATE e5_products SET stock = stock + :qty WHERE id = :pid')->execute([':qty' => (int)$it['quantity'], ':pid' => (int)$it['product_id']]);
+        }
+        $pdo->prepare("UPDATE e5_orders SET status = 'canceled' WHERE id = :id")->execute([':id' => $orderId]);
+        $message = 'Pedido cancelado com sucesso.';
+    } else {
+        $message = 'Não é possível cancelar este pedido.';
+    }
+}
 
 $stmt = $pdo->prepare('SELECT * FROM e5_orders WHERE id = :id AND user_id = :uid LIMIT 1');
 $stmt->execute([':id' => $orderId, ':uid' => $userId]);
@@ -44,6 +64,7 @@ $statusLabels = [
 include '../../components/header.php';
 ?>
 <section class="section"><div class="container" style="max-width:700px; margin:0 auto;">
+    <?php if ($message): ?><div class="alert alert-success" style="padding:12px 16px; border-radius:8px; background:rgba(76,175,80,0.15); color:#4caf50; margin-bottom:16px; text-align:center;"><?php echo htmlspecialchars($message, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
     <div class="section-header"><h2>Pedido #<?php echo str_pad((string)$order['id'], 4, '0', STR_PAD_LEFT); ?></h2><p>Status: <strong><?php echo $statusLabels[$order['status']] ?? $order['status']; ?></strong> — <?php echo date('d/m/Y H:i', strtotime($order['created_at'])); ?></p></div>
     <div class="admin-table-container">
         <table class="admin-table">
@@ -72,7 +93,37 @@ include '../../components/header.php';
             </tbody>
             <tfoot><tr><td colspan="3" style="text-align:right; font-weight:600;">Total:</td><td style="font-weight:700; color:var(--color-gold);">R$ <?php echo number_format((float)$order['total'], 2, ',', '.'); ?></td></tr></tfoot>
         </table>
-        <div style="margin-top:20px;"><a href="orders.php" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Voltar</a></div>
+        <?php if ($order['shipping_method'] || $order['payment_method']): ?>
+        <div style="margin-top:20px; display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+            <div>
+                <h4 style="margin-bottom:8px;"><i class="fas fa-truck" style="color:var(--color-primary);"></i> Frete</h4>
+                <p style="font-size:0.9rem; color:var(--color-gray-light);">
+                    <?php echo htmlspecialchars($order['shipping_method'] ?? '—', ENT_QUOTES, 'UTF-8'); ?><br>
+                    <?php if ((float)$order['shipping_cost'] > 0): ?>Custo: R$ <?php echo number_format((float)$order['shipping_cost'], 2, ',', '.'); ?><?php else: ?><span style="color:#4caf50;">Grátis</span><?php endif; ?>
+                </p>
+            </div>
+            <div>
+                <h4 style="margin-bottom:8px;"><i class="fas fa-credit-card" style="color:var(--color-primary);"></i> Pagamento</h4>
+                <p style="font-size:0.9rem; color:var(--color-gray-light);">
+                    <?php
+                    $payLabels = ['pix'=>'Pix','boleto'=>'Boleto','credit'=>'Cartão de Crédito','delivery'=>'Pagamento na Entrega'];
+                    echo htmlspecialchars($payLabels[$order['payment_method']] ?? $order['payment_method'] ?? '—', ENT_QUOTES, 'UTF-8');
+                    ?><br>
+                    Status: <?php echo $order['payment_status'] === 'paid' ? '<span style="color:#4caf50;">Pago</span>' : '<span style="color:var(--color-gray);">Pendente</span>'; ?>
+                </p>
+            </div>
+        </div>
+        <?php endif; ?>
+        <div style="margin-top:20px; display:flex; gap:12px; flex-wrap:wrap;">
+            <a href="orders.php" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Voltar</a>
+            <?php if ($order['status'] === 'pending'): ?>
+            <form method="post" style="display:inline" onsubmit="return confirm('Tem certeza que deseja cancelar este pedido?')">
+                <?php csrf_field(); ?>
+                <input type="hidden" name="action" value="cancel">
+                <button type="submit" class="btn btn-danger"><i class="fas fa-times-circle"></i> Cancelar Pedido</button>
+            </form>
+            <?php endif; ?>
+        </div>
     </div>
 </div></section>
 <?php include '../../components/footer.php'; ?>

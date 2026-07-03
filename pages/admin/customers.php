@@ -2,6 +2,18 @@
 $page_title = 'Gerenciar Clientes - Royal Tech';
 include 'auth_check.php';
 include '../../database/connection.php';
+require_once __DIR__ . '/../../includes/csrf.php';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete') {
+    csrf_require_valid();
+    $id = (int) ($_POST['id'] ?? 0);
+    if ($id > 0) {
+        $pdo->prepare('DELETE FROM e5_users WHERE id = :id AND role = :role')->execute([':id' => $id, ':role' => 'customer']);
+        $_SESSION['admin_message'] = 'Cliente excluído.';
+    }
+    header('Location: customers.php');
+    exit;
+}
 
 $search = trim((string) ($_GET['q'] ?? ''));
 $sql = 'SELECT id, name, email, username, created_at FROM e5_users WHERE role = :role';
@@ -95,6 +107,12 @@ unset($_SESSION['admin_message']);
                             <td>
                                 <div class="table-actions">
                                     <a href="mailto:<?php echo htmlspecialchars($c['email'], ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-secondary" style="padding:6px 12px;"><i class="fas fa-envelope"></i></a>
+                                    <form method="POST" onsubmit="return confirm('Excluir cliente #<?php echo (int) $c['id']; ?>? Esta ação não pode ser desfeita.');" style="display:inline;">
+                                        <input type="hidden" name="action" value="delete">
+                                        <input type="hidden" name="id" value="<?php echo (int) $c['id']; ?>">
+                                        <?php echo csrf_field(); ?>
+                                        <button type="submit" class="btn btn-secondary" style="padding:6px 12px; color:#f44336;" aria-label="Excluir cliente"><i class="fas fa-trash"></i></button>
+                                    </form>
                                 </div>
                             </td>
                         </tr>

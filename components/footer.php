@@ -10,10 +10,10 @@
                         </div>
                         <p class="footer-desc">Sua loja de tecnologia premium. Oferecemos os melhores produtos tecnológicos com qualidade e atendimento diferenciado.</p>
                         <div class="footer-social">
-                            <a href="#"><i class="fab fa-facebook-f"></i></a>
-                            <a href="#"><i class="fab fa-instagram"></i></a>
-                            <a href="#"><i class="fab fa-twitter"></i></a>
-                            <a href="#"><i class="fab fa-youtube"></i></a>
+                            <a href="<?php echo htmlspecialchars($socialLinks['facebook'] ?? '#', ENT_QUOTES, 'UTF-8'); ?>"><i class="fab fa-facebook-f"></i></a>
+                            <a href="<?php echo htmlspecialchars($socialLinks['instagram'] ?? '#', ENT_QUOTES, 'UTF-8'); ?>"><i class="fab fa-instagram"></i></a>
+                            <a href="<?php echo htmlspecialchars($socialLinks['twitter'] ?? '#', ENT_QUOTES, 'UTF-8'); ?>"><i class="fab fa-twitter"></i></a>
+                            <a href="<?php echo htmlspecialchars($socialLinks['youtube'] ?? '#', ENT_QUOTES, 'UTF-8'); ?>"><i class="fab fa-youtube"></i></a>
                         </div>
                     </div>
                     
@@ -40,9 +40,9 @@
                     <div class="footer-col">
                         <h4>Contato</h4>
                         <ul class="contact-info">
-                            <li><i class="fas fa-map-marker-alt"></i> Av. Paulista, 1000 - São Paulo, SP</li>
-                            <li><i class="fas fa-phone"></i> (11) 99999-9999</li>
-                            <li><i class="fas fa-envelope"></i> contato@royaltech.com.br</li>
+                            <li><i class="fas fa-map-marker-alt"></i> <?php echo htmlspecialchars($storeSettings['store_address'] ?? 'Av. Paulista, 1000 - São Paulo, SP', ENT_QUOTES, 'UTF-8'); ?></li>
+                            <li><i class="fas fa-phone"></i> <?php echo htmlspecialchars($storeSettings['store_phone'] ?? '(11) 99999-9999', ENT_QUOTES, 'UTF-8'); ?></li>
+                            <li><i class="fas fa-envelope"></i> <?php echo htmlspecialchars($storeSettings['store_email'] ?? 'contato@royaltech.com.br', ENT_QUOTES, 'UTF-8'); ?></li>
                             <li><i class="fas fa-clock"></i> Seg-Sex: 09h às 18h</li>
                         </ul>
                     </div>
@@ -70,6 +70,9 @@
     <a href="https://wa.me/5511999999999" class="whatsapp-float" target="_blank">
         <i class="fab fa-whatsapp"></i>
     </a>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
 
     <!-- Scripts -->
     <script src="<?php echo $base_path ?? ''; ?>assets/js/script.js"></script>

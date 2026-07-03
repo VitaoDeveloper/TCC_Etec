@@ -3,6 +3,4 @@ Allow: /
 Disallow: /includes/
 Disallow: /database/
 Disallow: /config.php
-Disallow: /pages/admin/
-
-Sitemap: https://localhost/TCC_Etec/sitemap.xml
+Sitemap: https://royaltech.com.br/sitemap.xml
