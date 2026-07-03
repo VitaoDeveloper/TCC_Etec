@@ -19,6 +19,13 @@ $newProducts = $pdo->query('SELECT p.id, p.name, p.price, p.old_price, p.brand, 
 
 $categories = $pdo->query('SELECT id, name, slug, (SELECT COUNT(*) FROM e5_products WHERE category_id = c.id) AS product_count FROM e5_categories c ORDER BY name ASC')->fetchAll();
 
+$categoryIcons = [
+    'notebooks' => 'fa-laptop', 'smartphones' => 'fa-mobile-alt', 'tablets' => 'fa-tablet-alt',
+    'perifericos' => 'fa-keyboard', 'audio' => 'fa-headphones', 'games' => 'fa-gamepad',
+    'cameras' => 'fa-camera', 'acessorios' => 'fa-headset', 'monitores' => 'fa-tv',
+    'wearables' => 'fa-clock', 'rede' => 'fa-wifi', 'cabo' => 'fa-plug',
+];
+
 include 'components/header.php';
 ?>
 <div class="hero-bg">
@@ -99,9 +106,9 @@ include 'components/header.php';
         <div class="categories-grid">
             <?php if (empty($categories)): ?>
             <p style="color:var(--color-gray); grid-column:1/-1; text-align:center;">Nenhuma categoria cadastrada.</p>
-            <?php else: foreach ($categories as $cat): ?>
+            <?php else: foreach ($categories as $cat): $icon = $categoryIcons[$cat['slug']] ?? 'fa-folder'; ?>
             <a href="pages/products/products.php?category=<?php echo urlencode($cat['slug']); ?>" class="category-card">
-                <div class="category-icon"><i class="fas fa-folder"></i></div>
+                <div class="category-icon"><i class="fas <?php echo $icon; ?>"></i></div>
                 <h4><?php echo htmlspecialchars($cat['name'], ENT_QUOTES, 'UTF-8'); ?></h4>
                 <span><?php echo (int) $cat['product_count']; ?> produto(s) →</span>
             </a>

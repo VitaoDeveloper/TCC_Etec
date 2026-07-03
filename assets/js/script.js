@@ -30,6 +30,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!loggedFlag) return;
             const productId = this.dataset.productId;
             if (!productId) return;
+            this.classList.add('btn-loading');
             fetch(basePath + 'pages/wishlist/toggle.php', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/x-www-form-urlencoded'},
@@ -37,6 +38,7 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(r => r.json())
             .then(data => {
+                this.classList.remove('btn-loading');
                 if (data.success) {
                     this.querySelector('i').className = data.active ? 'fas fa-heart' : 'far fa-heart';
                     const badge = document.querySelector('.wishlist-btn .cart-badge');
@@ -54,7 +56,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else {
                     alert(data.message);
                 }
-            }).catch(() => {});
+            }).catch(() => { this.classList.remove('btn-loading'); });
         });
     });
 
@@ -73,6 +75,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!productId) return;
 
             const originalText = this.innerHTML;
+            this.classList.add('btn-loading');
 
             fetch(basePath + 'pages/cart/add.php', {
                 method: 'POST',
@@ -81,6 +84,7 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(r => r.json())
             .then(data => {
+                this.classList.remove('btn-loading');
                 if (data.success) {
                     this.innerHTML = '<i class="fas fa-check"></i> Adicionado!';
                     this.style.background = 'var(--color-primary)';
@@ -106,7 +110,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     alert(data.message);
                 }
             })
-            .catch(() => { alert('Erro ao adicionar ao carrinho.'); });
+            .catch(() => { this.classList.remove('btn-loading'); alert('Erro ao adicionar ao carrinho.'); });
         });
     });
     

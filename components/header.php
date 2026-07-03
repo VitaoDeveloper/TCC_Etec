@@ -55,8 +55,8 @@ if ($isLoggedIn) {
         <div class="container">
             <div class="header-top-content">
                 <div class="header-contacts">
-                    <span><i class="fas fa-phone"></i> (11) 99999-9999</span>
-                    <span><i class="fas fa-envelope"></i> contato@royaltech.com.br</span>
+                    <span><i class="fas fa-phone"></i> <?php echo htmlspecialchars($storeSettings['store_phone'] ?? '(11) 99999-9999', ENT_QUOTES, 'UTF-8'); ?></span>
+                    <span><i class="fas fa-envelope"></i> <?php echo htmlspecialchars($storeSettings['store_email'] ?? 'contato@royaltech.com.br', ENT_QUOTES, 'UTF-8'); ?></span>
                 </div>
                 <div class="header-social">
                     <a href="<?php echo htmlspecialchars($socialLinks['facebook'], ENT_QUOTES, 'UTF-8'); ?>"><i class="fab fa-facebook-f"></i></a>
