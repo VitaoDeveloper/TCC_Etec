@@ -1627,6 +1627,14 @@ h6 { font-size: 1rem; }
     .footer-grid {
         grid-template-columns: repeat(2, 1fr);
     }
+
+    .hero-text h1 {
+        font-size: 2.8rem;
+    }
+
+    .banner-text h2 {
+        font-size: 2rem;
+    }
 }
 
 @media (max-width: 992px) {
@@ -1638,6 +1646,18 @@ h6 { font-size: 1rem; }
     
     .hero-buttons {
         justify-content: center;
+    }
+
+    .hero-text h1 {
+        font-size: 2.5rem;
+    }
+
+    .hero-text p {
+        font-size: 1.1rem;
+    }
+
+    .banner-text h2 {
+        font-size: 1.8rem;
     }
     
     .main-nav {
@@ -1654,6 +1674,10 @@ h6 { font-size: 1rem; }
     .admin-cards {
         grid-template-columns: repeat(2, 1fr);
     }
+
+    .contact-info-cards {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 768px) {
@@ -1661,12 +1685,49 @@ h6 { font-size: 1rem; }
     h2 { font-size: 1.8rem; }
     h3 { font-size: 1.5rem; }
     
+    .container {
+        padding: 0 15px;
+    }
+
+    .header-main {
+        padding: 12px 0;
+    }
+
+    .header-main-content {
+        gap: 16px;
+    }
+
     .header-top {
         display: none;
     }
     
     .search-box {
         display: none;
+    }
+
+    .logo-text {
+        font-size: 1.3rem;
+    }
+
+    .logo-icon {
+        font-size: 1.4rem;
+    }
+
+    .header-actions {
+        gap: 8px;
+    }
+
+    .action-btn {
+        width: 34px;
+        height: 34px;
+        font-size: 0.8rem;
+    }
+
+    .cart-badge {
+        min-width: 16px;
+        height: 16px;
+        line-height: 16px;
+        font-size: 10px;
     }
     
     .hero-section {
@@ -1676,9 +1737,30 @@ h6 { font-size: 1rem; }
     .hero-text h1 {
         font-size: 2rem;
     }
+
+    .hero-text p {
+        font-size: 1rem;
+    }
+
+    .hero-buttons {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .banner-section {
+        padding: 60px 0;
+    }
+
+    .banner-text h2 {
+        font-size: 1.5rem;
+    }
     
     .section {
         padding: 60px 0;
+    }
+
+    .section-header {
+        margin-bottom: 30px;
     }
     
     .products-grid,
@@ -1687,15 +1769,96 @@ h6 { font-size: 1rem; }
     .admin-cards {
         grid-template-columns: 1fr;
     }
+
+    .products-grid {
+        gap: 20px;
+    }
+
+    .product-image {
+        min-height: 180px;
+    }
+
+    .product-info {
+        padding: 16px;
+    }
+
+    .product-name {
+        font-size: 1rem;
+    }
+
+    .product-info-detail h2 {
+        font-size: 1.4rem;
+    }
+
+    .current-price {
+        font-size: 1.1rem;
+    }
+
+    .gallery-thumb {
+        width: 60px;
+        height: 60px;
+    }
     
     .footer-grid {
         grid-template-columns: 1fr;
+        gap: 30px;
+    }
+
+    .footer-top {
+        padding: 50px 0 20px;
+    }
+
+    .footer-col {
+        margin-bottom: 0;
     }
     
     .footer-bottom-content {
         flex-direction: column;
         gap: 20px;
         text-align: center;
+    }
+
+    .category-card {
+        padding: 25px;
+    }
+
+    .feature-card {
+        padding: 25px;
+    }
+
+    .checkout-section {
+        padding: 20px 16px;
+    }
+
+    .cep-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .cep-input {
+        width: 100%;
+    }
+
+    .btn {
+        padding: 12px 24px;
+        font-size: 0.9rem;
+    }
+
+    .grid-2col {
+        grid-template-columns: 1fr;
+        gap: 30px;
+    }
+
+    .grid-4col {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .whatsapp-float {
+        width: 50px;
+        height: 50px;
+        font-size: 1.4rem;
+        bottom: 20px;
+        right: 20px;
     }
     
     .admin-sidebar {
