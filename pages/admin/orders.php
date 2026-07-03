@@ -27,7 +27,7 @@ $statusLabels = [
 ];
 
 $filter = (string) ($_GET['status'] ?? '');
-$sql = 'SELECT o.id, o.status, o.total, o.created_at, u.name AS user_name,
+$sql = 'SELECT o.id, o.status, o.total, o.shipping_method, o.shipping_cost, o.payment_method, o.created_at, u.name AS user_name,
         (SELECT COUNT(*) FROM e5_order_items oi WHERE oi.order_id = o.id) AS item_count
         FROM e5_orders o INNER JOIN e5_users u ON u.id = o.user_id';
 $params = [];
@@ -74,48 +74,53 @@ unset($_SESSION['admin_message']);
             <div class="auth-feedback auth-feedback-success"><?php echo htmlspecialchars($message, ENT_QUOTES, 'UTF-8'); ?></div>
             <?php endif; ?>
             <div class="admin-table-container">
-                <table class="admin-table">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Cliente</th>
-                            <th>Data</th>
-                            <th>Itens</th>
-                            <th>Total</th>
-                            <th>Status</th>
-                            <th>Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php if (empty($orders)): ?>
-                        <tr><td colspan="7" style="text-align:center; color:var(--color-gray); padding:40px;">Nenhum pedido encontrado.</td></tr>
-                        <?php else: foreach ($orders as $o):
-                            $info = $statusLabels[$o['status']] ?? ['label' => $o['status'], 'class' => ''];
-                        ?>
-                        <tr>
-                            <td>#<?php echo str_pad((string) $o['id'], 4, '0', STR_PAD_LEFT); ?></td>
-                            <td><?php echo htmlspecialchars($o['user_name'], ENT_QUOTES, 'UTF-8'); ?></td>
-                            <td><?php echo date('d/m/Y H:i', strtotime($o['created_at'])); ?></td>
-                            <td><?php echo (int) $o['item_count']; ?> item(ns)</td>
-                            <td>R$ <?php echo number_format((float) $o['total'], 2, ',', '.'); ?></td>
-                            <td><span class="status-badge <?php echo $info['class']; ?>"><?php echo $info['label']; ?></span></td>
-                            <td>
-                                <form method="POST" style="display:flex; gap:6px; align-items:center;">
-                                    <input type="hidden" name="action" value="update_status">
-                                    <?php echo csrf_field(); ?>
-                                    <input type="hidden" name="order_id" value="<?php echo (int) $o['id']; ?>">
-                                    <select name="status" style="padding:4px 8px; border:1px solid var(--color-border); border-radius:4px; background:var(--color-black); color:var(--color-white); font-size:0.8rem;">
-                                        <?php foreach ($statusLabels as $k => $v): ?>
-                                        <option value="<?php echo $k; ?>" <?php echo $k === $o['status'] ? 'selected' : ''; ?>><?php echo $v['label']; ?></option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                    <button type="submit" class="btn btn-secondary" style="padding:4px 10px; font-size:0.8rem;" aria-label="Atualizar status do pedido"><i class="fas fa-check"></i></button>
-                                </form>
-                            </td>
-                        </tr>
-                        <?php endforeach; endif; ?>
-                    </tbody>
-                </table>
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Cliente</th>
+                                <th>Data</th>
+                                <th>Itens</th>
+                                <th>Total</th>
+                                <th>Frete</th>
+                                <th>Pagamento</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (empty($orders)): ?>
+                            <tr><td colspan="9" style="text-align:center; color:var(--color-gray); padding:40px;">Nenhum pedido encontrado.</td></tr>
+                            <?php else: foreach ($orders as $o):
+                                $info = $statusLabels[$o['status']] ?? ['label' => $o['status'], 'class' => ''];
+                                $payLabel = ['pix'=>'Pix','boleto'=>'Boleto','credit'=>'Cartão','delivery'=>'Entrega'];
+                            ?>
+                            <tr>
+                                <td>#<?php echo str_pad((string) $o['id'], 4, '0', STR_PAD_LEFT); ?></td>
+                                <td><?php echo htmlspecialchars($o['user_name'], ENT_QUOTES, 'UTF-8'); ?></td>
+                                <td><?php echo date('d/m/Y H:i', strtotime($o['created_at'])); ?></td>
+                                <td><?php echo (int) $o['item_count']; ?> item(ns)</td>
+                                <td>R$ <?php echo number_format((float) $o['total'], 2, ',', '.'); ?></td>
+                                <td><?php echo $o['shipping_method'] ? htmlspecialchars($o['shipping_method'], ENT_QUOTES, 'UTF-8') . '<br><small>R$ ' . number_format((float)$o['shipping_cost'],2,',','.') . '</small>' : '—'; ?></td>
+                                <td><?php echo htmlspecialchars($payLabel[$o['payment_method']] ?? $o['payment_method'] ?? '—', ENT_QUOTES, 'UTF-8'); ?></td>
+                                <td><span class="status-badge <?php echo $info['class']; ?>"><?php echo $info['label']; ?></span></td>
+                                <td>
+                                    <form method="POST" style="display:flex; gap:6px; align-items:center;">
+                                        <input type="hidden" name="action" value="update_status">
+                                        <?php echo csrf_field(); ?>
+                                        <input type="hidden" name="order_id" value="<?php echo (int) $o['id']; ?>">
+                                        <select name="status" style="padding:4px 8px; border:1px solid var(--color-border); border-radius:4px; background:var(--color-black); color:var(--color-white); font-size:0.8rem;">
+                                            <?php foreach ($statusLabels as $k => $v): ?>
+                                            <option value="<?php echo $k; ?>" <?php echo $k === $o['status'] ? 'selected' : ''; ?>><?php echo $v['label']; ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <button type="submit" class="btn btn-secondary" style="padding:4px 10px; font-size:0.8rem;" aria-label="Atualizar status do pedido"><i class="fas fa-check"></i></button>
+                                    </form>
+                                </td>
+                            </tr>
+                            <?php endforeach; endif; ?>
+                        </tbody>
+                    </table>
             </div>
         </main>
     </div>
