@@ -1,6 +1,5 @@
 <?php
 $page_title = 'Carrinho - Royal Tech';
-$show_breadcrumb = true;
 $breadcrumb_title = 'Carrinho de Compras';
 $current_page = 'carrinho';
 $base_path = '../../';

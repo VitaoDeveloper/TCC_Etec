@@ -20,73 +20,7 @@ include 'auth_check.php';
 </head>
 <body>
     <div class="admin-wrapper">
-        <!-- Sidebar Admin -->
-        <aside class="admin-sidebar">
-            <div class="admin-logo">
-                <a href="index.php">
-                    <span class="logo-icon"><i class="fas fa-crown"></i></span>
-                    <span class="logo-text">Royal<span>Tech</span></span>
-                </a>
-            </div>
-            
-            <nav class="admin-nav">
-                <div class="admin-nav-item">
-                    <a href="index.php" class="admin-nav-link active">
-                        <i class="fas fa-tachometer-alt"></i>
-                        <span>Dashboard</span>
-                    </a>
-                </div>
-                <div class="admin-nav-item">
-                    <a href="products.php" class="admin-nav-link">
-                        <i class="fas fa-box"></i>
-                        <span>Produtos</span>
-                    </a>
-                </div>
-                <div class="admin-nav-item">
-                    <a href="categories.php" class="admin-nav-link">
-                        <i class="fas fa-tags"></i>
-                        <span>Categorias</span>
-                    </a>
-                </div>
-                <div class="admin-nav-item">
-                    <a href="orders.php" class="admin-nav-link">
-                        <i class="fas fa-shopping-cart"></i>
-                        <span>Pedidos</span>
-                    </a>
-                </div>
-                <div class="admin-nav-item">
-                    <a href="customers.php" class="admin-nav-link">
-                        <i class="fas fa-users"></i>
-                        <span>Clientes</span>
-                    </a>
-                </div>
-                <div class="admin-nav-item">
-                    <a href="banners.php" class="admin-nav-link">
-                        <i class="fas fa-images"></i>
-                        <span>Banners</span>
-                    </a>
-                </div>
-                <div class="admin-nav-item">
-                    <a href="reports.php" class="admin-nav-link">
-                        <i class="fas fa-chart-bar"></i>
-                        <span>Relatórios</span>
-                    </a>
-                </div>
-                <div class="admin-nav-item">
-                    <a href="settings.php" class="admin-nav-link">
-                        <i class="fas fa-cogs"></i>
-                        <span>Configurações</span>
-                    </a>
-                </div>
-            </nav>
-            
-            <div style="padding: 20px; margin-top: auto;">
-                <a href="logout.php" class="btn btn-secondary" style="width: 100%;">
-                    <i class="fas fa-sign-out-alt"></i>
-                    Sair
-                </a>
-            </div>
-        </aside>
+        <?php $activePage = 'dashboard'; include 'sidebar_inc.php'; ?>
         
         <!-- Conteúdo Principal Admin -->
         <main class="admin-main">

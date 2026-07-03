@@ -5,10 +5,7 @@ include '../../database/connection.php';
 require_once __DIR__ . '/../../includes/csrf.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'update_status') {
-    if (!csrf_verify($_POST['_csrf_token'] ?? null)) {
-        http_response_code(419);
-        exit('Sessão expirada. Recarregue a página.');
-    }
+    csrf_require_valid();
     $orderId = (int) ($_POST['order_id'] ?? 0);
     $newStatus = (string) ($_POST['status'] ?? '');
     $allowed = ['pending', 'paid', 'shipped', 'delivered', 'canceled'];
@@ -59,19 +56,7 @@ unset($_SESSION['admin_message']);
 </head>
 <body>
     <div class="admin-wrapper">
-        <aside class="admin-sidebar">
-            <div class="admin-logo"><a href="index.php"><span class="logo-icon"><i class="fas fa-crown"></i></span><span class="logo-text">Royal<span>Tech</span></span></a></div>
-            <nav class="admin-nav">
-                <div class="admin-nav-item"><a href="index.php" class="admin-nav-link"><i class="fas fa-tachometer-alt"></i><span>Dashboard</span></a></div>
-                <div class="admin-nav-item"><a href="products.php" class="admin-nav-link"><i class="fas fa-box"></i><span>Produtos</span></a></div>
-                <div class="admin-nav-item"><a href="categories.php" class="admin-nav-link"><i class="fas fa-tags"></i><span>Categorias</span></a></div>
-                <div class="admin-nav-item"><a href="orders.php" class="admin-nav-link active"><i class="fas fa-shopping-cart"></i><span>Pedidos</span></a></div>
-                <div class="admin-nav-item"><a href="customers.php" class="admin-nav-link"><i class="fas fa-users"></i><span>Clientes</span></a></div>
-                <div class="admin-nav-item"><a href="banners.php" class="admin-nav-link"><i class="fas fa-images"></i><span>Banners</span></a></div>
-                <div class="admin-nav-item"><a href="reports.php" class="admin-nav-link"><i class="fas fa-chart-bar"></i><span>Relatórios</span></a></div>
-                <div class="admin-nav-item"><a href="settings.php" class="admin-nav-link"><i class="fas fa-cogs"></i><span>Configurações</span></a></div>
-            </nav>
-        </aside>
+        <?php $activePage = 'orders'; include 'sidebar_inc.php'; ?>
         <main class="admin-main">
             <header class="admin-header">
                 <div class="admin-title">

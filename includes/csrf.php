@@ -20,3 +20,10 @@ function csrf_verify(?string $token): bool {
     }
     return hash_equals($_SESSION['_csrf_token'], $token);
 }
+
+function csrf_require_valid(): void {
+    if (!csrf_verify($_POST['_csrf_token'] ?? null)) {
+        http_response_code(419);
+        exit('Sessão expirada. Recarregue a página.');
+    }
+}

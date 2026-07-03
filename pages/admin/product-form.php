@@ -43,10 +43,7 @@ if ($productId > 0) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!csrf_verify($_POST['_csrf_token'] ?? null)) {
-        http_response_code(419);
-        exit('Sessão expirada. Recarregue a página.');
-    }
+    csrf_require_valid();
     $categoryId = (int) ($_POST['category_id'] ?? 0);
     $name = trim((string) ($_POST['name'] ?? ''));
     $imagePathInput = normalizeImagePath((string) ($_POST['image_path'] ?? ''));

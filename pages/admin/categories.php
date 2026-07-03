@@ -6,10 +6,7 @@ require_once __DIR__ . '/../../includes/csrf.php';
 $activePage = 'categories';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!csrf_verify($_POST['_csrf_token'] ?? null)) {
-        http_response_code(419);
-        exit('Sessão expirada. Recarregue a página.');
-    }
+    csrf_require_valid();
     $action = $_POST['action'] ?? '';
 
     if ($action === 'create') {
