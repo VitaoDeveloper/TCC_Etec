@@ -117,7 +117,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (searchInput) searchInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') doSearch(); });
 });
 </script>
-<?php if (isset($show_breadcrumb) && $show_breadcrumb): ?>
+<?php if ($show_breadcrumb ?? true): ?>
 <section class="breadcrumb-section">
     <div class="container">
         <nav class="breadcrumb">

@@ -1,6 +1,5 @@
 <?php
 $page_title = 'Contato - Royal Tech';
-$show_breadcrumb = true;
 $breadcrumb_title = 'Contato';
 $current_page = 'contato';
 $base_path = '../../';
@@ -10,10 +9,7 @@ $contactMessage = null;
 $contactError = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!csrf_verify($_POST['_csrf_token'] ?? null)) {
-        http_response_code(419);
-        exit('Sessão expirada. Recarregue a página.');
-    }
+    csrf_require_valid();
     $name = trim((string) ($_POST['name'] ?? ''));
     $email = trim((string) ($_POST['email'] ?? ''));
     $phone = trim((string) ($_POST['phone'] ?? ''));

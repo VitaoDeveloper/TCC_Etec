@@ -1,6 +1,5 @@
 <?php
 $page_title = 'Produtos - Royal Tech';
-$show_breadcrumb = true;
 $breadcrumb_title = 'Produtos';
 $current_page = 'produtos';
 $base_path = '../../';

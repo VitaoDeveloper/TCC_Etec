@@ -19,6 +19,4 @@ function rate_limit_check(string $key, int $maxAttempts = 5, int $windowMinutes 
     return true;
 }
 
-function rate_limit_reset(string $key): void {
-    unset($_SESSION['_rate_limit_' . $key]);
-}
+/* ponytail: rate_limit_reset removed — zero callers */

@@ -12,10 +12,7 @@ if ($token === '') {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $token !== '') {
-    if (!csrf_verify($_POST['_csrf_token'] ?? null)) {
-        http_response_code(419);
-        exit('Sessão expirada. Recarregue a página.');
-    }
+    csrf_require_valid();
     $password = (string) ($_POST['password'] ?? '');
     $confirm = (string) ($_POST['confirm_password'] ?? '');
 

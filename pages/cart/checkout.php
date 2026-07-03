@@ -1,6 +1,5 @@
 <?php
 $page_title = 'Finalizar Pedido - Royal Tech';
-$show_breadcrumb = true;
 $breadcrumb_title = 'Finalizar Pedido';
 $current_page = 'carrinho';
 $base_path = '../../';
@@ -37,10 +36,7 @@ $orderId = null;
 $errorMessage = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!csrf_verify($_POST['_csrf_token'] ?? null)) {
-        http_response_code(419);
-        exit('Sessão expirada. Recarregue a página.');
-    }
+    csrf_require_valid();
     try {
         $pdo->beginTransaction();
 
