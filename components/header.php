@@ -137,8 +137,14 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="container">
         <nav class="breadcrumb">
             <a href="<?php echo $basePath; ?>index.php">Início</a>
+            <?php if (!empty($breadcrumb_items)): foreach ($breadcrumb_items as $bi): ?>
+            <span>/</span>
+            <?php if (!empty($bi['url'])): ?><a href="<?php echo htmlspecialchars($bi['url'], ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($bi['label'], ENT_QUOTES, 'UTF-8'); ?></a><?php else: ?><span><?php echo htmlspecialchars($bi['label'], ENT_QUOTES, 'UTF-8'); ?></span><?php endif; ?>
+            <?php endforeach; ?>
+            <?php else: ?>
             <span>/</span>
             <span><?php echo $breadcrumb_title ?? 'Página Atual'; ?></span>
+            <?php endif; ?>
         </nav>
     </div>
 </section>

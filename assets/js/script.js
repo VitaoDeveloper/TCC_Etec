@@ -127,8 +127,25 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(() => { this.classList.remove('btn-loading'); if (window.showToast) { showToast('Erro ao adicionar ao carrinho.', 'error'); } });
         });
+});
+
+// ========================================
+// Input Masks (CPF, CEP)
+// ========================================
+document.querySelectorAll('.cpf-mask').forEach(function(el) {
+    el.addEventListener('input', function() {
+        var v = this.value.replace(/\D/g, '').slice(0, 11);
+        v = v.replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+        this.value = v;
     });
-    
+});
+document.querySelectorAll('.cep-mask').forEach(function(el) {
+    el.addEventListener('input', function() {
+        var v = this.value.replace(/\D/g, '').slice(0, 8);
+        v = v.replace(/(\d{5})(\d)/, '$1-$2');
+        this.value = v;
+    });
+});
 
 
     // ========================================
