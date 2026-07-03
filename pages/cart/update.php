@@ -20,6 +20,14 @@ if ($productId <= 0) {
 require_once __DIR__ . '/../../database/connection.php';
 require_once __DIR__ . '/../../includes/cart_functions.php';
 
+if ($quantity > 0) {
+    $check = validateStock($pdo, $productId, $quantity);
+    if (!$check['ok']) {
+        echo json_encode(['success' => false, 'message' => $check['msg'], 'count' => cartGetCount($pdo, (int)$_SESSION['user_id'])]);
+        exit;
+    }
+}
+
 cartUpdateQuantity($pdo, (int)$_SESSION['user_id'], $productId, $quantity);
 $count = cartGetCount($pdo, (int)$_SESSION['user_id']);
 
