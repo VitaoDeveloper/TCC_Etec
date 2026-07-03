@@ -6,6 +6,15 @@ if (session_status() === PHP_SESSION_NONE) {
 $isLoggedIn = isset($_SESSION['user_id']);
 $basePath = $base_path ?? '';
 
+$settingsPath = dirname(__DIR__) . '/database/settings.json';
+$storeSettings = (file_exists($settingsPath)) ? json_decode(file_get_contents($settingsPath), true) : [];
+$socialLinks = [
+    'facebook' => $storeSettings['social_facebook'] ?? '#',
+    'instagram' => $storeSettings['social_instagram'] ?? '#',
+    'twitter' => $storeSettings['social_twitter'] ?? '#',
+    'youtube' => $storeSettings['social_youtube'] ?? '#',
+];
+
 $cartCount = 0;
 $wishlistCount = 0;
 if ($isLoggedIn) {
@@ -50,10 +59,10 @@ if ($isLoggedIn) {
                     <span><i class="fas fa-envelope"></i> contato@royaltech.com.br</span>
                 </div>
                 <div class="header-social">
-                    <a href="#"><i class="fab fa-facebook-f"></i></a>
-                    <a href="#"><i class="fab fa-instagram"></i></a>
-                    <a href="#"><i class="fab fa-twitter"></i></a>
-                    <a href="#"><i class="fab fa-youtube"></i></a>
+                    <a href="<?php echo htmlspecialchars($socialLinks['facebook'], ENT_QUOTES, 'UTF-8'); ?>"><i class="fab fa-facebook-f"></i></a>
+                    <a href="<?php echo htmlspecialchars($socialLinks['instagram'], ENT_QUOTES, 'UTF-8'); ?>"><i class="fab fa-instagram"></i></a>
+                    <a href="<?php echo htmlspecialchars($socialLinks['twitter'], ENT_QUOTES, 'UTF-8'); ?>"><i class="fab fa-twitter"></i></a>
+                    <a href="<?php echo htmlspecialchars($socialLinks['youtube'], ENT_QUOTES, 'UTF-8'); ?>"><i class="fab fa-youtube"></i></a>
                 </div>
             </div>
         </div>

@@ -10,10 +10,10 @@
                         </div>
                         <p class="footer-desc">Sua loja de tecnologia premium. Oferecemos os melhores produtos tecnológicos com qualidade e atendimento diferenciado.</p>
                         <div class="footer-social">
-                            <a href="#"><i class="fab fa-facebook-f"></i></a>
-                            <a href="#"><i class="fab fa-instagram"></i></a>
-                            <a href="#"><i class="fab fa-twitter"></i></a>
-                            <a href="#"><i class="fab fa-youtube"></i></a>
+                            <a href="<?php echo htmlspecialchars($socialLinks['facebook'] ?? '#', ENT_QUOTES, 'UTF-8'); ?>"><i class="fab fa-facebook-f"></i></a>
+                            <a href="<?php echo htmlspecialchars($socialLinks['instagram'] ?? '#', ENT_QUOTES, 'UTF-8'); ?>"><i class="fab fa-instagram"></i></a>
+                            <a href="<?php echo htmlspecialchars($socialLinks['twitter'] ?? '#', ENT_QUOTES, 'UTF-8'); ?>"><i class="fab fa-twitter"></i></a>
+                            <a href="<?php echo htmlspecialchars($socialLinks['youtube'] ?? '#', ENT_QUOTES, 'UTF-8'); ?>"><i class="fab fa-youtube"></i></a>
                         </div>
                     </div>
                     

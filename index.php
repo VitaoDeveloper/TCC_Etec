@@ -9,6 +9,16 @@ include __DIR__ . '/database/connection.php';
 $activeBanners = $pdo->query('SELECT * FROM e5_banners WHERE is_active = 1 ORDER BY created_at DESC LIMIT 1')->fetchAll();
 $featuredBanner = $activeBanners[0] ?? null;
 
+$featuredProducts = $pdo->query('SELECT p.id, p.name, p.price, p.old_price, p.brand, p.stock, c.name AS category_name,
+    (SELECT pi.image_path FROM e5_product_images pi WHERE pi.product_id = p.id ORDER BY pi.is_primary DESC, pi.id ASC LIMIT 1) AS image_path
+    FROM e5_products p INNER JOIN e5_categories c ON c.id = p.category_id WHERE p.is_featured = 1 ORDER BY p.created_at DESC LIMIT 4')->fetchAll();
+
+$newProducts = $pdo->query('SELECT p.id, p.name, p.price, p.old_price, p.brand, p.stock, c.name AS category_name,
+    (SELECT pi.image_path FROM e5_product_images pi WHERE pi.product_id = p.id ORDER BY pi.is_primary DESC, pi.id ASC LIMIT 1) AS image_path
+    FROM e5_products p INNER JOIN e5_categories c ON c.id = p.category_id ORDER BY p.created_at DESC LIMIT 4')->fetchAll();
+
+$categories = $pdo->query('SELECT id, name, slug, (SELECT COUNT(*) FROM e5_products WHERE category_id = c.id) AS product_count FROM e5_categories c ORDER BY name ASC')->fetchAll();
+
 include 'components/header.php';
 ?>
 <div class="hero-bg">
@@ -87,62 +97,15 @@ include 'components/header.php';
             <p>Navegue pelas nossas categorias e encontre exatamente o que precisa</p>
         </div>
         <div class="categories-grid">
-            <a href="pages/products/products.php?category=notebooks" class="category-card">
-                <div class="category-icon">
-                    <i class="fas fa-laptop"></i>
-                </div>
-                <h4>Notebooks</h4>
-                <span>Ver produtos →</span>
+            <?php if (empty($categories)): ?>
+            <p style="color:var(--color-gray); grid-column:1/-1; text-align:center;">Nenhuma categoria cadastrada.</p>
+            <?php else: foreach ($categories as $cat): ?>
+            <a href="pages/products/products.php?category=<?php echo urlencode($cat['slug']); ?>" class="category-card">
+                <div class="category-icon"><i class="fas fa-folder"></i></div>
+                <h4><?php echo htmlspecialchars($cat['name'], ENT_QUOTES, 'UTF-8'); ?></h4>
+                <span><?php echo (int) $cat['product_count']; ?> produto(s) →</span>
             </a>
-            <a href="pages/products/products.php?category=smartphones" class="category-card">
-                <div class="category-icon">
-                    <i class="fas fa-mobile-alt"></i>
-                </div>
-                <h4>Smartphones</h4>
-                <span>Ver produtos →</span>
-            </a>
-            <a href="pages/products/products.php?category=tablets" class="category-card">
-                <div class="category-icon">
-                    <i class="fas fa-tablet-alt"></i>
-                </div>
-                <h4>Tablets</h4>
-                <span>Ver produtos →</span>
-            </a>
-            <a href="pages/products/products.php?category=perifericos" class="category-card">
-                <div class="category-icon">
-                    <i class="fas fa-keyboard"></i>
-                </div>
-                <h4>Periféricos</h4>
-                <span>Ver produtos →</span>
-            </a>
-            <a href="pages/products/products.php?category=audio" class="category-card">
-                <div class="category-icon">
-                    <i class="fas fa-headphones"></i>
-                </div>
-                <h4>Áudio</h4>
-                <span>Ver produtos →</span>
-            </a>
-            <a href="pages/products/products.php?category=games" class="category-card">
-                <div class="category-icon">
-                    <i class="fas fa-gamepad"></i>
-                </div>
-                <h4>Games</h4>
-                <span>Ver produtos →</span>
-            </a>
-            <a href="pages/products/products.php?category=cameras" class="category-card">
-                <div class="category-icon">
-                    <i class="fas fa-camera"></i>
-                </div>
-                <h4>Câmeras</h4>
-                <span>Ver produtos →</span>
-            </a>
-            <a href="pages/products/products.php?category=acessorios" class="category-card">
-                <div class="category-icon">
-                    <i class="fas fa-headset"></i>
-                </div>
-                <h4>Acessórios</h4>
-                <span>Ver produtos →</span>
-            </a>
+            <?php endforeach; endif; ?>
         </div>
     </div>
 </section>
@@ -155,63 +118,22 @@ include 'components/header.php';
             <p>Selecionamos os melhores produtos para você com ofertas especiais</p>
         </div>
         <div class="products-grid">
-            <?php
-            // Incluir componente de produto (repetir conforme necessário)
-            include 'components/product-card.php';
-            
-            // Simular dados de produtos para exemplo
-            $products = [
-                [
-                    'product_id' => 1,
-                    'product_name' => 'Notebook Premium Pro',
-                    'product_price' => 8999.00,
-                    'product_old_price' => 9999.00,
-                    'product_image' => 'assets/img/placeholder-product.svg',
-                    'product_category' => 'Notebooks',
-                    'product_brand' => 'Royal Tech',
-                    'product_installments' => '12x',
-                    'product_is_new' => true,
-                    'product_is_featured' => true
-                ],
-                [
-                    'product_id' => 2,
-                    'product_name' => 'Smartphone Ultra X',
-                    'product_price' => 4999.00,
-                    'product_image' => 'assets/img/placeholder-product.svg',
-                    'product_category' => 'Smartphones',
-                    'product_brand' => 'Royal Tech',
-                    'product_installments' => '12x',
-                    'product_is_featured' => true
-                ],
-                [
-                    'product_id' => 3,
-                    'product_name' => 'Fone Premium Wireless',
-                    'product_price' => 899.00,
-                    'product_image' => 'assets/img/placeholder-product.svg',
-                    'product_category' => 'Áudio',
-                    'product_brand' => 'Royal Audio',
-                    'product_installments' => '6x',
-                    'product_is_new' => true
-                ],
-                [
-                    'product_id' => 4,
-                    'product_name' => 'Teclado Mecânico RGB',
-                    'product_price' => 449.00,
-                    'product_image' => 'assets/img/placeholder-product.svg',
-                    'product_category' => 'Periféricos',
-                    'product_brand' => 'Royal Gear',
-                    'product_installments' => '6x',
-                    'product_is_featured' => true
-                ]
-            ];
-            
-            foreach ($products as $product) {
-                foreach ($product as $key => $value) {
-                    $$key = $value;
-                }
+            <?php if (empty($featuredProducts)): ?>
+            <p style="color:var(--color-gray); grid-column:1/-1; text-align:center;">Nenhum produto em destaque no momento.</p>
+            <?php else: foreach ($featuredProducts as $p):
+                $product_id = (int) $p['id'];
+                $product_name = $p['name'];
+                $product_price = (float) $p['price'];
+                $product_old_price = $p['old_price'] !== null ? (float) $p['old_price'] : null;
+                $product_image = $p['image_path'] ?: 'assets/img/placeholder-product.svg';
+                $product_category = $p['category_name'];
+                $product_brand = $p['brand'] ?? 'Royal Tech';
+                $product_installments = '12x';
+                $product_is_featured = true;
+                $product_is_new = false;
+                $product_stock = (int) $p['stock'];
                 include 'components/product-card.php';
-            }
-            ?>
+            endforeach; endif; ?>
         </div>
         <div class="text-center" style="margin-top: 50px;">
             <a href="pages/products/products.php" class="btn btn-gold">
@@ -294,57 +216,22 @@ include 'components/header.php';
             <p>Fique por dentro dos lançamentos mais recentes do mercado tecnológico</p>
         </div>
         <div class="products-grid">
-            <?php
-            $new_products = [
-                [
-                    'product_id' => 5,
-                    'product_name' => 'Smartwatch Elite',
-                    'product_price' => 2499.00,
-                    'product_image' => 'assets/img/placeholder-product.svg',
-                    'product_category' => 'Wearables',
-                    'product_brand' => 'Royal Tech',
-                    'product_installments' => '10x',
-                    'product_is_new' => true
-                ],
-                [
-                    'product_id' => 6,
-                    'product_name' => 'Tablet Pro 12"',
-                    'product_price' => 5999.00,
-                    'product_image' => 'assets/img/placeholder-product.svg',
-                    'product_category' => 'Tablets',
-                    'product_brand' => 'Royal Tech',
-                    'product_installments' => '12x',
-                    'product_is_new' => true
-                ],
-                [
-                    'product_id' => 7,
-                    'product_name' => 'Monitor 4K Premium',
-                    'product_price' => 3299.00,
-                    'product_image' => 'assets/img/placeholder-product.svg',
-                    'product_category' => 'Monitores',
-                    'product_brand' => 'Royal Vision',
-                    'product_installments' => '10x',
-                    'product_is_new' => true
-                ],
-                [
-                    'product_id' => 8,
-                    'product_name' => 'Console Gaming Pro',
-                    'product_price' => 4499.00,
-                    'product_image' => 'assets/img/placeholder-product.svg',
-                    'product_category' => 'Games',
-                    'product_brand' => 'Royal Play',
-                    'product_installments' => '12x',
-                    'product_is_new' => true
-                ]
-            ];
-            
-            foreach ($new_products as $product) {
-                foreach ($product as $key => $value) {
-                    $$key = $value;
-                }
+            <?php if (empty($newProducts)): ?>
+            <p style="color:var(--color-gray); grid-column:1/-1; text-align:center;">Nenhum produto recente.</p>
+            <?php else: foreach ($newProducts as $p):
+                $product_id = (int) $p['id'];
+                $product_name = $p['name'];
+                $product_price = (float) $p['price'];
+                $product_old_price = $p['old_price'] !== null ? (float) $p['old_price'] : null;
+                $product_image = $p['image_path'] ?: 'assets/img/placeholder-product.svg';
+                $product_category = $p['category_name'];
+                $product_brand = $p['brand'] ?? 'Royal Tech';
+                $product_installments = '12x';
+                $product_is_featured = false;
+                $product_is_new = true;
+                $product_stock = (int) $p['stock'];
                 include 'components/product-card.php';
-            }
-            ?>
+            endforeach; endif; ?>
         </div>
     </div>
 </section>
