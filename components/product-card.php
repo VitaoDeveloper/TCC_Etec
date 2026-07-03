@@ -12,6 +12,7 @@
  * - $product_installments: Parcelamento
  * - $product_is_new: Se é produto novo (boolean)
  * - $product_is_featured: Se é produto em destaque (boolean)
+ * - $product_stock: Quantidade em estoque (int)
  */
 ?>
 
@@ -36,6 +37,9 @@ if ($imageCandidate === '') {
         
         <?php if (isset($product_is_featured) && $product_is_featured): ?>
         <span class="product-badge featured">Destaque</span>
+        <?php endif; ?>
+        <?php if (isset($product_stock) && $product_stock <= 0): ?>
+        <span class="product-badge out-of-stock">Esgotado</span>
         <?php endif; ?>
         
         <img src="<?php echo htmlspecialchars($imageCandidate, ENT_QUOTES, 'UTF-8'); ?>" style="width:100%; height:100%;" 
@@ -76,9 +80,10 @@ if ($imageCandidate === '') {
         </div>
         <?php endif; ?>
         
-        <button class="btn-add-cart js-require-auth" data-auth-target="carrinho" aria-label="Adicionar ao carrinho">
+        <?php $btnDisabled = (isset($product_stock) && $product_stock <= 0); ?>
+        <button class="btn-add-cart <?php echo $btnDisabled ? '' : 'js-require-auth'; ?>" data-auth-target="carrinho" <?php echo $btnDisabled ? 'disabled style="opacity:0.4;cursor:not-allowed;"' : ''; ?> aria-label="Adicionar ao carrinho">
             <i class="fas fa-shopping-bag"></i>
-            Adicionar ao Carrinho
+            <?php echo $btnDisabled ? 'Indisponível' : 'Adicionar ao Carrinho'; ?>
         </button>
     </div>
 </article>
