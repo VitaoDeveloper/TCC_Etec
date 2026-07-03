@@ -48,3 +48,19 @@ function cartClear($pdo, $userId) {
     $stmt = $pdo->prepare('DELETE FROM e5_cart WHERE user_id = :uid');
     return $stmt->execute([':uid' => $userId]);
 }
+
+function validateStock($pdo, $productId, $quantity) {
+    $stmt = $pdo->prepare('SELECT stock FROM e5_products WHERE id = :pid LIMIT 1');
+    $stmt->execute([':pid' => $productId]);
+    $product = $stmt->fetch();
+    if (!$product) return ['ok' => false, 'msg' => 'Produto não encontrado.'];
+    $available = (int) $product['stock'];
+    if ($available <= 0) return ['ok' => false, 'msg' => 'Produto esgotado.'];
+    if ($quantity > $available) return ['ok' => false, 'msg' => "Apenas $available unidade(s) disponível(is)."];
+    return ['ok' => true, 'available' => $available];
+}
+
+function decrementStock($pdo, $productId, $quantity) {
+    $stmt = $pdo->prepare('UPDATE e5_products SET stock = stock - :qty WHERE id = :pid AND stock >= :qty2');
+    return $stmt->execute([':qty' => $quantity, ':pid' => $productId, ':qty2' => $quantity]);
+}
