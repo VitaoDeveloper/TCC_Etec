@@ -56,6 +56,14 @@ CREATE TABLE IF NOT EXISTS e5_orders (
   user_id INT NOT NULL,
   status ENUM('pending','paid','shipped','delivered','canceled') NOT NULL DEFAULT 'pending',
   total DECIMAL(10,2) NOT NULL,
+  shipping_method VARCHAR(50) NULL,
+  shipping_cost DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  payment_method VARCHAR(50) NULL,
+  payment_status ENUM('pending','paid','refunded') NOT NULL DEFAULT 'pending',
+  shipping_neighborhood VARCHAR(80) NULL,
+  shipping_city VARCHAR(80) NULL,
+  shipping_state VARCHAR(40) NULL,
+  shipping_postal_code VARCHAR(10) NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_orders_user FOREIGN KEY (user_id) REFERENCES e5_users(id)
@@ -119,3 +127,25 @@ CREATE TABLE IF NOT EXISTS e5_banners (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS e5_wishlist (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  user_id INT NOT NULL,
+  product_id INT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_wishlist_item (user_id, product_id),
+  CONSTRAINT fk_wishlist_user FOREIGN KEY (user_id) REFERENCES e5_users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_wishlist_product FOREIGN KEY (product_id) REFERENCES e5_products(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Migração 2026-07: adicionar colunas de frete/pagamento/estoque
+-- Execute se já tinha o banco criado:
+-- ALTER TABLE e5_orders
+--   ADD COLUMN shipping_method VARCHAR(50) NULL AFTER total,
+--   ADD COLUMN shipping_cost DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER shipping_method,
+--   ADD COLUMN payment_method VARCHAR(50) NULL AFTER shipping_cost,
+--   ADD COLUMN payment_status ENUM('pending','paid','refunded') NOT NULL DEFAULT 'pending' AFTER payment_method,
+--   ADD COLUMN shipping_neighborhood VARCHAR(80) NULL AFTER payment_status,
+--   ADD COLUMN shipping_city VARCHAR(80) NULL AFTER shipping_neighborhood,
+--   ADD COLUMN shipping_state VARCHAR(40) NULL AFTER shipping_city,
+--   ADD COLUMN shipping_postal_code VARCHAR(10) NULL AFTER shipping_state;

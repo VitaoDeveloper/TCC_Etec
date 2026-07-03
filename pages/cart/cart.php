@@ -58,7 +58,11 @@ include $base_path . 'components/header.php';
                         </td>
                         <td>R$ <?php echo number_format((float)$item['price'], 2, ',', '.'); ?></td>
                         <td>
-                            <input type="number" class="cart-qty" value="<?php echo (int)$item['quantity']; ?>" min="0" max="<?php echo (int)$item['stock']; ?>" style="width:60px; padding:4px 8px; text-align:center;">
+                            <div style="display:flex; align-items:center; gap:4px;">
+                                <button class="cart-qty-btn" data-action="dec" style="width:30px;height:30px;border:1px solid var(--color-border);border-radius:4px;background:var(--color-black);color:var(--color-white);cursor:pointer;font-size:1rem;line-height:1;">−</button>
+                                <input type="number" class="cart-qty" value="<?php echo (int)$item['quantity']; ?>" min="0" max="<?php echo (int)$item['stock']; ?>" style="width:50px; padding:4px; text-align:center;">
+                                <button class="cart-qty-btn" data-action="inc" style="width:30px;height:30px;border:1px solid var(--color-border);border-radius:4px;background:var(--color-black);color:var(--color-white);cursor:pointer;font-size:1rem;line-height:1;">+</button>
+                            </div>
                         </td>
                         <td class="cart-subtotal">R$ <?php echo number_format($subtotal, 2, ',', '.'); ?></td>
                         <td><button class="cart-remove" title="Remover" aria-label="Remover item do carrinho" style="background:none; border:none; color:#f44336; cursor:pointer; font-size:18px;"><i class="fas fa-trash-alt"></i></button></td>
@@ -78,17 +82,36 @@ include $base_path . 'components/header.php';
 </div></section>
 
 <script>
+function updateCartQty(productId, qty) {
+    fetch('<?php echo $base_path; ?>pages/cart/update.php', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: 'product_id=' + productId + '&quantity=' + qty
+    }).then(r => r.json()).then(data => {
+        if (data.success) location.reload();
+    });
+}
+
+document.querySelectorAll('.cart-qty-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const input = this.parentElement.querySelector('.cart-qty');
+        const productId = this.closest('tr').dataset.productId;
+        let val = parseInt(input.value) || 0;
+        if (this.dataset.action === 'inc') {
+            const max = parseInt(input.max) || 999;
+            if (val < max) val++;
+        } else {
+            if (val > 0) val--;
+        }
+        input.value = val;
+        updateCartQty(productId, val);
+    });
+});
+
 document.querySelectorAll('.cart-qty').forEach(input => {
     input.addEventListener('change', function() {
         const productId = this.closest('tr').dataset.productId;
-        const qty = parseInt(this.value) || 0;
-        fetch('<?php echo $base_path; ?>pages/cart/update.php', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-            body: 'product_id=' + productId + '&quantity=' + qty
-        }).then(r => r.json()).then(data => {
-            if (data.success) location.reload();
-        });
+        updateCartQty(productId, parseInt(this.value) || 0);
     });
 });
 

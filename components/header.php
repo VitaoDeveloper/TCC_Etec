@@ -6,7 +6,17 @@ if (session_status() === PHP_SESSION_NONE) {
 $isLoggedIn = isset($_SESSION['user_id']);
 $basePath = $base_path ?? '';
 
+$settingsPath = dirname(__DIR__) . '/database/settings.json';
+$storeSettings = (file_exists($settingsPath)) ? json_decode(file_get_contents($settingsPath), true) : [];
+$socialLinks = [
+    'facebook' => $storeSettings['social_facebook'] ?? '#',
+    'instagram' => $storeSettings['social_instagram'] ?? '#',
+    'twitter' => $storeSettings['social_twitter'] ?? '#',
+    'youtube' => $storeSettings['social_youtube'] ?? '#',
+];
+
 $cartCount = 0;
+$wishlistCount = 0;
 if ($isLoggedIn) {
     if (!isset($pdo)) {
         $connPath = dirname(__DIR__) . '/database/connection.php';
@@ -17,6 +27,8 @@ if ($isLoggedIn) {
     if (isset($pdo)) {
         require_once dirname(__DIR__) . '/includes/cart_functions.php';
         $cartCount = cartGetCount($pdo, (int)$_SESSION['user_id']);
+        require_once dirname(__DIR__) . '/includes/wishlist_functions.php';
+        $wishlistCount = wishlistCount($pdo, (int)$_SESSION['user_id']);
     }
 }
 ?>
@@ -43,14 +55,14 @@ if ($isLoggedIn) {
         <div class="container">
             <div class="header-top-content">
                 <div class="header-contacts">
-                    <span><i class="fas fa-phone"></i> (11) 99999-9999</span>
-                    <span><i class="fas fa-envelope"></i> contato@royaltech.com.br</span>
+                    <span><i class="fas fa-phone"></i> <?php echo htmlspecialchars($storeSettings['store_phone'] ?? '(11) 99999-9999', ENT_QUOTES, 'UTF-8'); ?></span>
+                    <span><i class="fas fa-envelope"></i> <?php echo htmlspecialchars($storeSettings['store_email'] ?? 'contato@royaltech.com.br', ENT_QUOTES, 'UTF-8'); ?></span>
                 </div>
                 <div class="header-social">
-                    <a href="#"><i class="fab fa-facebook-f"></i></a>
-                    <a href="#"><i class="fab fa-instagram"></i></a>
-                    <a href="#"><i class="fab fa-twitter"></i></a>
-                    <a href="#"><i class="fab fa-youtube"></i></a>
+                    <a href="<?php echo htmlspecialchars($socialLinks['facebook'], ENT_QUOTES, 'UTF-8'); ?>"><i class="fab fa-facebook-f"></i></a>
+                    <a href="<?php echo htmlspecialchars($socialLinks['instagram'], ENT_QUOTES, 'UTF-8'); ?>"><i class="fab fa-instagram"></i></a>
+                    <a href="<?php echo htmlspecialchars($socialLinks['twitter'], ENT_QUOTES, 'UTF-8'); ?>"><i class="fab fa-twitter"></i></a>
+                    <a href="<?php echo htmlspecialchars($socialLinks['youtube'], ENT_QUOTES, 'UTF-8'); ?>"><i class="fab fa-youtube"></i></a>
                 </div>
             </div>
         </div>
@@ -82,7 +94,10 @@ if ($isLoggedIn) {
                         <button id="header-search-btn" aria-label="Buscar produtos"><i class="fas fa-search"></i></button>
                     </div>
                     <div class="user-actions">
-                        <a href="#" class="action-btn js-require-auth" data-auth-target="favoritos"><i class="far fa-heart"></i></a>
+                        <a href="<?php echo $basePath; ?>pages/wishlist/wishlist.php" class="action-btn wishlist-btn">
+                            <i class="far fa-heart"></i>
+                            <?php if ($wishlistCount > 0): ?><span class="cart-badge"><?php echo $wishlistCount; ?></span><?php endif; ?>
+                        </a>
                         <a href="<?php echo $basePath; ?>pages/cart/cart.php" class="action-btn cart-btn">
                             <i class="fas fa-shopping-cart"></i>
                             <?php if ($cartCount > 0): ?><span class="cart-badge"><?php echo $cartCount; ?></span><?php endif; ?>
@@ -122,8 +137,14 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="container">
         <nav class="breadcrumb">
             <a href="<?php echo $basePath; ?>index.php">Início</a>
+            <?php if (!empty($breadcrumb_items)): foreach ($breadcrumb_items as $bi): ?>
+            <span>/</span>
+            <?php if (!empty($bi['url'])): ?><a href="<?php echo htmlspecialchars($bi['url'], ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($bi['label'], ENT_QUOTES, 'UTF-8'); ?></a><?php else: ?><span><?php echo htmlspecialchars($bi['label'], ENT_QUOTES, 'UTF-8'); ?></span><?php endif; ?>
+            <?php endforeach; ?>
+            <?php else: ?>
             <span>/</span>
             <span><?php echo $breadcrumb_title ?? 'Página Atual'; ?></span>
+            <?php endif; ?>
         </nav>
     </div>
 </section>
