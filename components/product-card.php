@@ -46,7 +46,7 @@ if ($imageCandidate === '') {
              alt="<?php echo $product_name ?? 'Produto'; ?>">
         
         <div class="product-actions">
-            <button class="action-btn" title="Adicionar aos favoritos" aria-label="Adicionar aos favoritos">
+            <button class="action-btn btn-wishlist" title="Adicionar aos favoritos" aria-label="Adicionar aos favoritos" data-product-id="<?php echo $product_id ?? 0; ?>">
                 <i class="far fa-heart"></i>
             </button>
             <button class="action-btn" title="Adicionar ao carrinho" aria-label="Adicionar ao carrinho">

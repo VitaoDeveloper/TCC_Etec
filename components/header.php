@@ -7,6 +7,7 @@ $isLoggedIn = isset($_SESSION['user_id']);
 $basePath = $base_path ?? '';
 
 $cartCount = 0;
+$wishlistCount = 0;
 if ($isLoggedIn) {
     if (!isset($pdo)) {
         $connPath = dirname(__DIR__) . '/database/connection.php';
@@ -17,6 +18,8 @@ if ($isLoggedIn) {
     if (isset($pdo)) {
         require_once dirname(__DIR__) . '/includes/cart_functions.php';
         $cartCount = cartGetCount($pdo, (int)$_SESSION['user_id']);
+        require_once dirname(__DIR__) . '/includes/wishlist_functions.php';
+        $wishlistCount = wishlistCount($pdo, (int)$_SESSION['user_id']);
     }
 }
 ?>
@@ -82,7 +85,10 @@ if ($isLoggedIn) {
                         <button id="header-search-btn" aria-label="Buscar produtos"><i class="fas fa-search"></i></button>
                     </div>
                     <div class="user-actions">
-                        <a href="#" class="action-btn js-require-auth" data-auth-target="favoritos"><i class="far fa-heart"></i></a>
+                        <a href="<?php echo $basePath; ?>pages/wishlist/wishlist.php" class="action-btn wishlist-btn">
+                            <i class="far fa-heart"></i>
+                            <?php if ($wishlistCount > 0): ?><span class="cart-badge"><?php echo $wishlistCount; ?></span><?php endif; ?>
+                        </a>
                         <a href="<?php echo $basePath; ?>pages/cart/cart.php" class="action-btn cart-btn">
                             <i class="fas fa-shopping-cart"></i>
                             <?php if ($cartCount > 0): ?><span class="cart-badge"><?php echo $cartCount; ?></span><?php endif; ?>

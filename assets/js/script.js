@@ -18,12 +18,50 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    const loggedFlag = document.body.getAttribute('data-logged-in') === '1';
+    const basePath = document.body.getAttribute('data-base-path') || '';
+
+    // ========================================
+    // Wishlist Toggle — AJAX
+    // ========================================
+    document.querySelectorAll('.btn-wishlist').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (!loggedFlag) return;
+            const productId = this.dataset.productId;
+            if (!productId) return;
+            fetch(basePath + 'pages/wishlist/toggle.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: new URLSearchParams({product_id: productId})
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    this.querySelector('i').className = data.active ? 'fas fa-heart' : 'far fa-heart';
+                    const badge = document.querySelector('.wishlist-btn .cart-badge');
+                    if (badge) {
+                        badge.textContent = data.count;
+                    } else if (data.count > 0) {
+                        const wb = document.querySelector('.wishlist-btn');
+                        if (wb) {
+                            const span = document.createElement('span');
+                            span.className = 'cart-badge';
+                            span.textContent = data.count;
+                            wb.appendChild(span);
+                        }
+                    }
+                } else {
+                    alert(data.message);
+                }
+            }).catch(() => {});
+        });
+    });
+
     // ========================================
     // Add to Cart Button — AJAX
     // ========================================
     const addToCartBtns = document.querySelectorAll('.btn-add-cart');
-    const loggedFlag = document.body.getAttribute('data-logged-in') === '1';
-    const basePath = document.body.getAttribute('data-base-path') || '';
 
     addToCartBtns.forEach(btn => {
         btn.addEventListener('click', function(e) {

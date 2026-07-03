@@ -128,6 +128,16 @@ CREATE TABLE IF NOT EXISTS e5_banners (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS e5_wishlist (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  user_id INT NOT NULL,
+  product_id INT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_wishlist_item (user_id, product_id),
+  CONSTRAINT fk_wishlist_user FOREIGN KEY (user_id) REFERENCES e5_users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_wishlist_product FOREIGN KEY (product_id) REFERENCES e5_products(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 -- Migração 2026-07: adicionar colunas de frete/pagamento/estoque
 -- Execute se já tinha o banco criado:
 -- ALTER TABLE e5_orders
