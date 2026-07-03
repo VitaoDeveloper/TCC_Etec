@@ -71,6 +71,9 @@
         <i class="fab fa-whatsapp"></i>
     </a>
 
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
     <!-- Scripts -->
     <script src="<?php echo $base_path ?? ''; ?>assets/js/script.js"></script>
 </body>

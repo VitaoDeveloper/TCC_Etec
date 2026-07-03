@@ -43,7 +43,8 @@ if ($imageCandidate === '') {
         <?php endif; ?>
         
         <img src="<?php echo htmlspecialchars($imageCandidate, ENT_QUOTES, 'UTF-8'); ?>" style="width:100%; height:100%;" 
-             alt="<?php echo $product_name ?? 'Produto'; ?>">
+             alt="<?php echo $product_name ?? 'Produto'; ?>"
+             onerror="this.onerror=null;this.src='<?php echo $base; ?>assets/img/placeholder-product.svg'">
         
         <div class="product-actions">
             <button class="action-btn btn-wishlist" title="Adicionar aos favoritos" aria-label="Adicionar aos favoritos" data-product-id="<?php echo $product_id ?? 0; ?>">

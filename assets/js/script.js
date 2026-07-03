@@ -6,15 +6,30 @@
 document.addEventListener('DOMContentLoaded', function() {
     
     // ========================================
-    // Mobile Menu Toggle
+    // Mobile Menu Drawer
     // ========================================
     const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
     const mainNav = document.querySelector('.main-nav');
-    
-    if (mobileMenuBtn) {
-        mobileMenuBtn.addEventListener('click', function() {
-            mainNav.classList.toggle('active');
-            this.classList.toggle('active');
+    let navBackdrop = document.querySelector('.nav-backdrop');
+
+    if (mobileMenuBtn && mainNav) {
+        if (!navBackdrop) {
+            navBackdrop = document.createElement('div');
+            navBackdrop.className = 'nav-backdrop';
+            document.body.appendChild(navBackdrop);
+        }
+
+        function toggleNav(open) {
+            const isOpen = open !== undefined ? open : !mainNav.classList.contains('active');
+            mainNav.classList.toggle('active', isOpen);
+            navBackdrop.classList.toggle('active', isOpen);
+            document.body.style.overflow = isOpen ? 'hidden' : '';
+        }
+
+        mobileMenuBtn.addEventListener('click', function() { toggleNav(); });
+        navBackdrop.addEventListener('click', function() { toggleNav(false); });
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && mainNav.classList.contains('active')) toggleNav(false);
         });
     }
     
@@ -53,10 +68,10 @@ document.addEventListener('DOMContentLoaded', function() {
                             wb.appendChild(span);
                         }
                     }
-                } else {
-                    alert(data.message);
+                } else if (window.showToast) {
+                    showToast(data.message, 'error');
                 }
-            }).catch(() => { this.classList.remove('btn-loading'); });
+            }).catch(() => { this.classList.remove('btn-loading'); if (window.showToast) { showToast('Erro ao favoritar.', 'error'); } });
         });
     });
 
@@ -106,11 +121,11 @@ document.addEventListener('DOMContentLoaded', function() {
                             cartBtn.appendChild(span);
                         }
                     }
-                } else {
-                    alert(data.message);
+                } else if (window.showToast) {
+                    showToast(data.message, 'error');
                 }
             })
-            .catch(() => { this.classList.remove('btn-loading'); alert('Erro ao adicionar ao carrinho.'); });
+            .catch(() => { this.classList.remove('btn-loading'); if (window.showToast) { showToast('Erro ao adicionar ao carrinho.', 'error'); } });
         });
     });
     
@@ -128,8 +143,8 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             const target = this.getAttribute('data-auth-target') || 'recurso';
             const loginUrl = basePath + 'pages/auth/login.php?next=' + encodeURIComponent(window.location.pathname + window.location.search);
-            alert('Para acessar ' + target + ', você precisa fazer login.');
-            window.location.href = loginUrl;
+            if (window.showToast) { showToast('Faça login para acessar ' + target + '.', 'info'); }
+            setTimeout(function() { window.location.href = loginUrl; }, 1500);
         });
     });
 
@@ -155,6 +170,25 @@ document.addEventListener('DOMContentLoaded', function() {
         sidebarBackdrop.classList.toggle('active', isOpen);
         document.body.style.overflow = isOpen ? 'hidden' : '';
     }
+
+    // ========================================
+    // Toast Notification
+    // ========================================
+    window.showToast = function(message, type) {
+        type = type || 'info';
+        var container = document.getElementById('toastContainer');
+        if (!container) return;
+        var icons = { success: 'fa-check-circle', error: 'fa-exclamation-circle', info: 'fa-info-circle' };
+        var toast = document.createElement('div');
+        toast.className = 'toast toast-' + type;
+        toast.innerHTML = '<i class="fas ' + (icons[type] || icons.info) + '"></i> ' + message;
+        container.appendChild(toast);
+        requestAnimationFrame(function() { toast.classList.add('show'); });
+        setTimeout(function() {
+            toast.classList.remove('show');
+            setTimeout(function() { toast.remove(); }, 400);
+        }, 3500);
+    };
     
     if (sidebarToggle && adminSidebar && sidebarBackdrop) {
         sidebarToggle.addEventListener('click', function() {

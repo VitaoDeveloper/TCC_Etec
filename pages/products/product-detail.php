@@ -37,7 +37,7 @@ $stockOk = $stock > 0;
 <div class="product-detail-grid" data-product-id="<?php echo $productId; ?>">
     <div class="product-gallery">
         <div class="gallery-main">
-            <img id="galleryMain" src="<?php echo htmlspecialchars($mainImage, ENT_QUOTES, 'UTF-8'); ?>" alt="<?php echo htmlspecialchars($product['name'], ENT_QUOTES, 'UTF-8'); ?>">
+            <img id="galleryMain" src="<?php echo htmlspecialchars($mainImage, ENT_QUOTES, 'UTF-8'); ?>" alt="<?php echo htmlspecialchars($product['name'], ENT_QUOTES, 'UTF-8'); ?>" onerror="this.onerror=null;this.src='<?php echo $base_path; ?>assets/img/placeholder-product.svg'">
         </div>
         <?php if (count($images) > 1): ?>
         <div class="gallery-thumbs">
@@ -45,7 +45,7 @@ $stockOk = $stock > 0;
                 $thumb = resolveImage($img['image_path'], $base_path);
             ?>
             <div class="gallery-thumb <?php echo $i === 0 ? 'active' : ''; ?>" data-img="<?php echo htmlspecialchars($thumb, ENT_QUOTES, 'UTF-8'); ?>">
-                <img src="<?php echo htmlspecialchars($thumb, ENT_QUOTES, 'UTF-8'); ?>" alt="Thumbnail <?php echo $i + 1; ?>">
+                <img src="<?php echo htmlspecialchars($thumb, ENT_QUOTES, 'UTF-8'); ?>" alt="Thumbnail <?php echo $i + 1; ?>" onerror="this.onerror=null;this.src='<?php echo $base_path; ?>assets/img/placeholder-product.svg'">
             </div>
             <?php endforeach; ?>
         </div>

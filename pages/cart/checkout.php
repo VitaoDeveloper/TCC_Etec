@@ -293,23 +293,19 @@ include $base_path . 'components/header.php';
                     </div>
                     <div class="summary-totals">
                         <div class="summary-line">
-                            <span>Subtotal</span>
+                            <span>Subtotal (<?php echo count($items); ?> <?php echo count($items) === 1 ? 'item' : 'itens'; ?>)</span>
                             <span>R$ <?php echo number_format($subtotal, 2, ',', '.'); ?></span>
                         </div>
-                        <?php if ($shippingCost > 0): ?>
+                        <?php if ($shippingOptions): $shipDays = $shippingOptions[$selectedShipping]['days'] ?? ''; ?>
                         <div class="summary-line">
-                            <span>Frete (<?php echo htmlspecialchars($selectedShipping === 'pac' ? 'PAC' : 'Sedex', ENT_QUOTES, 'UTF-8'); ?>)</span>
-                            <span>R$ <?php echo number_format($shippingCost, 2, ',', '.'); ?></span>
+                            <span>Frete <?php echo htmlspecialchars($selectedShipping === 'pac' ? 'PAC' : 'Sedex', ENT_QUOTES, 'UTF-8'); ?></span>
+                            <span><?php echo $shippingCost > 0 ? 'R$ ' . number_format($shippingCost, 2, ',', '.') : '<span style="color:#4caf50;">Grátis</span>'; ?></span>
                         </div>
-                        <?php else: ?>
-                        <div class="summary-line">
-                            <span>Frete</span>
-                            <span style="color:#4caf50;">Grátis</span>
-                        </div>
+                        <div style="font-size:0.8rem; color:var(--color-gray); text-align:right; padding:2px 0 6px;">Previsão: <?php echo htmlspecialchars($shipDays, ENT_QUOTES, 'UTF-8'); ?></div>
                         <?php endif; ?>
                         <?php if ($pixDiscount > 0): ?>
                         <div class="summary-line discount">
-                            <span>Desconto Pix</span>
+                            <span>Desconto Pix (5%)</span>
                             <span>- R$ <?php echo number_format($pixDiscount, 2, ',', '.'); ?></span>
                         </div>
                         <?php endif; ?>
@@ -317,6 +313,11 @@ include $base_path . 'components/header.php';
                             <span>Total</span>
                             <span>R$ <?php echo number_format($grandTotal, 2, ',', '.'); ?></span>
                         </div>
+                        <?php if ($paymentMethod === 'credit' && $grandTotal > 0): $parc = min(12, max(1, floor($grandTotal / 50))); ?>
+                        <div style="font-size:0.85rem; color:var(--color-gray-light); text-align:center; padding-top:10px; border-top:1px solid var(--color-border); margin-top:8px;">
+                            ou <strong><?php echo $parc; ?>x de R$ <?php echo number_format($grandTotal / $parc, 2, ',', '.'); ?></strong> sem juros
+                        </div>
+                        <?php endif; ?>
                     </div>
 
                     <form method="POST" id="checkoutForm">
