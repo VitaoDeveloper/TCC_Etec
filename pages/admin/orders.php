@@ -85,12 +85,13 @@ unset($_SESSION['admin_message']);
                                 <th>Frete</th>
                                 <th>Pagamento</th>
                                 <th>Status</th>
+                                <th>Ver</th>
                                 <th>Ações</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php if (empty($orders)): ?>
-                            <tr><td colspan="9" style="text-align:center; color:var(--color-gray); padding:40px;">Nenhum pedido encontrado.</td></tr>
+                            <tr><td colspan="10" style="text-align:center; color:var(--color-gray); padding:40px;">Nenhum pedido encontrado.</td></tr>
                             <?php else: foreach ($orders as $o):
                                 $info = $statusLabels[$o['status']] ?? ['label' => $o['status'], 'class' => ''];
                                 $payLabel = ['pix'=>'Pix','boleto'=>'Boleto','credit'=>'Cartão','delivery'=>'Entrega'];
@@ -104,6 +105,7 @@ unset($_SESSION['admin_message']);
                                 <td><?php echo $o['shipping_method'] ? htmlspecialchars($o['shipping_method'], ENT_QUOTES, 'UTF-8') . '<br><small>R$ ' . number_format((float)$o['shipping_cost'],2,',','.') . '</small>' : '—'; ?></td>
                                 <td><?php echo htmlspecialchars($payLabel[$o['payment_method']] ?? $o['payment_method'] ?? '—', ENT_QUOTES, 'UTF-8'); ?></td>
                                 <td><span class="status-badge <?php echo $info['class']; ?>"><?php echo $info['label']; ?></span></td>
+                                <td><a href="order-detail.php?id=<?php echo (int) $o['id']; ?>" class="btn btn-secondary" style="padding:4px 10px; font-size:0.8rem;"><i class="fas fa-eye"></i></a></td>
                                 <td>
                                     <form method="POST" style="display:flex; gap:6px; align-items:center;">
                                         <input type="hidden" name="action" value="update_status">

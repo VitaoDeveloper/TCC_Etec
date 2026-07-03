@@ -6,6 +6,8 @@ $navItems = [
     'categories' => ['href' => 'categories.php', 'icon' => 'fa-tags',          'label' => 'Categorias'],
     'orders'     => ['href' => 'orders.php',     'icon' => 'fa-shopping-cart', 'label' => 'Pedidos'],
     'customers'  => ['href' => 'customers.php',  'icon' => 'fa-users',         'label' => 'Clientes'],
+    'contacts'   => ['href' => 'contacts.php',   'icon' => 'fa-envelope',      'label' => 'Contatos'],
+    'newsletter' => ['href' => 'newsletter.php', 'icon' => 'fa-newspaper',     'label' => 'Newsletter'],
     'banners'    => ['href' => 'banners.php',    'icon' => 'fa-images',        'label' => 'Banners'],
     'reports'    => ['href' => 'reports.php',    'icon' => 'fa-chart-bar',     'label' => 'Relatórios'],
     'settings'   => ['href' => 'settings.php',   'icon' => 'fa-cogs',          'label' => 'Configurações'],

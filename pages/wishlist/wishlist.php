@@ -31,19 +31,11 @@ include $base_path . 'components/header.php';
     <?php else: ?>
         <div class="products-grid">
         <?php foreach ($items as $item):
-            $img = (string) ($item['image_path'] ?? '');
-            if ($img === '') {
-                $img = $base_path . 'assets/img/placeholder-product.svg';
-            } elseif (preg_match('#^/#', $img)) {
-                $img = $base_path . ltrim($img, '/');
-            } elseif (!preg_match('#^https?://#i', $img)) {
-                $img = $base_path . $img;
-            }
             $product_name = $item['product_name'];
             $product_id = $item['product_id'];
             $product_price = $item['price'];
             $product_old_price = $item['old_price'];
-            $product_image = $img;
+            $product_image = $item['image_path'] ?? '';
             $product_category = $item['product_category'];
             $product_brand = $item['brand'];
             $product_stock = $item['product_stock'];

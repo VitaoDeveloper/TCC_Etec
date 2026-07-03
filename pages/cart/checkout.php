@@ -13,6 +13,7 @@ if (!isset($_SESSION['user_id'])) {
 require_once $base_path . 'database/connection.php';
 require_once $base_path . 'includes/cart_functions.php';
 require_once __DIR__ . '/../../includes/csrf.php';
+require_once __DIR__ . '/../../includes/mail.php';
 
 $userId = (int) $_SESSION['user_id'];
 $items = cartGetItems($pdo, $userId);
@@ -158,6 +159,14 @@ if ($isConfirming) {
 
             $pdo->commit();
             $orderCreated = true;
+
+            $itemsHtml = '';
+            foreach ($items as $it) {
+                $itemsHtml .= '<tr><td>' . htmlspecialchars($it['name'] ?? 'Produto', ENT_QUOTES, 'UTF-8') . '</td><td>' . (int)$it['quantity'] . '</td><td>R$ ' . number_format((float)$it['price'], 2, ',', '.') . '</td></tr>';
+            }
+            $payMethod = ['pix'=>'Pix','boleto'=>'Boleto','credit'=>'Cartão','delivery'=>'Entrega'];
+            $body = '<h2>Pedido Confirmado!</h2><p>Olá ' . htmlspecialchars($user['name'] ?? '', ENT_QUOTES, 'UTF-8') . ',</p><p>Seu pedido #' . str_pad((string)$orderId, 4, '0', STR_PAD_LEFT) . ' foi criado com sucesso.</p><table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;width:100%;"><thead><tr bgcolor="#d4af37"><th>Produto</th><th>Qtd</th><th>Preço</th></tr></thead><tbody>' . $itemsHtml . '</tbody></table><p><strong>Total:</strong> R$ ' . number_format($grandTotal, 2, ',', '.') . '</p><p><strong>Pagamento:</strong> ' . ($payMethod[$paymentMethod] ?? $paymentMethod) . '</p><p><strong>Frete:</strong> ' . htmlspecialchars($selectedShippingMethod['method'] ?? '—', ENT_QUOTES, 'UTF-8') . '</p><p><a href="https://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/TCC_Etec/pages/auth/orders.php" style="display:inline-block;padding:12px 30px;background:#d4af37;color:#1a1a1a;text-decoration:none;font-weight:700;border-radius:30px;">Ver Meus Pedidos</a></p>';
+            sendMail($user['email'], 'Pedido #' . str_pad((string)$orderId, 4, '0', STR_PAD_LEFT) . ' Confirmado - Royal Tech', $body);
         } catch (Throwable $e) {
             $pdo->rollBack();
             $errorMessage = 'Erro ao processar pedido. Tente novamente.';
