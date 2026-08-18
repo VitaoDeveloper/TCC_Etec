@@ -2,10 +2,9 @@
 
 require "vendor/autoload.php";
 
-$dotenv = Dotenv\Dotenv::createImmutable("../");
-$dotenv->load();
-
 try {
+    $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
+    $dotenv->load();
     $dotenv->required([
         'DB_HOST',
         'DB_NAME', 
@@ -23,7 +22,7 @@ $dbUser = $_ENV['DB_USER'];
 $dbPass = $_ENV['DB_PASS'] ?? "";
 $dbCharset = $_ENV['DB_CHARSET'] ?? "utf8mb4";
 
-$dsn = "mysql:host=$host;dbname=$database;charset=$dbCharset";
+$dsn = "mysql:host=$dbHost;dbname=$dbName;charset=$dbCharset";
 
 $options = [
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
@@ -32,7 +31,7 @@ $options = [
 ];
 
 try {
-    $pdo = new PDO($dsn, $username, $password, $options);
+    $pdo = new PDO($dsn, $dbUser, $dbPass, $options);
 } catch (PDOException $e) {
     error_log('Database connection error: ' . $e->getMessage());
     http_response_code(500);
