@@ -1,19 +1,29 @@
 <?php
-$configFile = __DIR__ . '/../config.php';
-if (file_exists($configFile)) {
-    require $configFile;
-    $host = DB_HOST;
-    $username = DB_USER;
-    $password = DB_PASS;
-    $database = DB_NAME;
-} else {
-    $host = "localhost";
-    $username = "root";
-    $password = "";
-    $database = "e5_royaltech";
+
+require "vendor/autoload.php";
+
+$dotenv = Dotenv\Dotenv::createImmutable("../");
+$dotenv->load();
+
+try {
+    $dotenv->required([
+        'DB_HOST',
+        'DB_NAME', 
+        'DB_USER'
+    ])->notEmpty();
+} catch (RuntimeException $e) {
+    echo "Erro de configuração: " . $e->getMessage();
+    exit; 
 }
 
-$dsn = "mysql:host=$host;dbname=$database;charset=utf8mb4";
+$dbHost = $_ENV['DB_HOST'];
+$dbName = $_ENV['DB_NAME'];
+$dbUser = $_ENV['DB_USER'];
+
+$dbPass = $_ENV['DB_PASS'] ?? "";
+$dbCharset = $_ENV['DB_CHARSET'] ?? "utf8mb4";
+
+$dsn = "mysql:host=$host;dbname=$database;charset=$dbCharset";
 
 $options = [
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
