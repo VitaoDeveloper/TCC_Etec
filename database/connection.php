@@ -4,7 +4,7 @@ require "vendor/autoload.php";
 
 try {
     $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
-    $dotenv->load();
+    $dotenv->safeLoad();
     $dotenv->required([
         'DB_HOST',
         'DB_NAME', 
