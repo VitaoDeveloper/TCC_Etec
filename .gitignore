@@ -1,4 +1,5 @@
 .env
-config.php
+.env.prod
 test
+vendor
 assets/img/*/*
