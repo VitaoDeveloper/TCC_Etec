@@ -48,12 +48,12 @@ include 'components/header.php';
                 </div>
                 <div class="hero-image">
                     <!-- Espaço para imagem do Hero -->
-                    <div class="placeholder">
+                    <!-- <div class="placeholder">
                         <i class="fas fa-laptop"></i>
                         <h4>Imagem Hero Principal</h4>
                         <p>Insira uma imagem de produto premium ou banner aqui</p>
-                        <small>尺寸: 500x500px</small>
-                    </div>
+                        <small>500x500px</small>
+                    </div> -->
                 </div>
             </div>
         </div>
