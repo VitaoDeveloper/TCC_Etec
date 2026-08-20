@@ -7,7 +7,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, var(--color-black) 0%, #1a1a1a 100%);
+    background: var(--ml-bg);
     padding: 20px;
 }
 
@@ -17,9 +17,9 @@
 }
 
 .register-box {
-    background: var(--color-black-light);
-    border: 1px solid var(--color-border);
-    border-radius: 15px;
+    background: var(--ml-bg-card);
+    border: 1px solid var(--ml-border);
+    border-radius: 8px;
     padding: 45px 40px;
     text-align: center;
     max-height: 95vh;
@@ -35,7 +35,7 @@
 }
 
 .register-box::-webkit-scrollbar-thumb {
-    background: var(--color-border);
+    background: var(--ml-border);
     border-radius: 3px;
 }
 
@@ -53,18 +53,18 @@
 
 .register-logo .logo-icon {
     font-size: 2.5rem;
-    color: var(--color-primary);
+    color: var(--ml-accent);
 }
 
 .register-logo .logo-text {
     font-family: var(--font-secondary);
     font-size: 2rem;
     font-weight: 700;
-    color: var(--color-white);
+    color: var(--ml-text);
 }
 
 .register-logo .logo-text span {
-    color: var(--color-primary);
+    color: var(--ml-accent);
 }
 
 .register-header h2 {
@@ -73,7 +73,7 @@
 }
 
 .register-header p {
-    color: var(--color-gray);
+    color: var(--ml-text-muted);
 }
 
 .register-form {
@@ -89,10 +89,10 @@
 .register-form .admin-form-group select {
     width: 100%;
     padding: 12px 14px;
-    background: var(--color-black);
-    border: 1px solid var(--color-border);
-    border-radius: 8px;
-    color: var(--color-white);
+    background: var(--ml-bg);
+    border: 1px solid var(--ml-border);
+    border-radius: 6px;
+    color: var(--ml-text);
     font-size: 0.95rem;
     transition: var(--transition);
     box-sizing: border-box;
@@ -100,7 +100,7 @@
 
 .register-form .admin-form-group input:focus,
 .register-form .admin-form-group select:focus {
-    border-color: var(--color-primary);
+    border-color: var(--ml-accent);
     box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.15);
     outline: none;
 }
@@ -108,7 +108,7 @@
 .register-form .admin-form-group label {
     display: block;
     margin-bottom: 6px;
-    color: var(--color-gray-light);
+    color: var(--ml-text-secondary);
     font-size: 0.85rem;
     font-weight: 500;
 }
@@ -119,6 +119,13 @@
     font-size: 1rem;
     letter-spacing: 0.5px;
     margin-top: 10px;
+    border-radius: 6px;
+}
+
+.register-form .btn-primary:hover {
+    background: var(--ml-accent-dark);
+    transform: none;
+    box-shadow: none;
 }
 
 .register-form .password-toggle {
@@ -126,7 +133,7 @@
     right: 14px;
     top: 50%;
     transform: translateY(-50%);
-    color: var(--color-gray-light);
+    color: var(--ml-text-secondary);
     cursor: pointer;
     font-size: 1.2rem;
     background: transparent;
@@ -135,24 +142,40 @@
 }
 
 .register-form .password-toggle:hover {
-    color: var(--color-primary);
+    color: var(--ml-accent);
 }
 
 .form-footer {
     text-align: center;
     margin-top: 30px;
     padding-top: 30px;
-    border-top: 1px solid var(--color-border);
+    border-top: 1px solid var(--ml-border);
 }
 
 .form-footer a {
-    color: var(--color-primary);
+    color: var(--ml-accent);
     font-weight: 500;
     text-decoration: none;
 }
 
 .form-footer a:hover {
     text-decoration: underline;
+}
+
+.cep-feedback {
+    display: block;
+    margin-top: 6px;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    text-align: left;
+}
+
+.cep-feedback.ok {
+    color: var(--ml-green);
+}
+
+.cep-feedback.error {
+    color: var(--ml-red);
 }
 
 @media (max-width: 576px) {

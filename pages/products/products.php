@@ -11,7 +11,8 @@ $searchTerm = trim((string) ($_GET['q'] ?? ''));
 $minPrice = (float) ($_GET['min_price'] ?? 0);
 $maxPrice = (float) ($_GET['max_price'] ?? 0);
 $brandFilter = trim((string) ($_GET['brand'] ?? ''));
-$sortOrder = (string) ($_GET['sort'] ?? 'newest');
+$sortOrder = (string) ($_GET['sort'] ?? 'recent');
+$offersOnly = (string) ($_GET['offers'] ?? '') === '1';
 
 $sql = 'SELECT p.id, p.name, p.price, p.old_price, p.brand, p.is_featured, p.stock, c.name AS category_name,
         (SELECT pi.image_path FROM e5_product_images pi WHERE pi.product_id = p.id ORDER BY pi.is_primary DESC, pi.id ASC LIMIT 1) AS image_path
@@ -30,14 +31,18 @@ if ($searchTerm !== '') {
 if ($minPrice > 0) {$sql .= ' AND p.price >= :min_price'; $params[':min_price'] = $minPrice;}
 if ($maxPrice > 0) {$sql .= ' AND p.price <= :max_price'; $params[':max_price'] = $maxPrice;}
 if ($brandFilter !== '') {$sql .= ' AND p.brand = :brand'; $params[':brand'] = $brandFilter;}
+if ($offersOnly) {$sql .= ' AND p.old_price IS NOT NULL AND p.old_price > p.price';}
+if ($sortOrder === 'newest') {$sql .= ' AND p.created_at >= NOW() - INTERVAL 30 DAY';}
 
 $allowedSort = [
+    'recent' => 'p.created_at DESC',
     'newest' => 'p.created_at DESC',
     'price_asc' => 'p.price ASC',
     'price_desc' => 'p.price DESC',
     'name_asc' => 'p.name ASC',
 ];
-$sql .= ' ORDER BY ' . ($allowedSort[$sortOrder] ?? 'p.created_at DESC');
+$defaultSort = $offersOnly ? '((p.old_price - p.price) / p.old_price) DESC, p.created_at DESC' : 'p.created_at DESC';
+$sql .= ' ORDER BY ' . ($allowedSort[$sortOrder] ?? $defaultSort);
 
 $countSql = 'SELECT COUNT(*)' . substr($sql, strrpos($sql, 'FROM'));
 $countStmt = $pdo->prepare($countSql);
@@ -71,6 +76,16 @@ function buildQueryString($overrides) {
     $params = array_merge($_GET, $overrides);
     unset($params['page']);
     return http_build_query($params);
+}
+
+if ($searchTerm === '' && $categoryFilter === 0) {
+    if ($offersOnly) {
+        $page_title = 'Ofertas - Royal Tech';
+        $breadcrumb_title = 'Ofertas';
+    } elseif ($sortOrder === 'newest') {
+        $page_title = 'Novidades - Royal Tech';
+        $breadcrumb_title = 'Novidades';
+    }
 }
 
 include '../../components/header.php';
@@ -261,6 +276,10 @@ include '../../components/header.php';
                         }
                         echo htmlspecialchars($activeCatName ?: 'Produtos', ENT_QUOTES, 'UTF-8');
                         ?>
+                    <?php elseif ($offersOnly): ?>
+                        Produtos em promoção
+                    <?php elseif ($sortOrder === 'newest'): ?>
+                        Novidades
                     <?php else: ?>
                         Todos os Produtos
                     <?php endif; ?>
@@ -272,7 +291,8 @@ include '../../components/header.php';
                 <select id="ml-sort" onchange="window.location.href='?'+this.value">
                     <?php
                     $sortOptions = [
-                        'newest' => 'Mais recentes',
+                        'recent' => 'Mais recentes',
+                        'newest' => 'Novidades (30 dias)',
                         'price_asc' => 'Menor preço',
                         'price_desc' => 'Maior preço',
                         'name_asc' => 'A-Z',

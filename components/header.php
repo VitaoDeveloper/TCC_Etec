@@ -140,9 +140,10 @@ $categoryIcons = [
             <?php endif; ?>
         </div>
     </div>
+</header>
 
-    <!-- Category Bar -->
-    <nav class="ml-category-bar" id="ml-category-bar">
+<!-- Category Bar fora do header: elementos fixos como irmãos na raiz = empilhamento previsível -->
+<nav class="ml-category-bar" id="ml-category-bar">
         <div class="ml-category-bar-inner">
             <!-- Categories Dropdown Trigger -->
             <div class="ml-cat-trigger" id="ml-cat-trigger">
@@ -167,15 +168,16 @@ $categoryIcons = [
                 </div>
             </div>
 
-            <!-- Quick category links -->
-            <a href="<?php echo $basePath; ?>pages/products/products.php" class="ml-cat-link">Todos</a>
-            <a href="<?php echo $basePath; ?>pages/products/products.php?sort=newest" class="ml-cat-link">Novidades</a>
-            <a href="<?php echo $basePath; ?>pages/products/products.php?sort=price_asc" class="ml-cat-link">Ofertas</a>
-            <a href="<?php echo $basePath; ?>pages/products/contact.php" class="ml-cat-link">Contato</a>
-            <a href="<?php echo $basePath; ?>pages/products/about.php" class="ml-cat-link">Sobre</a>
+            <!-- Quick category links (scrollable wrapper — keeps mega menu outside any overflow context) -->
+            <div class="ml-cat-links-scroll">
+                <a href="<?php echo $basePath; ?>pages/products/products.php" class="ml-cat-link">Todos</a>
+                <a href="<?php echo $basePath; ?>pages/products/products.php?sort=newest" class="ml-cat-link">Novidades</a>
+                <a href="<?php echo $basePath; ?>pages/products/products.php?offers=1" class="ml-cat-link">Ofertas</a>
+                <a href="<?php echo $basePath; ?>pages/products/contact.php" class="ml-cat-link">Contato</a>
+                <a href="<?php echo $basePath; ?>pages/products/about.php" class="ml-cat-link">Sobre</a>
+            </div>
         </div>
-    </nav>
-</header>
+</nav>
 
 <!-- Mobile Sidebar Overlay -->
 <div class="ml-sidebar-overlay" id="ml-sidebar-overlay"></div>
