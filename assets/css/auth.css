@@ -1,0 +1,325 @@
+/* ========================================
+   Auth — Login e Cadastro (identidade unificada)
+   Consome as variáveis --ml-* de mercadolivre-style.css
+   ======================================== */
+
+.auth-page {
+    min-height: 100vh;
+    display: flex;
+    padding: 20px;
+    background: var(--ml-bg);
+}
+
+.auth-shell {
+    display: flex;
+    width: 100%;
+    max-width: 980px;
+    margin: auto;
+    background: var(--ml-bg-card);
+    border: 1px solid var(--ml-border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* ========================================
+   Painel de marca (coluna esquerda)
+   ======================================== */
+.auth-brand {
+    flex: 0 0 42%;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 18px;
+    padding: 56px 44px;
+    background:
+        radial-gradient(ellipse at 0% 100%, rgba(212, 175, 55, 0.18) 0%, transparent 55%),
+        linear-gradient(160deg, #201a08 0%, var(--ml-bg) 60%);
+    overflow: hidden;
+}
+
+.auth-brand::after {
+    content: '\f51e';
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    position: absolute;
+    right: -30px;
+    bottom: -34px;
+    font-size: 12rem;
+    line-height: 1;
+    color: rgba(212, 175, 55, 0.07);
+    transform: rotate(-12deg);
+    pointer-events: none;
+}
+
+.auth-brand-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+}
+
+.auth-brand-logo .logo-icon {
+    font-size: 2.6rem;
+    color: var(--ml-accent);
+}
+
+.auth-brand-logo .logo-text {
+    font-family: var(--font-secondary);
+    font-size: 2.1rem;
+    font-weight: 700;
+    color: var(--ml-text);
+}
+
+.auth-brand-logo .logo-text span {
+    color: var(--ml-accent);
+}
+
+.auth-brand-tagline {
+    max-width: 300px;
+    font-size: 1.05rem;
+    line-height: 1.5;
+    color: var(--ml-text-secondary);
+}
+
+.auth-brand-perks {
+    list-style: none;
+    padding: 0;
+    margin: 10px 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.auth-brand-perks li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.9rem;
+    color: var(--ml-text-secondary);
+}
+
+.auth-brand-perks i {
+    width: 18px;
+    text-align: center;
+    color: var(--ml-accent);
+}
+
+/* ========================================
+   Painel do formulário (coluna direita)
+   ======================================== */
+.auth-panel {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 52px 48px;
+}
+
+.auth-title {
+    font-size: 1.6rem;
+    margin-bottom: 6px;
+}
+
+.auth-subtitle {
+    margin-bottom: 28px;
+    font-size: 0.95rem;
+    color: var(--ml-text-muted);
+}
+
+.auth-feedback {
+    border-radius: 6px;
+}
+
+/* Campos */
+.auth-field {
+    margin-bottom: 18px;
+}
+
+.auth-label {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--ml-text-secondary);
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.auth-input-wrap {
+    position: relative;
+}
+
+.auth-field input {
+    width: 100%;
+    padding: 12px 14px;
+    background: var(--ml-bg);
+    border: 1px solid var(--ml-border);
+    border-radius: 6px;
+    color: var(--ml-text);
+    font-size: 0.95rem;
+    font-family: var(--font-primary);
+    box-sizing: border-box;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.auth-field input:focus {
+    border-color: var(--ml-accent);
+    box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.15);
+}
+
+.auth-input-wrap input {
+    padding-right: 42px;
+}
+
+.password-toggle {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 8px;
+    background: transparent;
+    border: none;
+    color: var(--ml-text-muted);
+    font-size: 1.05rem;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.password-toggle:hover {
+    color: var(--ml-accent);
+}
+
+/* Botão principal */
+.auth-submit {
+    width: 100%;
+    padding: 14px;
+    margin-top: 6px;
+    background: var(--ml-accent);
+    color: var(--ml-bg);
+    border: none;
+    border-radius: 6px;
+    font-family: var(--font-primary);
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.auth-submit:hover {
+    background: var(--ml-accent-dark);
+}
+
+.auth-submit i {
+    margin-right: 6px;
+}
+
+/* Link auxiliar (esqueceu a senha) */
+.auth-forgot {
+    display: block;
+    margin-top: 14px;
+    text-align: center;
+    color: var(--ml-accent);
+    font-size: 0.9rem;
+    text-decoration: none;
+}
+
+.auth-forgot:hover {
+    text-decoration: underline;
+}
+
+/* Rodapés de navegação */
+.auth-alt {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--ml-border);
+    text-align: center;
+    font-size: 0.92rem;
+    color: var(--ml-text-secondary);
+}
+
+.auth-alt a {
+    color: var(--ml-accent);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.auth-alt a:hover {
+    text-decoration: underline;
+}
+
+.auth-back {
+    margin-top: 14px;
+    text-align: center;
+}
+
+.auth-back a {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--ml-text-muted);
+    font-size: 0.88rem;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.auth-back a:hover {
+    color: var(--ml-accent);
+}
+
+/* Feedback do CEP (ViaCEP) */
+.cep-feedback {
+    display: block;
+    margin-top: 6px;
+    font-size: 0.8rem;
+    line-height: 1.4;
+}
+
+.cep-feedback.ok {
+    color: var(--ml-green);
+}
+
+.cep-feedback.error {
+    color: var(--ml-red);
+}
+
+/* ========================================
+   Responsivo — cabeçalho compacto no mobile
+   ======================================== */
+@media (max-width: 991px) {
+    .auth-page {
+        padding: 16px;
+    }
+
+    .auth-shell {
+        flex-direction: column;
+    }
+
+    .auth-brand {
+        flex: none;
+        gap: 8px;
+        align-items: center;
+        text-align: center;
+        padding: 26px 24px 20px;
+    }
+
+    .auth-brand::after {
+        right: -18px;
+        bottom: -24px;
+        font-size: 7rem;
+    }
+
+    .auth-brand-tagline {
+        max-width: none;
+        font-size: 0.92rem;
+    }
+
+    .auth-brand-perks {
+        display: none;
+    }
+
+    .auth-panel {
+        padding: 26px 22px 32px;
+    }
+}

@@ -160,7 +160,7 @@ h6 { font-size: 1rem; }
    ======================================== */
 .toast-container {
     position: fixed;
-    top: 100px;
+    top: calc(var(--ml-header-height) + var(--ml-category-bar-height) + 12px);
     right: 20px;
     z-index: 9999;
     display: flex;
@@ -282,90 +282,8 @@ textarea:focus:valid {
 }
 
 /* ========================================
-   Header
+   Logo (usado no footer)
    ======================================== */
-.main-header {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    z-index: 1000;
-    background: var(--color-black);
-    border-bottom: 1px solid var(--color-border);
-}
-
-/* Header Top */
-.header-top {
-    background: var(--color-black-light);
-    padding: 10px 0;
-    font-size: 0.85rem;
-}
-
-.header-top-content {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.header-contacts {
-    display: flex;
-    gap: 30px;
-}
-
-.header-contacts span {
-    color: var(--color-gray-light);
-}
-
-.header-contacts i {
-    color: var(--color-primary);
-    margin-right: 8px;
-}
-
-.header-social {
-    display: flex;
-    gap: 15px;
-}
-
-.header-social a {
-    color: var(--color-gray-light);
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid var(--color-border);
-    border-radius: 50%;
-    transition: var(--transition);
-}
-
-.header-social a:hover {
-    color: var(--color-primary);
-    border-color: var(--color-primary);
-}
-
-/* Header Main */
-.header-main {
-    padding: 20px 0;
-    background: var(--color-black);
-}
-
-.header-main-content {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 40px;
-}
-
-.logo {
-    flex-shrink: 0;
-}
-
-.logo a {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
 .logo-icon {
     font-size: 2rem;
     color: var(--color-primary);
@@ -383,100 +301,9 @@ textarea:focus:valid {
     color: var(--color-primary);
 }
 
-/* Navigation */
-.main-nav {
-    flex: 1;
-}
-
-.nav-menu {
-    display: flex;
-    justify-content: center;
-    gap: 40px;
-}
-
-.nav-menu a {
-    font-size: 1rem;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--color-white);
-    padding: 10px 0;
-    position: relative;
-}
-
-.nav-menu a::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 0;
-    height: 2px;
-    background: var(--color-primary);
-    transition: width 0.3s ease-in-out;
-}
-
-.nav-menu a:hover,
-.nav-menu a.active {
-    color: var(--color-primary);
-}
-
-.nav-menu a:hover::after,
-.nav-menu a.active::after {
-    width: 100%;
-}
-
-/* Header Actions */
-.header-actions {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-}
-
-.search-box {
-    display: flex;
-    align-items: center;
-    background: var(--color-black-light);
-    border: 1px solid var(--color-border);
-    border-radius: 30px;
-    overflow: hidden;
-}
-
-.search-box input {
-    background: transparent;
-    border: none;
-    padding: 10px 20px;
-    color: var(--color-white);
-    width: 200px;
-    font-family: var(--font-primary);
-}
-
-.search-box input::placeholder {
-    color: var(--color-gray);
-}
-
-.search-box button {
-    background: var(--color-primary);
-    border: none;
-    width: 40px;
-    height: 40px;
-    color: var(--color-black);
-    cursor: pointer;
-    transition: var(--transition);
-}
-
-.search-box:focus-within {
-    border-color: var(--color-primary);
-}
-
-.search-box button:hover {
-    background: var(--color-primary-dark);
-}
-
-.user-actions {
-    display: flex;
-    gap: 10px;
-}
-
+/* ========================================
+   Header Actions (legacy .action-btn usado no admin)
+   ======================================== */
 .action-btn {
     width: 40px;
     height: 40px;
@@ -520,21 +347,11 @@ textarea:focus:valid {
     border: 2px solid var(--color-black);
 }
 
-/* Mobile Menu Button */
-.mobile-menu-btn {
-    display: none;
-    background: transparent;
-    border: none;
-    color: var(--color-white);
-    font-size: 1.5rem;
-    cursor: pointer;
-}
-
 /* ========================================
    Breadcrumb
    ======================================== */
 .breadcrumb-section {
-    padding: clamp(80px, 10vh, 120px) 0 clamp(30px, 4vh, 40px);
+    padding: 32px 0 clamp(30px, 4vh, 40px);
     background: var(--color-black-light);
 }
 
@@ -1057,7 +874,7 @@ textarea:focus:valid {
 
 .checkout-right {
     position: sticky;
-    top: 30px;
+    top: calc(var(--ml-header-height) + var(--ml-category-bar-height) + 16px);
 }
 
 .checkout-summary {
@@ -1200,7 +1017,7 @@ textarea:focus:valid {
 
 .product-gallery {
     position: sticky;
-    top: 30px;
+    top: calc(var(--ml-header-height) + var(--ml-category-bar-height) + 16px);
 }
 
 .gallery-main {
@@ -1785,61 +1602,7 @@ textarea:focus:valid {
     .banner-text h2 {
         font-size: 1.8rem;
     }
-    
-    .main-nav {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 280px;
-        height: 100vh;
-        background: var(--color-black-light);
-        border-right: 1px solid var(--color-border);
-        z-index: 1001;
-        transform: translateX(-100%);
-        transition: transform 0.3s ease;
-        overflow-y: auto;
-        display: block;
-    }
 
-    .main-nav.active {
-        transform: translateX(0);
-    }
-
-    .main-nav .nav-menu {
-        flex-direction: column;
-        gap: 0;
-        padding: 80px 0 20px;
-    }
-
-    .main-nav .nav-menu a {
-        padding: 16px 24px;
-        display: block;
-        border-bottom: 1px solid var(--color-border);
-        font-size: 1rem;
-    }
-
-    .main-nav .nav-menu a:last-child {
-        border-bottom: none;
-    }
-
-    .mobile-menu-btn {
-        display: block;
-        z-index: 1002;
-        position: relative;
-    }
-
-    .nav-backdrop {
-        display: none;
-        position: fixed;
-        inset: 0;
-        background: rgba(0,0,0,0.6);
-        z-index: 1000;
-    }
-
-    .nav-backdrop.active {
-        display: block;
-    }
-    
     .products-grid,
     .categories-grid,
     .features-grid,
@@ -1861,32 +1624,12 @@ textarea:focus:valid {
         padding: 0 15px;
     }
 
-    .header-main {
-        padding: 12px 0;
-    }
-
-    .header-main-content {
-        gap: 16px;
-    }
-
-    .header-top {
-        display: none;
-    }
-    
-    .search-box {
-        display: none;
-    }
-
     .logo-text {
         font-size: 1.3rem;
     }
 
     .logo-icon {
         font-size: 1.4rem;
-    }
-
-    .header-actions {
-        gap: 8px;
     }
 
     .action-btn {

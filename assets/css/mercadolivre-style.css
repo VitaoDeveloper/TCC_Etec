@@ -22,7 +22,7 @@
     --ml-red: #ff6161;
     --ml-discount-bg: rgba(0, 166, 80, 0.15);
     --ml-discount-text: #00a650;
-    --ml-header-height: 110px;
+    --ml-header-height: 66px;
     --ml-category-bar-height: 48px;
 }
 
@@ -34,7 +34,7 @@
     top: 0;
     left: 0;
     width: 100%;
-    z-index: 1000;
+    z-index: 1010;
     background: var(--ml-bg);
     border-bottom: 1px solid var(--ml-border);
 }
@@ -275,11 +275,21 @@
     align-items: center;
     gap: 0;
     height: var(--ml-category-bar-height);
+}
+
+/* Scrollable wrapper for quick links only.
+   Kept separate from .ml-cat-trigger so the overflow context
+   never clips the absolutely-positioned .ml-mega-menu. */
+.ml-cat-links-scroll {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    min-width: 0;
     overflow-x: auto;
     scrollbar-width: none;
 }
 
-.ml-category-bar-inner::-webkit-scrollbar {
+.ml-cat-links-scroll::-webkit-scrollbar {
     display: none;
 }
 
@@ -1017,7 +1027,7 @@
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.6);
-    z-index: 1002;
+    z-index: 1020;
 }
 
 .ml-sidebar-overlay.active {
@@ -1232,7 +1242,7 @@
         left: 0;
         width: 280px;
         height: 100vh;
-        z-index: 1003;
+        z-index: 1040;
         border-right: 1px solid var(--ml-border);
         border-bottom: none;
         overflow-y: auto;
@@ -1243,6 +1253,12 @@
         align-items: stretch;
         height: auto;
         padding: 60px 0 20px;
+    }
+
+    .ml-category-bar.mobile-active .ml-cat-links-scroll {
+        flex-direction: column;
+        align-items: stretch;
+        overflow: visible;
     }
 
     .ml-category-bar.mobile-active .ml-cat-trigger {
@@ -1291,7 +1307,7 @@
         height: 100vh;
         background: var(--ml-bg-card);
         border-right: 1px solid var(--ml-border);
-        z-index: 1004;
+        z-index: 1030;
         transform: translateX(-100%);
         transition: transform 0.3s ease;
         overflow-y: auto;
