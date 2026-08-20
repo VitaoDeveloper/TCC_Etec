@@ -75,6 +75,7 @@ $categoryIcons = [
     <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/style.css">
     <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/admin.css">
     <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/mercadolivre-style.css">
+    <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/auth.css">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -192,8 +193,54 @@ document.addEventListener('DOMContentLoaded', function() {
             window.location.href = '<?php echo $basePath; ?>pages/products/products.php?q=' + encodeURIComponent(q);
         }
     }
-    if (searchBtn) searchBtn.addEventListener('click', doSearch);
-    if (searchInput) searchInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') doSearch(); });
+    var royalClicks = 0;
+    var royalTimer = null;
+    function registerRoyalClick() {
+        royalClicks++;
+        clearTimeout(royalTimer);
+        if (royalClicks >= 10) {
+            royalClicks = 0;
+            triggerRoyalMode();
+        } else {
+            royalTimer = setTimeout(function() { royalClicks = 0; }, 1500);
+        }
+    }
+    function triggerRoyalMode() {
+        for (var i = 0; i < 24; i++) {
+            var crown = document.createElement('i');
+            crown.className = 'fas fa-crown royal-crown';
+            crown.style.left = (Math.random() * 100) + 'vw';
+            crown.style.fontSize = (14 + Math.random() * 20) + 'px';
+            crown.style.opacity = (0.6 + Math.random() * 0.4).toFixed(2);
+            crown.style.animationDuration = (2.5 + Math.random() * 1.5) + 's';
+            crown.style.animationDelay = (Math.random() * 1.2) + 's';
+            document.body.appendChild(crown);
+        }
+        setTimeout(function() {
+            var crowns = document.querySelectorAll('.royal-crown');
+            for (var j = 0; j < crowns.length; j++) crowns[j].remove();
+        }, 5300);
+        document.body.classList.add('royal-glow');
+        setTimeout(function() { document.body.classList.remove('royal-glow'); }, 4000);
+        var toast = document.createElement('div');
+        toast.className = 'royal-toast';
+        toast.textContent = '👑 Modo Realeza ativado!';
+        document.body.appendChild(toast);
+        setTimeout(function() { toast.remove(); }, 3600);
+    }
+    if (searchBtn) {
+        searchBtn.addEventListener('click', function() {
+            if (searchInput && searchInput.value.trim() === '') {
+                registerRoyalClick();
+            } else {
+                doSearch();
+            }
+        });
+    }
+    if (searchInput) {
+        searchInput.addEventListener('input', function() { royalClicks = 0; });
+        searchInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') doSearch(); });
+    }
 
     // Mega menu toggle for touch
     var catTrigger = document.getElementById('ml-cat-trigger');

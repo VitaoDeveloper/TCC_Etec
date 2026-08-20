@@ -950,6 +950,17 @@
     border-color: var(--ml-accent);
 }
 
+.ml-sidebar-filter-input {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+.ml-sidebar-filter-input::-webkit-inner-spin-button,
+.ml-sidebar-filter-input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
 .ml-sidebar-filter-btn {
     width: 100%;
     padding: 10px;
@@ -1610,4 +1621,156 @@
    ======================================== */
 body.ml-layout-active {
     padding-top: calc(var(--ml-header-height) + var(--ml-category-bar-height));
+}
+
+/* ========================================
+   ML Static Pages (Sobre / Contato)
+   ======================================== */
+.ml-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+}
+
+.ml-stat-card {
+    background: var(--ml-bg-card);
+    border: 1px solid var(--ml-border);
+    border-radius: 8px;
+    padding: 24px 16px;
+    text-align: center;
+}
+
+.ml-stat-card i {
+    font-size: 1.6rem;
+    color: var(--ml-accent);
+    margin-bottom: 10px;
+}
+
+.ml-stat-value {
+    font-family: var(--font-secondary);
+    font-size: 1.7rem;
+    font-weight: 700;
+    color: var(--ml-text);
+}
+
+.ml-stat-label {
+    font-size: 0.85rem;
+    color: var(--ml-text-muted);
+}
+
+.ml-team-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+}
+
+.ml-team-card {
+    background: var(--ml-bg-card);
+    border: 1px solid var(--ml-border);
+    border-radius: 8px;
+    padding: 20px 16px;
+    text-align: center;
+}
+
+.ml-team-card h4 {
+    font-size: 1rem;
+    margin-bottom: 4px;
+}
+
+.ml-team-role {
+    font-size: 0.85rem;
+    color: var(--ml-accent);
+}
+
+.ml-contact-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    align-items: start;
+}
+
+.ml-features-strip.two-col {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+@media (max-width: 992px) {
+    .ml-stats-grid,
+    .ml-team-grid,
+    .ml-contact-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .ml-contact-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 576px) {
+    .ml-stats-grid,
+    .ml-team-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .ml-features-strip.two-col {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ========================================
+   Easter egg — Modo Realeza
+   ======================================== */
+.royal-crown {
+    position: fixed;
+    top: -50px;
+    color: var(--ml-accent);
+    pointer-events: none;
+    z-index: 9998;
+    animation-name: royal-fall;
+    animation-timing-function: linear;
+    animation-fill-mode: forwards;
+}
+
+@keyframes royal-fall {
+    from { transform: translateY(-60px) rotate(0deg); }
+    to { transform: translateY(110vh) rotate(340deg); }
+}
+
+body.royal-glow::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9997;
+    animation: royal-glow-pulse 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes royal-glow-pulse {
+    from { box-shadow: inset 0 0 60px rgba(212, 175, 55, 0.15); }
+    to { box-shadow: inset 0 0 160px rgba(212, 175, 55, 0.45); }
+}
+
+.royal-toast {
+    position: fixed;
+    top: calc(var(--ml-header-height) + var(--ml-category-bar-height) + 20px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    padding: 14px 22px;
+    background: var(--ml-bg-card);
+    border: 1px solid var(--ml-accent);
+    border-radius: 6px;
+    color: var(--ml-text);
+    font-size: 0.95rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    animation: royal-toast-in 0.3s ease, royal-toast-out 0.3s ease 3.2s forwards;
+}
+
+@keyframes royal-toast-in {
+    from { opacity: 0; transform: translateX(-50%) scale(0.85); }
+    to { opacity: 1; transform: translateX(-50%) scale(1); }
+}
+
+@keyframes royal-toast-out {
+    from { opacity: 1; transform: translateX(-50%) scale(1); }
+    to { opacity: 0; transform: translateX(-50%) scale(0.85); }
 }

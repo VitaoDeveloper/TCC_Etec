@@ -149,7 +149,9 @@
     position: relative;
 }
 
-.auth-field input {
+.auth-field input,
+.auth-field select,
+.auth-field textarea {
     width: 100%;
     padding: 12px 14px;
     background: var(--ml-bg);
@@ -163,9 +165,20 @@
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.auth-field input:focus {
+.auth-field input:focus,
+.auth-field select:focus,
+.auth-field textarea:focus {
     border-color: var(--ml-accent);
     box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.15);
+}
+
+.auth-field select {
+    cursor: pointer;
+}
+
+.auth-field textarea {
+    resize: vertical;
+    min-height: 120px;
 }
 
 .auth-input-wrap input {

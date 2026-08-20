@@ -8,8 +8,8 @@ include '../../database/connection.php';
 
 $categoryFilter = (int) ($_GET['category_id'] ?? 0);
 $searchTerm = trim((string) ($_GET['q'] ?? ''));
-$minPrice = (float) ($_GET['min_price'] ?? 0);
-$maxPrice = (float) ($_GET['max_price'] ?? 0);
+$minPrice = max(0, (float) ($_GET['min_price'] ?? 0));
+$maxPrice = max(0, (float) ($_GET['max_price'] ?? 0));
 $brandFilter = trim((string) ($_GET['brand'] ?? ''));
 $sortOrder = (string) ($_GET['sort'] ?? 'recent');
 $offersOnly = (string) ($_GET['offers'] ?? '') === '1';
@@ -128,13 +128,13 @@ include '../../components/header.php';
                 <div class="ml-sidebar-filter-group" style="display:flex; gap:6px;">
                     <div style="flex:1;">
                         <label class="ml-sidebar-filter-label">Preço mín.</label>
-                        <input type="number" name="min_price" class="ml-sidebar-filter-input"
-                               placeholder="R$ min" value="<?php echo $minPrice > 0 ? (float)$minPrice : ''; ?>" step="0.01">
+                        <input type="number" name="min_price" class="ml-sidebar-filter-input" min="0"
+                               placeholder="R$ min" value="<?php echo $minPrice > 0 ? (float)$minPrice : ''; ?>" step="10">
                     </div>
                     <div style="flex:1;">
                         <label class="ml-sidebar-filter-label">Preço máx.</label>
-                        <input type="number" name="max_price" class="ml-sidebar-filter-input"
-                               placeholder="R$ max" value="<?php echo $maxPrice > 0 ? (float)$maxPrice : ''; ?>" step="0.01">
+                        <input type="number" name="max_price" class="ml-sidebar-filter-input" min="0"
+                               placeholder="R$ max" value="<?php echo $maxPrice > 0 ? (float)$maxPrice : ''; ?>" step="10">
                     </div>
                 </div>
 
@@ -213,13 +213,13 @@ include '../../components/header.php';
                 <div class="ml-sidebar-filter-group" style="display:flex; gap:6px;">
                     <div style="flex:1;">
                         <label class="ml-sidebar-filter-label">Preço mín.</label>
-                        <input type="number" name="min_price" class="ml-sidebar-filter-input"
-                               placeholder="R$ min" value="<?php echo $minPrice > 0 ? (float)$minPrice : ''; ?>" step="0.01">
+                        <input type="number" name="min_price" class="ml-sidebar-filter-input" min="0"
+                               placeholder="R$ min" value="<?php echo $minPrice > 0 ? (float)$minPrice : ''; ?>" step="10">
                     </div>
                     <div style="flex:1;">
                         <label class="ml-sidebar-filter-label">Preço máx.</label>
-                        <input type="number" name="max_price" class="ml-sidebar-filter-input"
-                               placeholder="R$ max" value="<?php echo $maxPrice > 0 ? (float)$maxPrice : ''; ?>" step="0.01">
+                        <input type="number" name="max_price" class="ml-sidebar-filter-input" min="0"
+                               placeholder="R$ max" value="<?php echo $maxPrice > 0 ? (float)$maxPrice : ''; ?>" step="10">
                     </div>
                 </div>
 
