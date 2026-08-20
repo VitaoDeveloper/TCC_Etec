@@ -1,11 +1,12 @@
 <?php
 /**
- * Componente de Cartão de Produto
+ * Componente de Cartão de Produto — Estilo Mercado Livre
  * 
  * Variáveis esperadas:
  * - $product_id: ID do produto
  * - $product_name: Nome do produto
  * - $product_price: Preço do produto
+ * - $product_old_price: Preço anterior (para mostrar desconto)
  * - $product_image: URL da imagem
  * - $product_category: Categoria do produto
  * - $product_brand: Marca do produto
@@ -14,12 +15,20 @@
  * - $product_is_featured: Se é produto em destaque (boolean)
  * - $product_stock: Quantidade em estoque (int)
  */
-?>
 
+$_pid = (int) ($product_id ?? 0);
+$_pname = $product_name ?? 'Produto';
+$_pprice = (float) ($product_price ?? 0);
+$_pold = isset($product_old_price) ? (float) $product_old_price : null;
+$_pimage = $product_image ?? '';
+$_pcat = $product_category ?? 'Eletrônicos';
+$_pbrand = $product_brand ?? 'Royal Tech';
+$_pstock = isset($product_stock) ? (int) $product_stock : 1;
+$_pis_new = !empty($product_is_new);
+$_pis_feat = !empty($product_is_featured);
 
-<?php
-$imageCandidate = (string) ($product_image ?? '');
 $base = $base_path ?? '';
+$imageCandidate = (string) $_pimage;
 if ($imageCandidate === '') {
     $imageCandidate = $base . 'assets/img/placeholder-product.svg';
 } elseif (preg_match('#^/#', $imageCandidate)) {
@@ -27,64 +36,66 @@ if ($imageCandidate === '') {
 } elseif (!preg_match('#^https?://#i', $imageCandidate)) {
     $imageCandidate = $base . $imageCandidate;
 }
+
+$_discount = 0;
+if ($_pold !== null && $_pold > $_pprice && $_pold > 0) {
+    $_discount = round((($_pold - $_pprice) / $_pold) * 100);
+}
+
+$_pix_price = round($_pprice * 0.95, 2);
+$_freeShipping = $_pprice >= 500;
+$_installmentValue = $_pprice > 0 ? round($_pprice / 12, 2) : 0;
+$_outOfStock = $_pstock <= 0;
 ?>
 
-<article class="product-card" data-product-id="<?php echo $product_id ?? 0; ?>">
-    <div class="product-image">
-        <?php if (isset($product_is_new) && $product_is_new): ?>
-        <span class="product-badge new">Novo</span>
+<article class="ml-product-card" data-product-id="<?php echo $_pid; ?>">
+    <div class="ml-card-image">
+        <?php if ($_discount > 0): ?>
+            <span class="ml-card-discount">-<?php echo $_discount; ?>%</span>
         <?php endif; ?>
-        
-        <?php if (isset($product_is_featured) && $product_is_featured): ?>
-        <span class="product-badge featured">Destaque</span>
+
+        <?php if ($_freeShipping && !$_outOfStock): ?>
+            <span class="ml-card-freeship">Frete grátis</span>
         <?php endif; ?>
-        <?php if (isset($product_stock) && $product_stock <= 0): ?>
-        <span class="product-badge out-of-stock">Esgotado</span>
-        <?php endif; ?>
-        
-        <img src="<?php echo htmlspecialchars($imageCandidate, ENT_QUOTES, 'UTF-8'); ?>" style="width:100%; height:100%;" 
-             alt="<?php echo $product_name ?? 'Produto'; ?>"
-             onerror="this.onerror=null;this.src='<?php echo $base; ?>assets/img/placeholder-product.svg'">
-        
-        <div class="product-actions">
-            <button class="action-btn btn-wishlist" title="Adicionar aos favoritos" aria-label="Adicionar aos favoritos" data-product-id="<?php echo $product_id ?? 0; ?>">
-                <i class="far fa-heart"></i>
-            </button>
-            <button class="action-btn" title="Adicionar ao carrinho" aria-label="Adicionar ao carrinho">
-                <i class="fas fa-shopping-cart"></i>
-            </button>
-            <button class="action-btn" title="Visualizar" aria-label="Visualizar produto">
-                <i class="fas fa-eye"></i>
-            </button>
-        </div>
+
+        <button class="ml-card-wishlist js-require-auth" data-auth-target="favoritos"
+                data-product-id="<?php echo $_pid; ?>" title="Favoritar" aria-label="Favoritar produto">
+            <i class="far fa-heart"></i>
+        </button>
+
+        <a href="<?php echo $base; ?>pages/products/product-detail.php?id=<?php echo $_pid; ?>">
+            <img src="<?php echo htmlspecialchars($imageCandidate, ENT_QUOTES, 'UTF-8'); ?>"
+                 alt="<?php echo htmlspecialchars($_pname, ENT_QUOTES, 'UTF-8'); ?>"
+                 loading="lazy"
+                 onerror="this.onerror=null;this.src='<?php echo $base; ?>assets/img/placeholder-product.svg'">
+        </a>
     </div>
-    
-    <div class="product-info">
-        <span class="product-category"><?php echo $product_category ?? 'Eletrônicos'; ?></span>
-        <h3 class="product-name">
-            <a href="<?php echo ($base_path ?? ''); ?>pages/products/product-detail.php?id=<?php echo $product_id ?? 0; ?>">
-                <?php echo $product_name ?? 'Nome do Produto'; ?>
+
+    <div class="ml-card-body">
+        <?php if ($_pcat): ?>
+            <span class="ml-card-category"><?php echo htmlspecialchars($_pcat, ENT_QUOTES, 'UTF-8'); ?></span>
+        <?php endif; ?>
+
+        <h3 class="ml-card-title">
+            <a href="<?php echo $base; ?>pages/products/product-detail.php?id=<?php echo $_pid; ?>">
+                <?php echo htmlspecialchars($_pname, ENT_QUOTES, 'UTF-8'); ?>
             </a>
         </h3>
-        <span class="product-brand"><?php echo $product_brand ?? 'Marca'; ?></span>
-        
-        <div class="product-price">
-            <span class="current-price">R$ <?php echo number_format($product_price ?? 0, 2, ',', '.'); ?></span>
-            <?php if (isset($product_old_price)): ?>
-            <span class="old-price">R$ <?php echo number_format($product_old_price, 2, ',', '.'); ?></span>
+
+        <div class="ml-card-prices">
+            <?php if ($_pold !== null && $_pold > $_pprice): ?>
+                <span class="ml-card-old-price">R$ <?php echo number_format($_pold, 2, ',', '.'); ?></span>
+            <?php endif; ?>
+
+            <span class="ml-card-price">R$ <?php echo number_format($_pprice, 2, ',', '.'); ?></span>
+
+            <?php if ($_pprice > 0): ?>
+                <span class="ml-card-installments">em 12x R$ <?php echo number_format($_installmentValue, 2, ',', '.'); ?> sem juros</span>
+                <span class="ml-card-pix">
+                    <i class="fas fa-qrcode"></i>
+                    R$ <?php echo number_format($_pix_price, 2, ',', '.'); ?> <strong>no PIX</strong>
+                </span>
             <?php endif; ?>
         </div>
-        
-        <?php if (isset($product_installments)): ?>
-        <div class="product-installments">
-            <span>ou em <strong><?php echo $product_installments; ?></strong> de R$ <?php echo number_format(($product_price ?? 0) / ($product_installments == '12x' ? 12 : 10), 2, ',', '.'); ?></span>
-        </div>
-        <?php endif; ?>
-        
-        <?php $btnDisabled = (isset($product_stock) && $product_stock <= 0); ?>
-        <button class="btn-add-cart <?php echo $btnDisabled ? '' : 'js-require-auth'; ?>" data-auth-target="carrinho" <?php echo $btnDisabled ? 'disabled style="opacity:0.4;cursor:not-allowed;"' : ''; ?> aria-label="Adicionar ao carrinho">
-            <i class="fas fa-shopping-bag"></i>
-            <?php echo $btnDisabled ? 'Indisponível' : 'Adicionar ao Carrinho'; ?>
-        </button>
     </div>
 </article>

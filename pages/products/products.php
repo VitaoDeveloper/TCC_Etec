@@ -56,8 +56,16 @@ $params[':offset'] = $offset;
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $products = $stmt->fetchAll();
-$categories = $pdo->query('SELECT id, name FROM e5_categories ORDER BY name')->fetchAll();
+$categories = $pdo->query('SELECT c.id, c.name, c.slug, (SELECT COUNT(*) FROM e5_products p WHERE p.category_id = c.id) AS product_count FROM e5_categories c ORDER BY c.name ASC')->fetchAll();
 $brands = $pdo->query('SELECT DISTINCT brand FROM e5_products WHERE brand IS NOT NULL AND brand != \'\' ORDER BY brand')->fetchAll(PDO::FETCH_COLUMN);
+
+$categoryIcons = [
+    'notebooks' => 'fa-laptop', 'smartphones' => 'fa-mobile-alt', 'tablets' => 'fa-tablet-alt',
+    'perifericos' => 'fa-keyboard', 'audio' => 'fa-headphones', 'games' => 'fa-gamepad',
+    'cameras' => 'fa-camera', 'acessorios' => 'fa-headset', 'monitores' => 'fa-tv',
+    'wearables' => 'fa-clock', 'rede' => 'fa-wifi', 'cabo' => 'fa-plug',
+    'componentes' => 'fa-microchip',
+];
 
 function buildQueryString($overrides) {
     $params = array_merge($_GET, $overrides);
@@ -67,17 +75,273 @@ function buildQueryString($overrides) {
 
 include '../../components/header.php';
 ?>
-<section class="section"><div class="container"><div class="section-header"><h2>Nossos Produtos</h2><p><?php echo $totalProducts; ?> produto(s) — Página <?php echo $page; ?> de <?php echo $totalPages; ?></p></div>
-<form method="GET" class="admin-form-group" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:30px;">
-<input type="text" name="q" placeholder="Buscar por nome, marca ou categoria" value="<?php echo htmlspecialchars($searchTerm, ENT_QUOTES, 'UTF-8'); ?>" style="flex:1; min-width:160px;">
-<select name="category_id"><option value="0">Todas categorias</option><?php foreach($categories as $c): ?><option value="<?php echo (int)$c['id']; ?>" <?php echo $categoryFilter === (int)$c['id'] ? 'selected' : ''; ?>><?php echo htmlspecialchars($c['name'], ENT_QUOTES, 'UTF-8'); ?></option><?php endforeach; ?></select>
-<select name="brand"><option value="">Todas marcas</option><?php foreach($brands as $b): ?><option value="<?php echo htmlspecialchars($b, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $brandFilter === $b ? 'selected' : ''; ?>><?php echo htmlspecialchars($b, ENT_QUOTES, 'UTF-8'); ?></option><?php endforeach; ?></select>
-<input type="number" name="min_price" placeholder="Preço min" value="<?php echo $minPrice > 0 ? (float)$minPrice : ''; ?>" style="width:100px;" step="0.01">
-<input type="number" name="max_price" placeholder="Preço max" value="<?php echo $maxPrice > 0 ? (float)$maxPrice : ''; ?>" style="width:100px;" step="0.01">
-<select name="sort"><option value="newest" <?php echo $sortOrder === 'newest' ? 'selected' : ''; ?>>Mais recentes</option><option value="price_asc" <?php echo $sortOrder === 'price_asc' ? 'selected' : ''; ?>>Menor preço</option><option value="price_desc" <?php echo $sortOrder === 'price_desc' ? 'selected' : ''; ?>>Maior preço</option><option value="name_asc" <?php echo $sortOrder === 'name_asc' ? 'selected' : ''; ?>>A-Z</option></select>
-<button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Filtrar</button>
-</form>
-<div class="products-grid"><?php if (empty($products)): ?><p>Nenhum produto encontrado.</p><?php else: foreach($products as $product): $product_id=(int)$product['id']; $product_name=$product['name']; $product_price=(float)$product['price']; $product_old_price=$product['old_price']!==null?(float)$product['old_price']:null; $product_image=$product['image_path'] ?: 'assets/img/placeholder-product.svg'; $product_category=$product['category_name']; $product_brand=$product['brand'] ?? 'Royal Tech'; $product_installments='12x'; $product_is_featured=(bool)$product['is_featured']; $product_is_new=false; include '../../components/product-card.php'; endforeach; endif; ?></div>
-<?php if ($totalPages > 1): ?><div style="display:flex; justify-content:center; gap:8px; margin-top:30px;"><?php for ($i = 1; $i <= $totalPages; $i++): ?><a href="?<?php echo buildQueryString(['page' => $i]); ?>" class="btn btn-secondary <?php echo $i === $page ? 'active' : ''; ?>" style="min-width:40px;"><?php echo $i; ?></a><?php endfor; ?></div><?php endif; ?>
-</div></section>
+
+<div class="ml-layout">
+    <!-- Sidebar (desktop) -->
+    <aside class="ml-sidebar" id="ml-sidebar-desktop">
+        <div class="ml-sidebar-card">
+            <h3 class="ml-sidebar-title"><i class="fas fa-filter" style="margin-right:6px;color:#d4af37;"></i> Filtros</h3>
+            <form method="GET" id="ml-filter-form">
+                <?php if ($searchTerm): ?>
+                    <input type="hidden" name="q" value="<?php echo htmlspecialchars($searchTerm, ENT_QUOTES, 'UTF-8'); ?>">
+                <?php endif; ?>
+
+                <div class="ml-sidebar-filter-group">
+                    <label class="ml-sidebar-filter-label">Categoria</label>
+                    <select name="category_id" class="ml-sidebar-filter-select" onchange="this.form.submit()">
+                        <option value="0">Todas categorias</option>
+                        <?php foreach($categories as $c): ?>
+                            <option value="<?php echo (int)$c['id']; ?>" <?php echo $categoryFilter === (int)$c['id'] ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($c['name'], ENT_QUOTES, 'UTF-8'); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="ml-sidebar-filter-group">
+                    <label class="ml-sidebar-filter-label">Marca</label>
+                    <select name="brand" class="ml-sidebar-filter-select" onchange="this.form.submit()">
+                        <option value="">Todas marcas</option>
+                        <?php foreach($brands as $b): ?>
+                            <option value="<?php echo htmlspecialchars($b, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $brandFilter === $b ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($b, ENT_QUOTES, 'UTF-8'); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="ml-sidebar-filter-group" style="display:flex; gap:6px;">
+                    <div style="flex:1;">
+                        <label class="ml-sidebar-filter-label">Preço mín.</label>
+                        <input type="number" name="min_price" class="ml-sidebar-filter-input"
+                               placeholder="R$ min" value="<?php echo $minPrice > 0 ? (float)$minPrice : ''; ?>" step="0.01">
+                    </div>
+                    <div style="flex:1;">
+                        <label class="ml-sidebar-filter-label">Preço máx.</label>
+                        <input type="number" name="max_price" class="ml-sidebar-filter-input"
+                               placeholder="R$ max" value="<?php echo $maxPrice > 0 ? (float)$maxPrice : ''; ?>" step="0.01">
+                    </div>
+                </div>
+
+                <button type="submit" class="ml-sidebar-filter-btn">
+                    <i class="fas fa-search"></i> Aplicar Filtros
+                </button>
+            </form>
+        </div>
+
+        <!-- Category list -->
+        <div class="ml-sidebar-card">
+            <h3 class="ml-sidebar-title"><i class="fas fa-th-list" style="margin-right:6px;color:#d4af37;"></i> Categorias</h3>
+            <ul class="ml-sidebar-list">
+                <li class="ml-sidebar-item <?php echo $categoryFilter === 0 ? 'active' : ''; ?>">
+                    <a href="?<?php echo buildQueryString(['category_id' => 0]); ?>">
+                        Todos os produtos
+                    </a>
+                </li>
+                <?php foreach ($categories as $cat):
+                    $icon = $categoryIcons[$cat['slug']] ?? 'fa-folder';
+                ?>
+                <li class="ml-sidebar-item <?php echo $categoryFilter === (int)$cat['id'] ? 'active' : ''; ?>">
+                    <a href="?<?php echo buildQueryString(['category_id' => (int)$cat['id']]); ?>">
+                        <span>
+                            <i class="fas <?php echo $icon; ?>" style="margin-right:8px;width:16px;text-align:center;color:#d4af37;font-size:0.8rem;"></i>
+                            <?php echo htmlspecialchars($cat['name'], ENT_QUOTES, 'UTF-8'); ?>
+                        </span>
+                        <span class="ml-sidebar-count"><?php echo (int)$cat['product_count']; ?></span>
+                    </a>
+                </li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+    </aside>
+
+    <!-- Mobile Sidebar Drawer -->
+    <aside class="ml-sidebar-drawer" id="ml-sidebar-drawer">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+            <h3 style="font-size:1rem; color:var(--ml-text);">Filtros</h3>
+            <button onclick="document.getElementById('ml-sidebar-drawer').classList.remove('active');document.getElementById('ml-sidebar-overlay').classList.remove('active');document.body.style.overflow='';"
+                    style="background:none;border:none;color:var(--ml-text-secondary);font-size:1.2rem;cursor:pointer;">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <div class="ml-sidebar-card">
+            <form method="GET" id="ml-filter-form-mobile">
+                <?php if ($searchTerm): ?>
+                    <input type="hidden" name="q" value="<?php echo htmlspecialchars($searchTerm, ENT_QUOTES, 'UTF-8'); ?>">
+                <?php endif; ?>
+
+                <div class="ml-sidebar-filter-group">
+                    <label class="ml-sidebar-filter-label">Categoria</label>
+                    <select name="category_id" class="ml-sidebar-filter-select">
+                        <option value="0">Todas categorias</option>
+                        <?php foreach($categories as $c): ?>
+                            <option value="<?php echo (int)$c['id']; ?>" <?php echo $categoryFilter === (int)$c['id'] ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($c['name'], ENT_QUOTES, 'UTF-8'); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="ml-sidebar-filter-group">
+                    <label class="ml-sidebar-filter-label">Marca</label>
+                    <select name="brand" class="ml-sidebar-filter-select">
+                        <option value="">Todas marcas</option>
+                        <?php foreach($brands as $b): ?>
+                            <option value="<?php echo htmlspecialchars($b, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $brandFilter === $b ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($b, ENT_QUOTES, 'UTF-8'); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="ml-sidebar-filter-group" style="display:flex; gap:6px;">
+                    <div style="flex:1;">
+                        <label class="ml-sidebar-filter-label">Preço mín.</label>
+                        <input type="number" name="min_price" class="ml-sidebar-filter-input"
+                               placeholder="R$ min" value="<?php echo $minPrice > 0 ? (float)$minPrice : ''; ?>" step="0.01">
+                    </div>
+                    <div style="flex:1;">
+                        <label class="ml-sidebar-filter-label">Preço máx.</label>
+                        <input type="number" name="max_price" class="ml-sidebar-filter-input"
+                               placeholder="R$ max" value="<?php echo $maxPrice > 0 ? (float)$maxPrice : ''; ?>" step="0.01">
+                    </div>
+                </div>
+
+                <button type="submit" class="ml-sidebar-filter-btn">
+                    <i class="fas fa-search"></i> Aplicar Filtros
+                </button>
+            </form>
+        </div>
+
+        <div class="ml-sidebar-card">
+            <h3 class="ml-sidebar-title">Categorias</h3>
+            <ul class="ml-sidebar-list">
+                <li class="ml-sidebar-item <?php echo $categoryFilter === 0 ? 'active' : ''; ?>">
+                    <a href="?<?php echo buildQueryString(['category_id' => 0]); ?>">Todos</a>
+                </li>
+                <?php foreach ($categories as $cat):
+                    $icon = $categoryIcons[$cat['slug']] ?? 'fa-folder';
+                ?>
+                <li class="ml-sidebar-item <?php echo $categoryFilter === (int)$cat['id'] ? 'active' : ''; ?>">
+                    <a href="?<?php echo buildQueryString(['category_id' => (int)$cat['id']]); ?>">
+                        <span>
+                            <i class="fas <?php echo $icon; ?>" style="margin-right:8px;color:#d4af37;font-size:0.8rem;"></i>
+                            <?php echo htmlspecialchars($cat['name'], ENT_QUOTES, 'UTF-8'); ?>
+                        </span>
+                        <span class="ml-sidebar-count"><?php echo (int)$cat['product_count']; ?></span>
+                    </a>
+                </li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="ml-main">
+        <!-- Mobile filter button -->
+        <button class="ml-mobile-filter-btn" onclick="document.getElementById('ml-sidebar-drawer').classList.add('active');document.getElementById('ml-sidebar-overlay').classList.add('active');document.body.style.overflow='hidden';">
+            <i class="fas fa-sliders-h"></i> Filtros
+        </button>
+
+        <!-- Main Header -->
+        <div class="ml-main-header">
+            <div>
+                <h1 class="ml-main-title">
+                    <?php if ($searchTerm): ?>
+                        Resultados para "<?php echo htmlspecialchars($searchTerm, ENT_QUOTES, 'UTF-8'); ?>"
+                    <?php elseif ($categoryFilter > 0): ?>
+                        <?php
+                        $activeCatName = '';
+                        foreach ($categories as $c) {
+                            if ((int)$c['id'] === $categoryFilter) {
+                                $activeCatName = $c['name'];
+                                break;
+                            }
+                        }
+                        echo htmlspecialchars($activeCatName ?: 'Produtos', ENT_QUOTES, 'UTF-8');
+                        ?>
+                    <?php else: ?>
+                        Todos os Produtos
+                    <?php endif; ?>
+                </h1>
+                <span class="ml-main-count"><?php echo $totalProducts; ?> produto(s)</span>
+            </div>
+            <div class="ml-main-sort">
+                <label for="ml-sort">Ordenar:</label>
+                <select id="ml-sort" onchange="window.location.href='?'+this.value">
+                    <?php
+                    $sortOptions = [
+                        'newest' => 'Mais recentes',
+                        'price_asc' => 'Menor preço',
+                        'price_desc' => 'Maior preço',
+                        'name_asc' => 'A-Z',
+                    ];
+                    foreach ($sortOptions as $val => $label):
+                        $qs = buildQueryString(['sort' => $val]);
+                    ?>
+                        <option value="<?php echo $qs; ?>" <?php echo $sortOrder === $val ? 'selected' : ''; ?>><?php echo $label; ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+        </div>
+
+        <!-- Products Grid -->
+        <?php if (empty($products)): ?>
+            <div class="ml-empty">
+                <i class="fas fa-search"></i>
+                <h3>Nenhum produto encontrado</h3>
+                <p>Tente ajustar os filtros ou buscar por outro termo.</p>
+            </div>
+        <?php else: ?>
+            <div class="ml-products-grid">
+                <?php foreach($products as $product):
+                    $product_id = (int)$product['id'];
+                    $product_name = $product['name'];
+                    $product_price = (float)$product['price'];
+                    $product_old_price = $product['old_price'] !== null ? (float)$product['old_price'] : null;
+                    $product_image = $product['image_path'] ?: '../../assets/img/placeholder-product.svg';
+                    $product_category = $product['category_name'];
+                    $product_brand = $product['brand'] ?? 'Royal Tech';
+                    $product_installments = '12x';
+                    $product_is_featured = (bool)$product['is_featured'];
+                    $product_is_new = false;
+                    $product_stock = isset($product['stock']) ? (int)$product['stock'] : 1;
+                    include '../../components/product-card.php';
+                endforeach; ?>
+            </div>
+        <?php endif; ?>
+
+        <!-- Pagination -->
+        <?php if ($totalPages > 1): ?>
+            <div class="ml-pagination">
+                <?php if ($page > 1): ?>
+                    <a href="?<?php echo buildQueryString(['page' => $page - 1]); ?>"><i class="fas fa-chevron-left"></i></a>
+                <?php endif; ?>
+
+                <?php
+                $start = max(1, $page - 2);
+                $end = min($totalPages, $page + 2);
+                if ($start > 1): ?>
+                    <a href="?<?php echo buildQueryString(['page' => 1]); ?>">1</a>
+                    <?php if ($start > 2): ?><span style="border:none;background:none;color:#777;">...</span><?php endif; ?>
+                <?php endif; ?>
+
+                <?php for ($i = $start; $i <= $end; $i++): ?>
+                    <a href="?<?php echo buildQueryString(['page' => $i]); ?>" class="<?php echo $i === $page ? 'active' : ''; ?>"><?php echo $i; ?></a>
+                <?php endfor; ?>
+
+                <?php if ($end < $totalPages): ?>
+                    <?php if ($end < $totalPages - 1): ?><span style="border:none;background:none;color:#777;">...</span><?php endif; ?>
+                    <a href="?<?php echo buildQueryString(['page' => $totalPages]); ?>"><?php echo $totalPages; ?></a>
+                <?php endif; ?>
+
+                <?php if ($page < $totalPages): ?>
+                    <a href="?<?php echo buildQueryString(['page' => $page + 1]); ?>"><i class="fas fa-chevron-right"></i></a>
+                <?php endif; ?>
+            </div>
+        <?php endif; ?>
+    </div>
+</div>
+
 <?php include '../../components/footer.php'; ?>
