@@ -4,13 +4,8 @@ services:
     container_name: royaltech
     ports:
       - "8080:80"
-    environment:
-      - DB_HOST=db
-      - DB_NAME=e5_royaltech
-      - DB_USER=root
-      - DB_PASS=
-    # volumes:
-    #   - ./:/var/www/html
+    env_file:
+      - .env.prod
     depends_on:
       db:
         condition: service_healthy
@@ -23,7 +18,7 @@ services:
       - MYSQL_ALLOW_EMPTY_PASSWORD=yes
       - MYSQL_DATABASE=e5_royaltech
     ports:
-      - "3306:3306"
+      - "3307:3306"
     volumes:
       - db_data:/var/lib/mysql
       - ./database:/docker-entrypoint-initdb.d
@@ -43,6 +38,14 @@ services:
     depends_on:
       db:
         condition: service_healthy
+
+  mailpit:
+    image: axllent/mailpit
+    container_name: mailpit
+    restart: unless-stopped
+    ports:
+      - "8025:8025" 
+      - "1025:1025" 
 
 volumes:
   db_data:
