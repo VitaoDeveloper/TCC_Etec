@@ -60,7 +60,7 @@ try {
         ':name' => $name,
         ':email' => $email,
         ':username' => $username,
-        ':password' => password_hash($password, PASSWORD_ARGON2ID),
+        ':password' => password_hash($password, PASSWORD_DEFAULT),
         ':postal_code' => $postalCode,
         ':street' => $street,
         ':number' => $number,

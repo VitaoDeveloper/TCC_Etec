@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 $envFile = __DIR__ . '/../../.env';
 if (file_exists($envFile) && !isset($_ENV['DB_HOST'])) {
