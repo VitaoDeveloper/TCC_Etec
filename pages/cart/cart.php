@@ -22,21 +22,22 @@ foreach ($items as $item) {
 
 include $base_path . 'components/header.php';
 ?>
-<section class="section"><div class="container">
-    <div class="section-header"><h2>Seu Carrinho</h2><p><?php echo count($items); ?> <?php echo count($items) === 1 ? 'item' : 'itens'; ?></p></div>
+<section class="ml-section" style="padding-top: 8px;"><div class="container">
+    <div class="ml-section-header">
+        <h2 class="ml-section-title">Seu Carrinho</h2>
+        <span class="ml-main-count"><?php echo count($items); ?> <?php echo count($items) === 1 ? 'item' : 'itens'; ?></span>
+    </div>
 
     <?php if (empty($items)): ?>
-        <div style="text-align:center; padding:60px 20px;">
-            <i class="fas fa-shopping-cart" style="font-size:64px; color:var(--color-gold); opacity:0.5; margin-bottom:20px;"></i>
+        <div class="ml-empty">
+            <i class="fas fa-shopping-cart"></i>
             <h3>Seu carrinho está vazio</h3>
-            <p style="margin-bottom:20px;">Explore nossos produtos e encontre o que precisa.</p>
-            <a href="../products/products.php" class="btn btn-primary"><i class="fas fa-store"></i> Ver Produtos</a>
+            <p>Explore nossos produtos e encontre o que precisa.</p>
+            <p style="margin-top: 16px;"><a href="../products/products.php" class="ml-btn ml-btn-primary"><i class="fas fa-store"></i> Ver Produtos</a></p>
         </div>
     <?php else: ?>
-        <div class="admin-table-container">
-            <table class="admin-table">
-                <thead><tr><th>Produto</th><th>Preço</th><th>Qtd</th><th>Subtotal</th><th></th></tr></thead>
-                <tbody>
+        <div class="ml-cart-grid">
+            <div>
                 <?php foreach ($items as $item):
                     $img = (string) ($item['image_path'] ?? '');
                     if ($img === '') {
@@ -48,34 +49,34 @@ include $base_path . 'components/header.php';
                     }
                     $subtotal = (float)$item['price'] * (int)$item['quantity'];
                 ?>
-                    <tr data-product-id="<?php echo (int)$item['product_id']; ?>">
-                        <td style="display:flex; align-items:center; gap:12px;">
-                            <img src="<?php echo htmlspecialchars($img, ENT_QUOTES, 'UTF-8'); ?>" alt="<?php echo htmlspecialchars($item['name'], ENT_QUOTES, 'UTF-8'); ?>" style="width:60px; height:60px; object-fit:cover; border-radius:6px;">
-                            <div>
-                                <strong><?php echo htmlspecialchars($item['name'], ENT_QUOTES, 'UTF-8'); ?></strong><br>
-                                <small><?php echo htmlspecialchars($item['brand'] ?? '', ENT_QUOTES, 'UTF-8'); ?></small>
-                            </div>
-                        </td>
-                        <td>R$ <?php echo number_format((float)$item['price'], 2, ',', '.'); ?></td>
-                        <td>
-                            <div style="display:flex; align-items:center; gap:4px;">
-                                <button class="cart-qty-btn" data-action="dec" style="width:30px;height:30px;border:1px solid var(--color-border);border-radius:4px;background:var(--color-black);color:var(--color-white);cursor:pointer;font-size:1rem;line-height:1;">−</button>
-                                <input type="number" class="cart-qty" value="<?php echo (int)$item['quantity']; ?>" min="0" max="<?php echo (int)$item['stock']; ?>" style="width:50px; padding:4px; text-align:center;">
-                                <button class="cart-qty-btn" data-action="inc" style="width:30px;height:30px;border:1px solid var(--color-border);border-radius:4px;background:var(--color-black);color:var(--color-white);cursor:pointer;font-size:1rem;line-height:1;">+</button>
-                            </div>
-                        </td>
-                        <td class="cart-subtotal">R$ <?php echo number_format($subtotal, 2, ',', '.'); ?></td>
-                        <td><button class="cart-remove" title="Remover" aria-label="Remover item do carrinho" style="background:none; border:none; color:#f44336; cursor:pointer; font-size:18px;"><i class="fas fa-trash-alt"></i></button></td>
-                    </tr>
+                <div class="cart-item" data-product-id="<?php echo (int)$item['product_id']; ?>">
+                    <img src="<?php echo htmlspecialchars($img, ENT_QUOTES, 'UTF-8'); ?>" alt="<?php echo htmlspecialchars($item['name'], ENT_QUOTES, 'UTF-8'); ?>" class="cart-item-img">
+                    <div class="cart-item-info">
+                        <strong><?php echo htmlspecialchars($item['name'], ENT_QUOTES, 'UTF-8'); ?></strong>
+                        <span class="cart-item-brand"><?php echo htmlspecialchars($item['brand'] ?? '', ENT_QUOTES, 'UTF-8'); ?></span>
+                        <span class="cart-item-unit">R$ <?php echo number_format((float)$item['price'], 2, ',', '.'); ?> un.</span>
+                    </div>
+                    <div class="qty-stepper" style="margin-bottom: 0;">
+                        <button type="button" class="cart-qty-btn" data-action="dec" aria-label="Diminuir quantidade">−</button>
+                        <input type="number" class="cart-qty" value="<?php echo (int)$item['quantity']; ?>" min="0" max="<?php echo (int)$item['stock']; ?>" aria-label="Quantidade">
+                        <button type="button" class="cart-qty-btn" data-action="inc" aria-label="Aumentar quantidade">+</button>
+                    </div>
+                    <span class="cart-item-subtotal cart-subtotal">R$ <?php echo number_format($subtotal, 2, ',', '.'); ?></span>
+                    <button type="button" class="cart-remove" title="Remover" aria-label="Remover item do carrinho"><i class="fas fa-trash-alt"></i></button>
+                </div>
                 <?php endforeach; ?>
-                </tbody>
-                <tfoot>
-                    <tr><td colspan="3" style="text-align:right; font-weight:600; font-size:1.1em;">Total:</td><td class="cart-total" style="font-weight:700; color:var(--color-gold); font-size:1.2em;">R$ <?php echo number_format($total, 2, ',', '.'); ?></td><td></td></tr>
-                </tfoot>
-            </table>
-            <div style="display:flex; gap:12px; justify-content:flex-end; margin-top:20px;">
-                <a href="../products/products.php" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Continuar Comprando</a>
-                <a href="../cart/checkout.php" class="btn btn-primary"><i class="fas fa-credit-card"></i> Finalizar Pedido</a>
+                <a href="../products/products.php" class="ml-btn"><i class="fas fa-arrow-left"></i> Continuar Comprando</a>
+            </div>
+
+            <div class="ml-summary-card">
+                <h3>Resumo</h3>
+                <div class="ml-summary-line total">
+                    <span>Total</span>
+                    <span>R$ <?php echo number_format($total, 2, ',', '.'); ?></span>
+                </div>
+                <div class="ml-summary-actions">
+                    <a href="../cart/checkout.php" class="ml-btn ml-btn-primary ml-btn-block"><i class="fas fa-credit-card"></i> Finalizar Pedido</a>
+                </div>
             </div>
         </div>
     <?php endif; ?>
@@ -95,7 +96,7 @@ function updateCartQty(productId, qty) {
 document.querySelectorAll('.cart-qty-btn').forEach(btn => {
     btn.addEventListener('click', function() {
         const input = this.parentElement.querySelector('.cart-qty');
-        const productId = this.closest('tr').dataset.productId;
+        const productId = this.closest('[data-product-id]').dataset.productId;
         let val = parseInt(input.value) || 0;
         if (this.dataset.action === 'inc') {
             const max = parseInt(input.max) || 999;
@@ -110,14 +111,14 @@ document.querySelectorAll('.cart-qty-btn').forEach(btn => {
 
 document.querySelectorAll('.cart-qty').forEach(input => {
     input.addEventListener('change', function() {
-        const productId = this.closest('tr').dataset.productId;
+        const productId = this.closest('[data-product-id]').dataset.productId;
         updateCartQty(productId, parseInt(this.value) || 0);
     });
 });
 
 document.querySelectorAll('.cart-remove').forEach(btn => {
     btn.addEventListener('click', function() {
-        const productId = this.closest('tr').dataset.productId;
+        const productId = this.closest('[data-product-id]').dataset.productId;
         fetch('<?php echo $base_path; ?>pages/cart/remove.php', {
             method: 'POST',
             headers: {'Content-Type': 'application/x-www-form-urlencoded'},

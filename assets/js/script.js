@@ -1,69 +1,146 @@
 /**
  * Royal Tech - JavaScript Principal
- * Site de E-commerce Premium
+ * Site de E-commerce Premium — Estilo Mercado Livre
  */
 
 document.addEventListener('DOMContentLoaded', function() {
-    
-    // ========================================
-    // Mobile Menu Drawer
-    // ========================================
-    const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
-    const mainNav = document.querySelector('.main-nav');
-    let navBackdrop = document.querySelector('.nav-backdrop');
 
-    if (mobileMenuBtn && mainNav) {
-        if (!navBackdrop) {
-            navBackdrop = document.createElement('div');
-            navBackdrop.className = 'nav-backdrop';
-            document.body.appendChild(navBackdrop);
+    var loggedFlag = document.body.getAttribute('data-logged-in') === '1';
+    var basePath = document.body.getAttribute('data-base-path') || '';
+
+    // ========================================
+    // ML Carousel
+    // ========================================
+    var carousel = document.getElementById('ml-carousel');
+    var carouselTrack = document.getElementById('ml-carousel-track');
+    var prevBtn = document.getElementById('ml-carousel-prev');
+    var nextBtn = document.getElementById('ml-carousel-next');
+    var dotsContainer = document.getElementById('ml-carousel-dots');
+
+    if (carousel && carouselTrack) {
+        var slides = carouselTrack.querySelectorAll('.ml-carousel-slide');
+        var currentSlide = 0;
+        var totalSlides = slides.length;
+        var autoPlayInterval = null;
+
+        function goToSlide(index) {
+            if (index < 0) index = totalSlides - 1;
+            if (index >= totalSlides) index = 0;
+            currentSlide = index;
+            carouselTrack.style.transform = 'translateX(-' + (currentSlide * 100) + '%)';
+
+            if (dotsContainer) {
+                var dots = dotsContainer.querySelectorAll('.ml-carousel-dot');
+                dots.forEach(function(dot, i) {
+                    dot.classList.toggle('active', i === currentSlide);
+                });
+            }
         }
 
-        function toggleNav(open) {
-            const isOpen = open !== undefined ? open : !mainNav.classList.contains('active');
-            mainNav.classList.toggle('active', isOpen);
-            navBackdrop.classList.toggle('active', isOpen);
-            document.body.style.overflow = isOpen ? 'hidden' : '';
+        if (prevBtn) {
+            prevBtn.addEventListener('click', function() {
+                goToSlide(currentSlide - 1);
+                resetAutoPlay();
+            });
         }
 
-        mobileMenuBtn.addEventListener('click', function() { toggleNav(); });
-        navBackdrop.addEventListener('click', function() { toggleNav(false); });
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape' && mainNav.classList.contains('active')) toggleNav(false);
-        });
+        if (nextBtn) {
+            nextBtn.addEventListener('click', function() {
+                goToSlide(currentSlide + 1);
+                resetAutoPlay();
+            });
+        }
+
+        if (dotsContainer) {
+            dotsContainer.querySelectorAll('.ml-carousel-dot').forEach(function(dot) {
+                dot.addEventListener('click', function() {
+                    goToSlide(parseInt(this.getAttribute('data-index')));
+                    resetAutoPlay();
+                });
+            });
+        }
+
+        function startAutoPlay() {
+            autoPlayInterval = setInterval(function() {
+                goToSlide(currentSlide + 1);
+            }, 5000);
+        }
+
+        function resetAutoPlay() {
+            clearInterval(autoPlayInterval);
+            startAutoPlay();
+        }
+
+        if (totalSlides > 1) {
+            startAutoPlay();
+
+            carousel.addEventListener('mouseenter', function() {
+                clearInterval(autoPlayInterval);
+            });
+
+            carousel.addEventListener('mouseleave', function() {
+                startAutoPlay();
+            });
+        }
+
+        // Touch swipe support
+        var touchStartX = 0;
+        var touchEndX = 0;
+
+        carousel.addEventListener('touchstart', function(e) {
+            touchStartX = e.changedTouches[0].screenX;
+        }, { passive: true });
+
+        carousel.addEventListener('touchend', function(e) {
+            touchEndX = e.changedTouches[0].screenX;
+            var diff = touchStartX - touchEndX;
+            if (Math.abs(diff) > 50) {
+                if (diff > 0) {
+                    goToSlide(currentSlide + 1);
+                } else {
+                    goToSlide(currentSlide - 1);
+                }
+                resetAutoPlay();
+            }
+        }, { passive: true });
     }
-    
-    const loggedFlag = document.body.getAttribute('data-logged-in') === '1';
-    const basePath = document.body.getAttribute('data-base-path') || '';
 
     // ========================================
     // Wishlist Toggle — AJAX
     // ========================================
-    document.querySelectorAll('.btn-wishlist').forEach(btn => {
+    document.querySelectorAll('.ml-card-wishlist, .btn-wishlist').forEach(function(btn) {
         btn.addEventListener('click', function(e) {
             e.preventDefault();
+            e.stopPropagation();
             if (!loggedFlag) return;
-            const productId = this.dataset.productId;
+            var productId = this.dataset.productId;
             if (!productId) return;
-            this.classList.add('btn-loading');
+            var self = this;
+            self.classList.add('btn-loading');
             fetch(basePath + 'pages/wishlist/toggle.php', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/x-www-form-urlencoded'},
                 body: new URLSearchParams({product_id: productId})
             })
-            .then(r => r.json())
-            .then(data => {
-                this.classList.remove('btn-loading');
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                self.classList.remove('btn-loading');
                 if (data.success) {
-                    this.querySelector('i').className = data.active ? 'fas fa-heart' : 'far fa-heart';
-                    const badge = document.querySelector('.wishlist-btn .cart-badge');
+                    var icon = self.querySelector('i');
+                    if (icon) {
+                        icon.className = data.active ? 'fas fa-heart' : 'far fa-heart';
+                    }
+                    self.classList.toggle('is-active', data.active);
+
+                    var badge = document.querySelector('.ml-wishlist-link .ml-badge, .wishlist-btn .cart-badge');
                     if (badge) {
                         badge.textContent = data.count;
+                        if (data.count <= 0) badge.remove();
                     } else if (data.count > 0) {
-                        const wb = document.querySelector('.wishlist-btn');
+                        var wb = document.querySelector('.ml-wishlist-link, .wishlist-btn');
                         if (wb) {
-                            const span = document.createElement('span');
-                            span.className = 'cart-badge';
+                            var span = document.createElement('span');
+                            span.className = 'ml-badge';
                             span.textContent = data.count;
                             wb.appendChild(span);
                         }
@@ -71,52 +148,54 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else if (window.showToast) {
                     showToast(data.message, 'error');
                 }
-            }).catch(() => { this.classList.remove('btn-loading'); if (window.showToast) { showToast('Erro ao favoritar.', 'error'); } });
+            }).catch(function() {
+                self.classList.remove('btn-loading');
+                if (window.showToast) showToast('Erro ao favoritar.', 'error');
+            });
         });
     });
 
     // ========================================
     // Add to Cart Button — AJAX
     // ========================================
-    const addToCartBtns = document.querySelectorAll('.btn-add-cart');
-
-    addToCartBtns.forEach(btn => {
+    document.querySelectorAll('.btn-add-cart').forEach(function(btn) {
         btn.addEventListener('click', function(e) {
             e.preventDefault();
             if (!loggedFlag) return;
 
-            const card = this.closest('[data-product-id]');
-            const productId = card ? card.getAttribute('data-product-id') : null;
+            var card = this.closest('[data-product-id]');
+            var productId = card ? card.getAttribute('data-product-id') : null;
             if (!productId) return;
 
-            const originalText = this.innerHTML;
-            this.classList.add('btn-loading');
+            var originalText = this.innerHTML;
+            var self = this;
+            self.classList.add('btn-loading');
 
             fetch(basePath + 'pages/cart/add.php', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: new URLSearchParams({product_id: productId, quantity: 1})
+                body: new URLSearchParams({product_id: productId, quantity: (parseInt((document.getElementById('pdp-qty') || {}).value, 10) || 1)})
             })
-            .then(r => r.json())
-            .then(data => {
-                this.classList.remove('btn-loading');
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                self.classList.remove('btn-loading');
                 if (data.success) {
-                    this.innerHTML = '<i class="fas fa-check"></i> Adicionado!';
-                    this.style.background = 'var(--color-primary)';
-                    this.style.color = 'var(--color-black)';
-                    setTimeout(() => {
-                        this.innerHTML = originalText;
-                        this.style.background = '';
-                        this.style.color = '';
+                    self.innerHTML = '<i class="fas fa-check"></i> Adicionado!';
+                    self.style.background = 'var(--ml-accent, #d4af37)';
+                    self.style.color = 'var(--ml-bg, #1a1a1a)';
+                    setTimeout(function() {
+                        self.innerHTML = originalText;
+                        self.style.background = '';
+                        self.style.color = '';
                     }, 2000);
-                    const badge = document.querySelector('.cart-badge');
+                    var badge = document.querySelector('.ml-cart-link .ml-badge, .cart-btn .cart-badge');
                     if (badge) {
                         badge.textContent = data.count;
                     } else {
-                        const cartBtn = document.querySelector('.cart-btn');
+                        var cartBtn = document.querySelector('.ml-cart-link, .cart-btn');
                         if (cartBtn) {
-                            const span = document.createElement('span');
-                            span.className = 'cart-badge';
+                            var span = document.createElement('span');
+                            span.className = 'ml-badge';
                             span.textContent = data.count;
                             cartBtn.appendChild(span);
                         }
@@ -125,68 +204,45 @@ document.addEventListener('DOMContentLoaded', function() {
                     showToast(data.message, 'error');
                 }
             })
-            .catch(() => { this.classList.remove('btn-loading'); if (window.showToast) { showToast('Erro ao adicionar ao carrinho.', 'error'); } });
+            .catch(function() {
+                self.classList.remove('btn-loading');
+                if (window.showToast) showToast('Erro ao adicionar ao carrinho.', 'error');
+            });
         });
-});
-
-// ========================================
-// Input Masks (CPF, CEP)
-// ========================================
-document.querySelectorAll('.cpf-mask').forEach(function(el) {
-    el.addEventListener('input', function() {
-        var v = this.value.replace(/\D/g, '').slice(0, 11);
-        v = v.replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2');
-        this.value = v;
     });
-});
-document.querySelectorAll('.cep-mask').forEach(function(el) {
-    el.addEventListener('input', function() {
-        var v = this.value.replace(/\D/g, '').slice(0, 8);
-        v = v.replace(/(\d{5})(\d)/, '$1-$2');
-        this.value = v;
-    });
-});
 
+    // ========================================
+    // Input Masks (CPF, CEP)
+    // ========================================
+    document.querySelectorAll('.cpf-mask').forEach(function(el) {
+        el.addEventListener('input', function() {
+            var v = this.value.replace(/\D/g, '').slice(0, 11);
+            v = v.replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+            this.value = v;
+        });
+    });
+    document.querySelectorAll('.cep-mask').forEach(function(el) {
+        el.addEventListener('input', function() {
+            var v = this.value.replace(/\D/g, '').slice(0, 8);
+            v = v.replace(/(\d{5})(\d)/, '$1-$2');
+            this.value = v;
+        });
+    });
 
     // ========================================
     // Require authentication for ecommerce actions
     // ========================================
-    const protectedActions = document.querySelectorAll('.js-require-auth');
-
-    protectedActions.forEach((btn) => {
+    document.querySelectorAll('.js-require-auth').forEach(function(btn) {
         btn.addEventListener('click', function(e) {
             if (loggedFlag) return;
 
             e.preventDefault();
-            const target = this.getAttribute('data-auth-target') || 'recurso';
-            const loginUrl = basePath + 'pages/auth/login.php?next=' + encodeURIComponent(window.location.pathname + window.location.search);
-            if (window.showToast) { showToast('Faça login para acessar ' + target + '.', 'info'); }
+            var target = this.getAttribute('data-auth-target') || 'recurso';
+            var loginUrl = basePath + 'pages/auth/login.php?next=' + encodeURIComponent(window.location.pathname + window.location.search);
+            if (window.showToast) showToast('Faça login para acessar ' + target + '.', 'info');
             setTimeout(function() { window.location.href = loginUrl; }, 1500);
         });
     });
-
-
-    
-    // ========================================
-    // Admin Sidebar Toggle + Backdrop
-    // ========================================
-    const sidebarToggle = document.querySelector('.sidebar-toggle');
-    const adminSidebar = document.querySelector('.admin-sidebar');
-    let sidebarBackdrop = document.querySelector('.admin-sidebar-backdrop');
-    
-    if (sidebarToggle && adminSidebar && !sidebarBackdrop) {
-        sidebarBackdrop = document.createElement('div');
-        sidebarBackdrop.className = 'admin-sidebar-backdrop';
-        document.body.appendChild(sidebarBackdrop);
-    }
-    
-    function toggleSidebar(open) {
-        if (!adminSidebar || !sidebarBackdrop) return;
-        const isOpen = open !== undefined ? open : !adminSidebar.classList.contains('active');
-        adminSidebar.classList.toggle('active', isOpen);
-        sidebarBackdrop.classList.toggle('active', isOpen);
-        document.body.style.overflow = isOpen ? 'hidden' : '';
-    }
 
     // ========================================
     // Toast Notification
@@ -206,23 +262,42 @@ document.querySelectorAll('.cep-mask').forEach(function(el) {
             setTimeout(function() { toast.remove(); }, 400);
         }, 3500);
     };
-    
+
+    // ========================================
+    // Admin Sidebar Toggle + Backdrop
+    // ========================================
+    var sidebarToggle = document.querySelector('.sidebar-toggle');
+    var adminSidebar = document.querySelector('.admin-sidebar');
+    var sidebarBackdrop = document.querySelector('.admin-sidebar-backdrop');
+
+    if (sidebarToggle && adminSidebar && !sidebarBackdrop) {
+        sidebarBackdrop = document.createElement('div');
+        sidebarBackdrop.className = 'admin-sidebar-backdrop';
+        document.body.appendChild(sidebarBackdrop);
+    }
+
+    function toggleSidebar(open) {
+        if (!adminSidebar || !sidebarBackdrop) return;
+        var isOpen = open !== undefined ? open : !adminSidebar.classList.contains('active');
+        adminSidebar.classList.toggle('active', isOpen);
+        sidebarBackdrop.classList.toggle('active', isOpen);
+        document.body.style.overflow = isOpen ? 'hidden' : '';
+    }
+
     if (sidebarToggle && adminSidebar && sidebarBackdrop) {
         sidebarToggle.addEventListener('click', function() {
             toggleSidebar();
         });
-        
+
         sidebarBackdrop.addEventListener('click', function() {
             toggleSidebar(false);
         });
-        
+
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape' && adminSidebar.classList.contains('active')) {
                 toggleSidebar(false);
             }
         });
     }
-    
+
 });
-
-

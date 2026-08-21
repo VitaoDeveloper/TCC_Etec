@@ -6,16 +6,15 @@ $base_path = '';
 require_once __DIR__ . '/includes/csrf.php';
 include __DIR__ . '/database/connection.php';
 
-$activeBanners = $pdo->query('SELECT * FROM e5_banners WHERE is_active = 1 ORDER BY created_at DESC LIMIT 1')->fetchAll();
-$featuredBanner = $activeBanners[0] ?? null;
+$allBanners = $pdo->query('SELECT * FROM e5_banners WHERE is_active = 1 ORDER BY created_at DESC LIMIT 5')->fetchAll();
 
 $featuredProducts = $pdo->query('SELECT p.id, p.name, p.price, p.old_price, p.brand, p.stock, c.name AS category_name,
     (SELECT pi.image_path FROM e5_product_images pi WHERE pi.product_id = p.id ORDER BY pi.is_primary DESC, pi.id ASC LIMIT 1) AS image_path
-    FROM e5_products p INNER JOIN e5_categories c ON c.id = p.category_id WHERE p.is_featured = 1 ORDER BY p.created_at DESC LIMIT 4')->fetchAll();
+    FROM e5_products p INNER JOIN e5_categories c ON c.id = p.category_id WHERE p.is_featured = 1 ORDER BY p.created_at DESC LIMIT 8')->fetchAll();
 
 $newProducts = $pdo->query('SELECT p.id, p.name, p.price, p.old_price, p.brand, p.stock, c.name AS category_name,
     (SELECT pi.image_path FROM e5_product_images pi WHERE pi.product_id = p.id ORDER BY pi.is_primary DESC, pi.id ASC LIMIT 1) AS image_path
-    FROM e5_products p INNER JOIN e5_categories c ON c.id = p.category_id ORDER BY p.created_at DESC LIMIT 4')->fetchAll();
+    FROM e5_products p INNER JOIN e5_categories c ON c.id = p.category_id ORDER BY p.created_at DESC LIMIT 8')->fetchAll();
 
 $categories = $pdo->query('SELECT id, name, slug, (SELECT COUNT(*) FROM e5_products WHERE category_id = c.id) AS product_count FROM e5_categories c ORDER BY name ASC')->fetchAll();
 
@@ -24,110 +23,122 @@ $categoryIcons = [
     'perifericos' => 'fa-keyboard', 'audio' => 'fa-headphones', 'games' => 'fa-gamepad',
     'cameras' => 'fa-camera', 'acessorios' => 'fa-headset', 'monitores' => 'fa-tv',
     'wearables' => 'fa-clock', 'rede' => 'fa-wifi', 'cabo' => 'fa-plug',
+    'componentes' => 'fa-microchip',
 ];
 
 include 'components/header.php';
 ?>
-<div class="hero-bg">
-    <section class="hero-section">
-        <div class="container">
-            <div class="hero-content">
-                <div class="hero-text">
-                    <h1> Tecnologia de <span>Alta Performance</span></h1>
-                    <p>Descubra os melhores produtos tecnológicos do mercado com qualidade premium e atendimento personalizado. A Royal Tech traz inovação diretamente para suas mãos.</p>
-                    <div class="hero-buttons">
-                        <a href="pages/products/products.php" class="btn btn-primary">
-                            <i class="fas fa-shopping-bag"></i>
-                            Ver Produtos
-                        </a>
-                        <a href="pages/products/about.php" class="btn btn-secondary">
-                            <i class="fas fa-info-circle"></i>
-                            Sobre Nós
-                        </a>
+
+<!-- Banner Carousel -->
+<?php if (!empty($allBanners)): ?>
+<section class="ml-carousel-section">
+    <div class="ml-carousel" id="ml-carousel">
+        <div class="ml-carousel-track" id="ml-carousel-track">
+            <?php foreach ($allBanners as $banner):
+                $bannerImg = '';
+                if (preg_match('#^https?://#i', $banner['image_path'])) {
+                    $bannerImg = $banner['image_path'];
+                } elseif ($banner['image_path'] !== '') {
+                    $bannerImg = ltrim($banner['image_path'], '/');
+                }
+                $bannerLink = $banner['link_url'] ?: ($basePath . 'pages/products/products.php');
+                $linkIsExternal = preg_match('#^https?://#i', $bannerLink);
+                if (!$linkIsExternal && $bannerLink !== '#' && $bannerLink[0] === '/') {
+                    $bannerLink = ltrim($bannerLink, '/');
+                }
+            ?>
+            <div class="ml-carousel-slide">
+                <?php if ($bannerImg): ?>
+                    <img src="<?php echo htmlspecialchars($bannerImg, ENT_QUOTES, 'UTF-8'); ?>"
+                         alt="<?php echo htmlspecialchars($banner['title'], ENT_QUOTES, 'UTF-8'); ?>">
+                <?php else: ?>
+                    <div style="width:100%;height:100%;background:linear-gradient(135deg, #222 0%, #1a1a1a 100%);display:flex;align-items:center;justify-content:center;">
+                        <i class="fas fa-gift" style="font-size:4rem;color:#d4af37;opacity:0.3;"></i>
                     </div>
-                </div>
-                <div class="hero-image">
-                    <!-- Espaço para imagem do Hero -->
-                    <!-- <div class="placeholder">
-                        <i class="fas fa-laptop"></i>
-                        <h4>Imagem Hero Principal</h4>
-                        <p>Insira uma imagem de produto premium ou banner aqui</p>
-                        <small>500x500px</small>
-                    </div> -->
+                <?php endif; ?>
+                <div class="ml-carousel-slide-content">
+                    <h3 class="ml-carousel-slide-title">
+                        <?php echo htmlspecialchars($banner['title'], ENT_QUOTES, 'UTF-8'); ?>
+                        <?php if (!empty($banner['subtitle'])): ?>
+                            <span style="color:#d4af37;"> — <?php echo htmlspecialchars($banner['subtitle'], ENT_QUOTES, 'UTF-8'); ?></span>
+                        <?php endif; ?>
+                    </h3>
+                    <a href="<?php echo htmlspecialchars($bannerLink, ENT_QUOTES, 'UTF-8'); ?>" class="ml-carousel-slide-btn"
+                       <?php echo $linkIsExternal ? 'target="_blank" rel="noopener"' : ''; ?>>
+                        <i class="fas fa-tags"></i> Conferir
+                    </a>
                 </div>
             </div>
+            <?php endforeach; ?>
         </div>
-    </section>
+        <?php if (count($allBanners) > 1): ?>
+        <button class="ml-carousel-btn ml-carousel-prev" id="ml-carousel-prev" aria-label="Anterior"><i class="fas fa-chevron-left"></i></button>
+        <button class="ml-carousel-btn ml-carousel-next" id="ml-carousel-next" aria-label="Próximo"><i class="fas fa-chevron-right"></i></button>
+        <?php endif; ?>
+    </div>
+    <?php if (count($allBanners) > 1): ?>
+    <div class="ml-carousel-dots" id="ml-carousel-dots">
+        <?php for ($i = 0; $i < count($allBanners); $i++): ?>
+            <button class="ml-carousel-dot <?php echo $i === 0 ? 'active' : ''; ?>" data-index="<?php echo $i; ?>" aria-label="Slide <?php echo $i + 1; ?>"></button>
+        <?php endfor; ?>
+    </div>
+    <?php endif; ?>
+</section>
+<?php else: ?>
+<!-- Promo Hero (no banners) -->
+<section class="ml-promo-hero">
+    <h2>Bem-vindo à <span style="color:#d4af37;">Royal Tech</span></h2>
+    <p>Descubra os melhores produtos tecnológicos com qualidade premium e atendimento personalizado.</p>
+    <a href="pages/products/products.php" class="ml-carousel-slide-btn" style="margin:0 auto;">
+        <i class="fas fa-shopping-bag"></i> Ver Produtos
+    </a>
+</section>
+<?php endif; ?>
+
+<!-- Features Strip -->
+<div class="container">
+    <div class="ml-features-strip">
+        <div class="ml-feature-item">
+            <span class="ml-feature-icon"><i class="fas fa-shipping-fast"></i></span>
+            <div class="ml-feature-text">
+                <h4>Frete grátis</h4>
+                <p>Acima de R$ 500</p>
+            </div>
+        </div>
+        <div class="ml-feature-item">
+            <span class="ml-feature-icon"><i class="fas fa-shield-alt"></i></span>
+            <div class="ml-feature-text">
+                <h4>Garantia 12 meses</h4>
+                <p>Todos os produtos</p>
+            </div>
+        </div>
+        <div class="ml-feature-item">
+            <span class="ml-feature-icon"><i class="fas fa-undo"></i></span>
+            <div class="ml-feature-text">
+                <h4>Devolução grátis</h4>
+                <p>30 dias</p>
+            </div>
+        </div>
+        <div class="ml-feature-item">
+            <span class="ml-feature-icon"><i class="fas fa-headset"></i></span>
+            <div class="ml-feature-text">
+                <h4>Suporte 24/7</h4>
+                <p>Atendimento rápido</p>
+            </div>
+        </div>
+    </div>
 </div>
 
-<!-- Features Section -->
-<section class="section section-dark">
+<!-- Featured Products -->
+<?php if (!empty($featuredProducts)): ?>
+<section class="ml-section">
     <div class="container">
-        <div class="features-grid">
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <i class="fas fa-shipping-fast"></i>
-                </div>
-                <h4>Frete Grátis</h4>
-                <p>Para compras acima de R$ 500 em toda região Sudeste</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <i class="fas fa-shield-alt"></i>
-                </div>
-                <h4>Garantia Premium</h4>
-                <p>Todos os produtos com garantia estendida de 12 meses</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <i class="fas fa-headset"></i>
-                </div>
-                <h4>Suporte 24/7</h4>
-                <p>Equipe técnica disponível para atendê-lo a qualquer momento</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <i class="fas fa-undo"></i>
-                </div>
-                <h4>30 Dias de Devolução</h4>
-                <p>Não ficou satisfeito? Devolvemos seu dinheiro</p>
-            </div>
+        <div class="ml-section-header">
+            <h2 class="ml-section-title">Produtos em Destaque</h2>
+            <a href="pages/products/products.php" class="ml-section-link">Ver todos <i class="fas fa-arrow-right"></i></a>
         </div>
-    </div>
-</section>
-
-<!-- Categories Section -->
-<section class="section">
-    <div class="container">
-        <div class="section-header">
-            <h2>Categorias</h2>
-            <p>Navegue pelas nossas categorias e encontre exatamente o que precisa</p>
-        </div>
-        <div class="categories-grid">
-            <?php if (empty($categories)): ?>
-            <p style="color:var(--color-gray); grid-column:1/-1; text-align:center;">Nenhuma categoria cadastrada.</p>
-            <?php else: foreach ($categories as $cat): $icon = $categoryIcons[$cat['slug']] ?? 'fa-folder'; ?>
-            <a href="pages/products/products.php?category=<?php echo urlencode($cat['slug']); ?>" class="category-card">
-                <div class="category-icon"><i class="fas <?php echo $icon; ?>"></i></div>
-                <h4><?php echo htmlspecialchars($cat['name'], ENT_QUOTES, 'UTF-8'); ?></h4>
-                <span><?php echo (int) $cat['product_count']; ?> produto(s) →</span>
-            </a>
-            <?php endforeach; endif; ?>
-        </div>
-    </div>
-</section>
-
-<!-- Featured Products Section -->
-<section class="section section-dark">
-    <div class="container">
-        <div class="section-header">
-            <h2>Produtos em Destaque</h2>
-            <p>Selecionamos os melhores produtos para você com ofertas especiais</p>
-        </div>
-        <div class="products-grid">
-            <?php if (empty($featuredProducts)): ?>
-            <p style="color:var(--color-gray); grid-column:1/-1; text-align:center;">Nenhum produto em destaque no momento.</p>
-            <?php else: foreach ($featuredProducts as $p):
+        <div class="ml-products-grid">
+            <?php foreach ($featuredProducts as $p):
                 $product_id = (int) $p['id'];
                 $product_name = $p['name'];
                 $product_price = (float) $p['price'];
@@ -140,92 +151,51 @@ include 'components/header.php';
                 $product_is_new = false;
                 $product_stock = (int) $p['stock'];
                 include 'components/product-card.php';
-            endforeach; endif; ?>
-        </div>
-        <div class="text-center" style="margin-top: 50px;">
-            <a href="pages/products/products.php" class="btn btn-gold">
-                <i class="fas fa-eye"></i>
-                Ver Todos os Produtos
-            </a>
-        </div>
-    </div>
-</section>
-
-<!-- Banner Section -->
-<?php if ($featuredBanner):
-    $bannerImg = '';
-    if (preg_match('#^https?://#i', $featuredBanner['image_path'])) {
-        $bannerImg = $featuredBanner['image_path'];
-    } elseif ($featuredBanner['image_path'] !== '') {
-        $bannerImg = ltrim($featuredBanner['image_path'], '/');
-    }
-    $bannerLink = $featuredBanner['link_url'] ?: '#';
-    $linkIsExternal = preg_match('#^https?://#i', $bannerLink);
-    if (!$linkIsExternal && $bannerLink !== '#' && $bannerLink[0] === '/') {
-        $bannerLink = ltrim($bannerLink, '/');
-    }
-?>
-<section class="banner-section">
-    <div class="container">
-        <div class="banner-content">
-            <div class="banner-text">
-                <h2><?php echo htmlspecialchars($featuredBanner['title'], ENT_QUOTES, 'UTF-8'); ?><?php if ($featuredBanner['subtitle']): ?> <span><?php echo htmlspecialchars($featuredBanner['subtitle'], ENT_QUOTES, 'UTF-8'); ?></span><?php endif; ?></h2>
-                <p><?php echo htmlspecialchars($featuredBanner['subtitle'] ?? '', ENT_QUOTES, 'UTF-8'); ?></p>
-                <a href="<?php echo htmlspecialchars($bannerLink, ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-primary" <?php echo $linkIsExternal ? 'target="_blank" rel="noopener"' : ''; ?>>
-                    <i class="fas fa-tags"></i>
-                    Conferir
-                </a>
-            </div>
-            <div class="banner-image">
-                <?php if ($bannerImg): ?>
-                <img src="<?php echo htmlspecialchars($bannerImg, ENT_QUOTES, 'UTF-8'); ?>" alt="<?php echo htmlspecialchars($featuredBanner['title'], ENT_QUOTES, 'UTF-8'); ?>" style="width:100%; max-height:400px; object-fit:cover; border-radius:10px;">
-                <?php else: ?>
-                <div class="placeholder" style="min-height:300px;">
-                    <i class="fas fa-gift"></i>
-                    <h4><?php echo htmlspecialchars($featuredBanner['title'], ENT_QUOTES, 'UTF-8'); ?></h4>
-                    <p>Adicione uma imagem pelo painel admin</p>
-                </div>
-                <?php endif; ?>
-            </div>
-        </div>
-    </div>
-</section>
-<?php else: ?>
-<section class="banner-section">
-    <div class="container">
-        <div class="banner-content">
-            <div class="banner-text">
-                <h2>Promoção <span>Especial</span></h2>
-                <p>Aproveite nossas ofertas exclusivas e transforme sua experiência tecnológica. Produtos premium com até 30% de desconto por tempo limitado.</p>
-                <a href="pages/products/products.php" class="btn btn-primary">
-                    <i class="fas fa-tags"></i>
-                    Ver Produtos
-                </a>
-            </div>
-            <div class="banner-image">
-                <div class="placeholder" style="min-height:300px;">
-                    <i class="fas fa-gift"></i>
-                    <h4>Banner Promocional</h4>
-                    <p>Crie um banner no painel administrativo</p>
-                    <small>Dimensões: 600x400px</small>
-                </div>
-            </div>
+            endforeach; ?>
         </div>
     </div>
 </section>
 <?php endif; ?>
 
-<!-- New Arrivals Section -->
-<section class="section">
+<!-- Categories Quick Access -->
+<?php if (!empty($categories)): ?>
+<section class="ml-section" style="background:var(--ml-bg-card, #222);">
     <div class="container">
-        <div class="section-header">
-            <h2>Novidades</h2>
-            <p>Fique por dentro dos lançamentos mais recentes do mercado tecnológico</p>
+        <div class="ml-section-header">
+            <h2 class="ml-section-title">Categorias</h2>
+            <a href="pages/products/categories.php" class="ml-section-link">Ver todas <i class="fas fa-arrow-right"></i></a>
         </div>
-        <div class="products-grid">
-            <?php if (empty($newProducts)): ?>
-            <p style="color:var(--color-gray); grid-column:1/-1; text-align:center;">Nenhum produto recente.</p>
-            <?php else: foreach ($newProducts as $p):
+        <div class="ml-products-grid" style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px;">
+            <?php foreach ($categories as $cat):
+                $icon = $categoryIcons[$cat['slug']] ?? 'fa-folder';
+            ?>
+            <a href="pages/products/products.php?category_id=<?php echo (int) $cat['id']; ?>" class="ml-product-card" style="text-decoration:none;">
+                <div class="ml-card-body" style="text-align:center; padding:24px 14px;">
+                    <div style="font-size:2rem; color:#d4af37; margin-bottom:10px;">
+                        <i class="fas <?php echo $icon; ?>"></i>
+                    </div>
+                    <h3 class="ml-card-title" style="-webkit-line-clamp:1; margin-bottom:4px;">
+                        <?php echo htmlspecialchars($cat['name'], ENT_QUOTES, 'UTF-8'); ?>
+                    </h3>
+                    <span style="font-size:0.78rem; color:#777;"><?php echo (int) $cat['product_count']; ?> produtos</span>
+                </div>
+            </a>
+            <?php endforeach; ?>
+        </div>
+    </div>
+</section>
+<?php endif; ?>
+
+<!-- New Products -->
+<?php if (!empty($newProducts)): ?>
+<section class="ml-section">
+    <div class="container">
+        <div class="ml-section-header">
+            <h2 class="ml-section-title">Novidades</h2>
+            <a href="pages/products/products.php?sort=newest" class="ml-section-link">Ver todos <i class="fas fa-arrow-right"></i></a>
+        </div>
+        <div class="ml-products-grid">
+            <?php foreach ($newProducts as $p):
                 $product_id = (int) $p['id'];
                 $product_name = $p['name'];
                 $product_price = (float) $p['price'];
@@ -238,12 +208,13 @@ include 'components/header.php';
                 $product_is_new = true;
                 $product_stock = (int) $p['stock'];
                 include 'components/product-card.php';
-            endforeach; endif; ?>
+            endforeach; ?>
         </div>
     </div>
 </section>
+<?php endif; ?>
 
-<!-- Newsletter Section -->
+<!-- Newsletter -->
 <?php
 $newsletterMessage = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['newsletter_email'])) {
@@ -266,27 +237,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['newsletter_email'])) 
     }
 }
 ?>
-<section class="section section-dark">
+<section class="ml-section">
     <div class="container">
-        <div class="section-header">
-            <h2>Receba Ofertas Exclusivas</h2>
-            <p>Cadastre-se em nossa newsletter e seja o primeiro a saber sobre promoções e lançamentos</p>
-        </div>
-        <?php if ($newsletterMessage): ?><div style="text-align:center; margin-bottom:15px; color:var(--color-primary);"><?php echo htmlspecialchars($newsletterMessage, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
-        <div style="max-width: 600px; margin: 0 auto; text-align: center;">
-            <form method="POST" style="display: flex; gap: 15px;">
+        <div class="ml-newsletter">
+            <h3>Receba Ofertas Exclusivas</h3>
+            <p>Cadastre-se e seja o primeiro a saber sobre promoções e lançamentos</p>
+            <?php if ($newsletterMessage): ?>
+                <div style="margin-bottom:12px; color:#d4af37; font-size:0.9rem;"><?php echo htmlspecialchars($newsletterMessage, ENT_QUOTES, 'UTF-8'); ?></div>
+            <?php endif; ?>
+            <form method="POST" class="ml-newsletter-form">
                 <?php echo csrf_field(); ?>
-                <input type="email" name="newsletter_email" placeholder="Seu melhor e-mail..." required class="newsletter-input" style="border-radius:30px;">
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-paper-plane"></i>
-                    Inscrever-se
-                </button>
+                <input type="email" name="newsletter_email" placeholder="Seu melhor e-mail..." required>
+                <button type="submit">Inscrever-se</button>
             </form>
         </div>
     </div>
 </section>
 
-<?php
-// Include footer
-include 'components/footer.php';
-?>
+<!-- Footer -->
+<?php include 'components/footer.php'; ?>
