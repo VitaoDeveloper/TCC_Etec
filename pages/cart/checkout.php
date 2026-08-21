@@ -177,40 +177,49 @@ if ($isConfirming) {
 
 include $base_path . 'components/header.php';
 ?>
-<section class="section"><div class="container">
-    <div class="section-header"><h2>Finalizar Pedido</h2></div>
+<section class="ml-section" style="padding-top: 8px;"><div class="container">
+    <div class="ml-section-header">
+        <h2 class="ml-section-title">Finalizar Pedido</h2>
+    </div>
 
     <?php if ($orderCreated): ?>
-        <div style="text-align:center; padding:60px 20px;">
-            <i class="fas fa-check-circle" style="font-size:64px; color:#4caf50; margin-bottom:20px;"></i>
+        <div class="ml-empty">
+            <i class="fas fa-check-circle" style="color: var(--ml-green); opacity: 1;"></i>
             <h3>Pedido Confirmado!</h3>
             <p>Seu pedido #<?php echo str_pad((string)$orderId, 4, '0', STR_PAD_LEFT); ?> foi criado com sucesso.</p>
-            <?php if ($orderPaymentInfo): ?>
-            <div class="payment-info-box">
-                <h4><i class="fas fa-<?php echo $orderPaymentInfo['method'] === 'Pix' ? 'pix' : ($orderPaymentInfo['method'] === 'Boleto' ? 'barcode' : 'credit-card'); ?>"></i> <?php echo htmlspecialchars($orderPaymentInfo['method'], ENT_QUOTES, 'UTF-8'); ?></h4>
-                <p><?php echo htmlspecialchars($orderPaymentInfo['instructions'], ENT_QUOTES, 'UTF-8'); ?></p>
+        </div>
+        <?php if ($orderPaymentInfo): ?>
+        <div class="container">
+            <div class="ml-card" style="max-width: 520px; margin: 0 auto 16px;">
+                <div class="ml-step-head">
+                    <span class="ml-step-num"><i class="fas fa-<?php echo $orderPaymentInfo['method'] === 'Pix' ? 'pix' : ($orderPaymentInfo['method'] === 'Boleto' ? 'barcode' : 'credit-card'); ?>"></i></span>
+                    <h3><?php echo htmlspecialchars($orderPaymentInfo['method'], ENT_QUOTES, 'UTF-8'); ?></h3>
+                </div>
+                <p style="color: var(--ml-text-secondary); font-size: 0.92rem;"><?php echo htmlspecialchars($orderPaymentInfo['instructions'], ENT_QUOTES, 'UTF-8'); ?></p>
                 <?php if (isset($orderPaymentInfo['pix_code'])): ?>
                 <div class="payment-code-box">
                     <code id="pixCode"><?php echo htmlspecialchars($orderPaymentInfo['pix_code'], ENT_QUOTES, 'UTF-8'); ?></code>
-                    <button class="btn btn-secondary" onclick="navigator.clipboard.writeText(document.getElementById('pixCode').textContent);this.textContent='Copiado!';setTimeout(()=>this.textContent='Copiar',2000);" style="margin-top:10px;"><i class="fas fa-copy"></i> Copiar Código Pix</button>
+                    <button type="button" class="ml-btn" onclick="navigator.clipboard.writeText(document.getElementById('pixCode').textContent);this.textContent='Copiado!';setTimeout(()=>this.textContent='Copiar Código Pix',2000);" style="margin-top:10px;"><i class="fas fa-copy"></i> Copiar Código Pix</button>
                 </div>
-                <small style="color:var(--color-gray);">Válido até: <?php echo htmlspecialchars($orderPaymentInfo['expires'], ENT_QUOTES, 'UTF-8'); ?></small>
+                <small style="color: var(--ml-text-muted);">Válido até: <?php echo htmlspecialchars($orderPaymentInfo['expires'], ENT_QUOTES, 'UTF-8'); ?></small>
                 <?php endif; ?>
                 <?php if (isset($orderPaymentInfo['boleto_number'])): ?>
                 <div class="payment-code-box">
                     <code><?php echo htmlspecialchars($orderPaymentInfo['boleto_number'], ENT_QUOTES, 'UTF-8'); ?></code>
                 </div>
-                <small style="color:var(--color-gray);">Vencimento: <?php echo htmlspecialchars($orderPaymentInfo['expires'], ENT_QUOTES, 'UTF-8'); ?></small>
+                <small style="color: var(--ml-text-muted);">Vencimento: <?php echo htmlspecialchars($orderPaymentInfo['expires'], ENT_QUOTES, 'UTF-8'); ?></small>
                 <?php endif; ?>
                 <?php if (isset($orderPaymentInfo['installments'])): ?>
-                <p style="font-size:1.1rem; color:var(--color-primary);"><strong><?php echo htmlspecialchars($orderPaymentInfo['installments'], ENT_QUOTES, 'UTF-8'); ?></strong></p>
+                <p style="font-size: 1.1rem; color: var(--ml-accent); margin-top: 10px;"><strong><?php echo htmlspecialchars($orderPaymentInfo['installments'], ENT_QUOTES, 'UTF-8'); ?></strong></p>
                 <?php endif; ?>
             </div>
-            <?php endif; ?>
-            <p style="margin-bottom:20px;">Você receberá um e-mail com os detalhes do pedido.</p>
-            <div style="display:flex; gap:12px; justify-content:center;">
-                <a href="../products/products.php" class="btn btn-primary"><i class="fas fa-store"></i> Continuar Comprando</a>
-                <a href="../auth/orders.php" class="btn btn-secondary"><i class="fas fa-list"></i> Meus Pedidos</a>
+        </div>
+        <?php endif; ?>
+        <div class="container" style="text-align: center;">
+            <p style="margin-bottom: 20px; color: var(--ml-text-secondary);">Você receberá um e-mail com os detalhes do pedido.</p>
+            <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+                <a href="../products/products.php" class="ml-btn ml-btn-primary"><i class="fas fa-store"></i> Continuar Comprando</a>
+                <a href="../auth/orders.php" class="ml-btn"><i class="fas fa-list"></i> Meus Pedidos</a>
             </div>
         </div>
     <?php else: ?>
@@ -220,15 +229,18 @@ include $base_path . 'components/header.php';
 
         <div class="checkout-grid">
             <div class="checkout-left">
-                <!-- Shipping -->
-                <div class="checkout-section">
-                    <h3><i class="fas fa-truck"></i> Frete</h3>
-                    <div class="checkout-shipping">
-                        <label for="shipping_cep">CEP de entrega</label>
-                        <div class="cep-row">
-                            <input type="text" id="shipping_cep" name="shipping_cep" form="checkoutForm" value="<?php echo htmlspecialchars($shippingCep, ENT_QUOTES, 'UTF-8'); ?>" placeholder="00000-000" maxlength="9" class="cep-input" oninput="this.value=this.value.replace(/\D/g,'').replace(/(\d{5})(\d)/,'$1-$2')">
-                            <button type="submit" form="checkoutForm" class="btn btn-secondary" name="calc_shipping" value="1"><i class="fas fa-search"></i> Calcular</button>
+                <!-- Etapa 1: Frete -->
+                <div class="ml-card">
+                    <div class="ml-step-head">
+                        <span class="ml-step-num">1</span>
+                        <h3><i class="fas fa-truck"></i> Entrega</h3>
+                    </div>
+                    <label class="auth-label" for="shipping_cep">CEP de entrega</label>
+                    <div style="display: flex; gap: 10px; align-items: stretch;">
+                        <div class="auth-input-wrap" style="flex: 1;">
+                            <input type="text" id="shipping_cep" name="shipping_cep" form="checkoutForm" value="<?php echo htmlspecialchars($shippingCep, ENT_QUOTES, 'UTF-8'); ?>" placeholder="00000-000" maxlength="9" oninput="this.value=this.value.replace(/\D/g,'').replace(/(\d{5})(\d)/,'$1-$2')">
                         </div>
+                        <button type="submit" form="checkoutForm" class="ml-btn" name="calc_shipping" value="1"><i class="fas fa-search"></i> Calcular</button>
                     </div>
                     <?php if ($shippingOptions): ?>
                     <div class="shipping-options">
@@ -240,22 +252,25 @@ include $base_path . 'components/header.php';
                             <div class="shipping-option-content">
                                 <strong><?php echo htmlspecialchars($opt['method'], ENT_QUOTES, 'UTF-8'); ?></strong>
                                 <span class="shipping-days"><?php echo htmlspecialchars($opt['days'], ENT_QUOTES, 'UTF-8'); ?></span>
-                                <span class="shipping-cost"><?php echo $optCost > 0 ? 'R$ ' . number_format($optCost, 2, ',', '.') : '<strong style="color:#4caf50;">Grátis</strong>'; ?></span>
+                                <span class="shipping-cost"><?php echo $optCost > 0 ? 'R$ ' . number_format($optCost, 2, ',', '.') : '<strong style="color:var(--ml-green);">Grátis</strong>'; ?></span>
                             </div>
                         </label>
                         <?php endforeach; ?>
                     </div>
                     <?php elseif (!empty($shippingCep)): ?>
-                    <p style="color:var(--color-gray); margin-top:10px;">CEP não encontrado. Verifique o número.</p>
+                    <p style="color: var(--ml-text-muted); margin-top: 10px;">CEP não encontrado. Verifique o número.</p>
                     <?php endif; ?>
                     <?php if ($subtotal >= 500): ?>
                     <p class="free-shipping-badge"><i class="fas fa-gift"></i> Frete Grátis! Compras acima de R$ 500,00.</p>
                     <?php endif; ?>
                 </div>
 
-                <!-- Payment -->
-                <div class="checkout-section">
-                    <h3><i class="fas fa-credit-card"></i> Pagamento</h3>
+                <!-- Etapa 2: Pagamento -->
+                <div class="ml-card">
+                    <div class="ml-step-head">
+                        <span class="ml-step-num">2</span>
+                        <h3><i class="fas fa-credit-card"></i> Pagamento</h3>
+                    </div>
                     <div class="payment-options">
                         <?php foreach ($paymentMethods as $key => $pm): ?>
                         <label class="payment-option <?php echo $paymentMethod === $key ? 'selected' : ''; ?>">
@@ -270,62 +285,61 @@ include $base_path . 'components/header.php';
                     </div>
                 </div>
 
-                <!-- Address -->
-                <div class="checkout-section">
-                    <h3><i class="fas fa-map-marker-alt"></i> Endereço de Entrega</h3>
+                <!-- Etapa 3: Endereço -->
+                <div class="ml-card">
+                    <div class="ml-step-head">
+                        <span class="ml-step-num">3</span>
+                        <h3><i class="fas fa-map-marker-alt"></i> Endereço de Entrega</h3>
+                    </div>
                     <p><strong><?php echo htmlspecialchars($user['name'], ENT_QUOTES, 'UTF-8'); ?></strong></p>
-                    <p><?php echo htmlspecialchars($user['street'] ?? '', ENT_QUOTES, 'UTF-8'); ?>, <?php echo (int)($user['number'] ?? 0); ?><?php if ($user['complement']): ?> - <?php echo htmlspecialchars($user['complement'], ENT_QUOTES, 'UTF-8'); ?><?php endif; ?></p>
-                    <p>CEP: <?php echo htmlspecialchars($user['postal_code'] ?? '', ENT_QUOTES, 'UTF-8'); ?></p>
-                    <a href="../auth/profile.php" class="btn btn-secondary" style="font-size:0.85rem; padding:6px 16px; margin-top:8px;"><i class="fas fa-edit"></i> Alterar Endereço</a>
+                    <p style="color: var(--ml-text-secondary);"><?php echo htmlspecialchars($user['street'] ?? '', ENT_QUOTES, 'UTF-8'); ?>, <?php echo (int)($user['number'] ?? 0); ?><?php if ($user['complement']): ?> - <?php echo htmlspecialchars($user['complement'], ENT_QUOTES, 'UTF-8'); ?><?php endif; ?></p>
+                    <p style="color: var(--ml-text-secondary);">CEP: <?php echo htmlspecialchars($user['postal_code'] ?? '', ENT_QUOTES, 'UTF-8'); ?></p>
+                    <a href="../auth/profile.php" class="ml-btn" style="font-size: 0.85rem; padding: 8px 16px; margin-top: 10px;"><i class="fas fa-edit"></i> Alterar Endereço</a>
                 </div>
             </div>
 
             <div class="checkout-right">
-                <div class="checkout-summary">
+                <div class="ml-summary-card">
                     <h3>Resumo do Pedido</h3>
-                    <div class="summary-items">
-                        <?php foreach ($items as $item): ?>
-                        <div class="summary-item">
-                            <span class="summary-item-name"><?php echo htmlspecialchars($item['name'], ENT_QUOTES, 'UTF-8'); ?> <small>x<?php echo (int)$item['quantity']; ?></small></span>
-                            <span class="summary-item-price">R$ <?php echo number_format((float)$item['price'] * (int)$item['quantity'], 2, ',', '.'); ?></span>
-                        </div>
-                        <?php endforeach; ?>
+                    <?php foreach ($items as $item): ?>
+                    <div class="ml-summary-line">
+                        <span><?php echo htmlspecialchars($item['name'], ENT_QUOTES, 'UTF-8'); ?> <small>x<?php echo (int)$item['quantity']; ?></small></span>
+                        <span>R$ <?php echo number_format((float)$item['price'] * (int)$item['quantity'], 2, ',', '.'); ?></span>
                     </div>
-                    <div class="summary-totals">
-                        <div class="summary-line">
-                            <span>Subtotal (<?php echo count($items); ?> <?php echo count($items) === 1 ? 'item' : 'itens'; ?>)</span>
-                            <span>R$ <?php echo number_format($subtotal, 2, ',', '.'); ?></span>
-                        </div>
-                        <?php if ($shippingOptions): $shipDays = $shippingOptions[$selectedShipping]['days'] ?? ''; ?>
-                        <div class="summary-line">
-                            <span>Frete <?php echo htmlspecialchars($selectedShipping === 'pac' ? 'PAC' : 'Sedex', ENT_QUOTES, 'UTF-8'); ?></span>
-                            <span><?php echo $shippingCost > 0 ? 'R$ ' . number_format($shippingCost, 2, ',', '.') : '<span style="color:#4caf50;">Grátis</span>'; ?></span>
-                        </div>
-                        <div style="font-size:0.8rem; color:var(--color-gray); text-align:right; padding:2px 0 6px;">Previsão: <?php echo htmlspecialchars($shipDays, ENT_QUOTES, 'UTF-8'); ?></div>
-                        <?php endif; ?>
-                        <?php if ($pixDiscount > 0): ?>
-                        <div class="summary-line discount">
-                            <span>Desconto Pix (5%)</span>
-                            <span>- R$ <?php echo number_format($pixDiscount, 2, ',', '.'); ?></span>
-                        </div>
-                        <?php endif; ?>
-                        <div class="summary-line total">
-                            <span>Total</span>
-                            <span>R$ <?php echo number_format($grandTotal, 2, ',', '.'); ?></span>
-                        </div>
-                        <?php if ($paymentMethod === 'credit' && $grandTotal > 0): $parc = min(12, max(1, floor($grandTotal / 50))); ?>
-                        <div style="font-size:0.85rem; color:var(--color-gray-light); text-align:center; padding-top:10px; border-top:1px solid var(--color-border); margin-top:8px;">
-                            ou <strong><?php echo $parc; ?>x de R$ <?php echo number_format($grandTotal / $parc, 2, ',', '.'); ?></strong> sem juros
-                        </div>
-                        <?php endif; ?>
+                    <?php endforeach; ?>
+                    <div class="ml-summary-line">
+                        <span>Subtotal (<?php echo count($items); ?> <?php echo count($items) === 1 ? 'item' : 'itens'; ?>)</span>
+                        <span>R$ <?php echo number_format($subtotal, 2, ',', '.'); ?></span>
                     </div>
+                    <?php if ($shippingOptions): $shipDays = $shippingOptions[$selectedShipping]['days'] ?? ''; ?>
+                    <div class="ml-summary-line">
+                        <span>Frete <?php echo htmlspecialchars($selectedShipping === 'pac' ? 'PAC' : 'Sedex', ENT_QUOTES, 'UTF-8'); ?></span>
+                        <span><?php echo $shippingCost > 0 ? 'R$ ' . number_format($shippingCost, 2, ',', '.') : '<span style="color:var(--ml-green);">Grátis</span>'; ?></span>
+                    </div>
+                    <div style="font-size: 0.8rem; color: var(--ml-text-muted); text-align: right; padding: 2px 0 6px;">Previsão: <?php echo htmlspecialchars($shipDays, ENT_QUOTES, 'UTF-8'); ?></div>
+                    <?php endif; ?>
+                    <?php if ($pixDiscount > 0): ?>
+                    <div class="ml-summary-line discount">
+                        <span>Desconto Pix (5%)</span>
+                        <span>- R$ <?php echo number_format($pixDiscount, 2, ',', '.'); ?></span>
+                    </div>
+                    <?php endif; ?>
+                    <div class="ml-summary-line total">
+                        <span>Total</span>
+                        <span>R$ <?php echo number_format($grandTotal, 2, ',', '.'); ?></span>
+                    </div>
+                    <?php if ($paymentMethod === 'credit' && $grandTotal > 0): $parc = min(12, max(1, floor($grandTotal / 50))); ?>
+                    <div style="font-size: 0.85rem; color: var(--ml-text-secondary); text-align: center; padding-top: 10px; border-top: 1px solid var(--ml-border); margin-top: 8px;">
+                        ou <strong><?php echo $parc; ?>x de R$ <?php echo number_format($grandTotal / $parc, 2, ',', '.'); ?></strong> sem juros
+                    </div>
+                    <?php endif; ?>
 
                     <form method="POST" id="checkoutForm">
                         <?php echo csrf_field(); ?>
                         <input type="hidden" name="shipping_cep" value="<?php echo htmlspecialchars($shippingCep, ENT_QUOTES, 'UTF-8'); ?>">
-                        <p style="margin-bottom:15px; font-size:0.85rem; color:var(--color-gray);"><i class="fas fa-info-circle"></i> Ao finalizar, você concorda com nossos termos de compra.</p>
-                        <button type="submit" name="confirm_order" class="btn btn-primary btn-block" style="padding:14px; font-size:1.1rem;"><i class="fas fa-check"></i> Confirmar Pedido</button>
-                        <a href="cart.php" class="btn btn-secondary btn-block mt-20"><i class="fas fa-arrow-left"></i> Voltar ao Carrinho</a>
+                        <p style="margin-bottom: 15px; font-size: 0.85rem; color: var(--ml-text-muted);"><i class="fas fa-info-circle"></i> Ao finalizar, você concorda com nossos termos de compra.</p>
+                        <button type="submit" name="confirm_order" class="ml-btn ml-btn-primary ml-btn-block" style="padding: 14px; font-size: 1.05rem;"><i class="fas fa-check"></i> Confirmar Pedido</button>
+                        <a href="cart.php" class="ml-btn ml-btn-block" style="margin-top: 10px;"><i class="fas fa-arrow-left"></i> Voltar ao Carrinho</a>
                     </form>
                 </div>
             </div>
