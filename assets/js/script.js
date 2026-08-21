@@ -174,7 +174,7 @@ document.addEventListener('DOMContentLoaded', function() {
             fetch(basePath + 'pages/cart/add.php', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: new URLSearchParams({product_id: productId, quantity: 1})
+                body: new URLSearchParams({product_id: productId, quantity: (parseInt((document.getElementById('pdp-qty') || {}).value, 10) || 1)})
             })
             .then(function(r) { return r.json(); })
             .then(function(data) {
