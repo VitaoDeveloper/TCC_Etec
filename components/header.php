@@ -207,14 +207,24 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     function triggerRoyalMode() {
         for (var i = 0; i < 24; i++) {
-            var crown = document.createElement('i');
-            crown.className = 'fas fa-crown royal-crown';
-            crown.style.left = (Math.random() * 100) + 'vw';
-            crown.style.fontSize = (14 + Math.random() * 20) + 'px';
-            crown.style.opacity = (0.6 + Math.random() * 0.4).toFixed(2);
-            crown.style.animationDuration = (2.5 + Math.random() * 1.5) + 's';
-            crown.style.animationDelay = (Math.random() * 1.2) + 's';
-            document.body.appendChild(crown);
+            var size = 14 + Math.random() * 20;
+            var el;
+            if (Math.random() < 0.7) {
+                el = document.createElement('i');
+                el.className = 'fas fa-crown royal-crown';
+                el.style.fontSize = size + 'px';
+            } else {
+                el = document.createElement('img');
+                el.src = '<?php echo $basePath; ?>assets/img/corinthians.png';
+                el.alt = '';
+                el.className = 'royal-crown royal-troll';
+                el.style.width = size + 'px';
+            }
+            el.style.left = (Math.random() * 100) + 'vw';
+            el.style.opacity = (0.6 + Math.random() * 0.4).toFixed(2);
+            el.style.animationDuration = (2.5 + Math.random() * 1.5) + 's';
+            el.style.animationDelay = (Math.random() * 1.2) + 's';
+            document.body.appendChild(el);
         }
         setTimeout(function() {
             var crowns = document.querySelectorAll('.royal-crown');

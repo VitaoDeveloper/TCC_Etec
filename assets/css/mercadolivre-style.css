@@ -1730,6 +1730,11 @@ body.ml-layout-active {
     animation-fill-mode: forwards;
 }
 
+.royal-troll {
+    height: auto;
+    border-radius: 4px;
+}
+
 @keyframes royal-fall {
     from { transform: translateY(-60px) rotate(0deg); }
     to { transform: translateY(110vh) rotate(340deg); }
