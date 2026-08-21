@@ -351,7 +351,7 @@ textarea:focus:valid {
    Breadcrumb
    ======================================== */
 .breadcrumb-section {
-    padding: 32px 0 clamp(30px, 4vh, 40px);
+    padding: 14px 0 16px;
     background: var(--color-black-light);
 }
 
