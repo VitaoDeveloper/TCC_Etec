@@ -63,11 +63,14 @@ $statusLabels = [
 
 include '../../components/header.php';
 ?>
-<section class="section"><div class="container" style="max-width:700px; margin:0 auto;">
-    <?php if ($message): ?><div class="alert alert-success" style="padding:12px 16px; border-radius:8px; background:rgba(76,175,80,0.15); color:#4caf50; margin-bottom:16px; text-align:center;"><?php echo htmlspecialchars($message, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
-    <div class="section-header"><h2>Pedido #<?php echo str_pad((string)$order['id'], 4, '0', STR_PAD_LEFT); ?></h2><p>Status: <strong><?php echo $statusLabels[$order['status']] ?? $order['status']; ?></strong> — <?php echo date('d/m/Y H:i', strtotime($order['created_at'])); ?></p></div>
-    <div class="admin-table-container">
-        <table class="admin-table">
+<section class="ml-section" style="padding-top: 8px;"><div class="container" style="max-width:700px; margin:0 auto;">
+    <?php if ($message): ?><div class="auth-feedback auth-feedback-success"><?php echo htmlspecialchars($message, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
+    <div class="ml-section-header">
+        <h2 class="ml-section-title">Pedido #<?php echo str_pad((string)$order['id'], 4, '0', STR_PAD_LEFT); ?></h2>
+        <span class="ml-main-count">Status: <strong style="color:var(--ml-text);"><?php echo htmlspecialchars($statusLabels[$order['status']] ?? $order['status'], ENT_QUOTES, 'UTF-8'); ?></strong> — <?php echo date('d/m/Y H:i', strtotime($order['created_at'])); ?></span>
+    </div>
+    <div class="ml-table-wrap">
+        <table class="ml-table">
             <thead><tr><th>Produto</th><th>Qtd</th><th>Preço Unit.</th><th>Subtotal</th></tr></thead>
             <tbody>
             <?php foreach ($items as $item):
@@ -83,7 +86,7 @@ include '../../components/header.php';
                 <tr>
                     <td style="display:flex; align-items:center; gap:10px;">
                         <img src="<?php echo htmlspecialchars($img, ENT_QUOTES, 'UTF-8'); ?>" alt="<?php echo htmlspecialchars($item['name'], ENT_QUOTES, 'UTF-8'); ?>" style="width:50px; height:50px; object-fit:cover; border-radius:6px;">
-                        <div><strong><?php echo htmlspecialchars($item['name'], ENT_QUOTES, 'UTF-8'); ?></strong><br><small><?php echo htmlspecialchars($item['brand'] ?? '', ENT_QUOTES, 'UTF-8'); ?></small></div>
+                        <div><strong><?php echo htmlspecialchars($item['name'], ENT_QUOTES, 'UTF-8'); ?></strong><br><small style="color:var(--ml-text-secondary);"><?php echo htmlspecialchars($item['brand'] ?? '', ENT_QUOTES, 'UTF-8'); ?></small></div>
                     </td>
                     <td><?php echo (int)$item['quantity']; ?></td>
                     <td>R$ <?php echo number_format((float)$item['unit_price'], 2, ',', '.'); ?></td>
@@ -91,36 +94,36 @@ include '../../components/header.php';
                 </tr>
             <?php endforeach; ?>
             </tbody>
-            <tfoot><tr><td colspan="3" style="text-align:right; font-weight:600;">Total:</td><td style="font-weight:700; color:var(--color-gold);">R$ <?php echo number_format((float)$order['total'], 2, ',', '.'); ?></td></tr></tfoot>
+            <tfoot><tr><td colspan="3" style="text-align:right;">Total:</td><td style="font-weight:700; color:var(--ml-accent);">R$ <?php echo number_format((float)$order['total'], 2, ',', '.'); ?></td></tr></tfoot>
         </table>
         <?php if ($order['shipping_method'] || $order['payment_method']): ?>
         <div style="margin-top:20px; display:grid; grid-template-columns:1fr 1fr; gap:20px;">
             <div>
-                <h4 style="margin-bottom:8px;"><i class="fas fa-truck" style="color:var(--color-primary);"></i> Frete</h4>
-                <p style="font-size:0.9rem; color:var(--color-gray-light);">
+                <h4 style="margin-bottom:8px;"><i class="fas fa-truck" style="color:var(--ml-accent);"></i> Frete</h4>
+                <p style="font-size:0.9rem; color:var(--ml-text-secondary);">
                     <?php echo htmlspecialchars($order['shipping_method'] ?? '—', ENT_QUOTES, 'UTF-8'); ?><br>
-                    <?php if ((float)$order['shipping_cost'] > 0): ?>Custo: R$ <?php echo number_format((float)$order['shipping_cost'], 2, ',', '.'); ?><?php else: ?><span style="color:#4caf50;">Grátis</span><?php endif; ?>
+                    <?php if ((float)$order['shipping_cost'] > 0): ?>Custo: R$ <?php echo number_format((float)$order['shipping_cost'], 2, ',', '.'); ?><?php else: ?><span style="color:var(--ml-green);">Grátis</span><?php endif; ?>
                 </p>
             </div>
             <div>
-                <h4 style="margin-bottom:8px;"><i class="fas fa-credit-card" style="color:var(--color-primary);"></i> Pagamento</h4>
-                <p style="font-size:0.9rem; color:var(--color-gray-light);">
+                <h4 style="margin-bottom:8px;"><i class="fas fa-credit-card" style="color:var(--ml-accent);"></i> Pagamento</h4>
+                <p style="font-size:0.9rem; color:var(--ml-text-secondary);">
                     <?php
                     $payLabels = ['pix'=>'Pix','boleto'=>'Boleto','credit'=>'Cartão de Crédito','delivery'=>'Pagamento na Entrega'];
                     echo htmlspecialchars($payLabels[$order['payment_method']] ?? $order['payment_method'] ?? '—', ENT_QUOTES, 'UTF-8');
                     ?><br>
-                    Status: <?php echo $order['payment_status'] === 'paid' ? '<span style="color:#4caf50;">Pago</span>' : '<span style="color:var(--color-gray);">Pendente</span>'; ?>
+                    Status: <?php echo $order['payment_status'] === 'paid' ? '<span style="color:var(--ml-green);">Pago</span>' : '<span style="color:var(--ml-text-muted);">Pendente</span>'; ?>
                 </p>
             </div>
         </div>
         <?php endif; ?>
         <div style="margin-top:20px; display:flex; gap:12px; flex-wrap:wrap;">
-            <a href="orders.php" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Voltar</a>
+            <a href="orders.php" class="ml-btn"><i class="fas fa-arrow-left"></i> Voltar</a>
             <?php if ($order['status'] === 'pending'): ?>
             <form method="post" style="display:inline" onsubmit="return confirm('Tem certeza que deseja cancelar este pedido?')">
                 <?php csrf_field(); ?>
                 <input type="hidden" name="action" value="cancel">
-                <button type="submit" class="btn btn-danger"><i class="fas fa-times-circle"></i> Cancelar Pedido</button>
+                <button type="submit" class="ml-btn ml-btn-danger"><i class="fas fa-times-circle"></i> Cancelar Pedido</button>
             </form>
             <?php endif; ?>
         </div>

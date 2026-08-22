@@ -321,7 +321,7 @@
     transition: transform 0.2s;
 }
 
-.ml-cat-trigger.active i {
+.ml-cat-trigger.active i.fa-chevron-down {
     transform: rotate(180deg);
 }
 
@@ -380,14 +380,6 @@
 .ml-mega-menu a:hover {
     background: var(--ml-bg-hover);
     color: var(--ml-accent);
-}
-
-.ml-mega-menu .ml-cat-count {
-    font-size: 0.75rem;
-    color: var(--ml-text-muted);
-    background: var(--ml-bg);
-    padding: 2px 8px;
-    border-radius: 10px;
 }
 
 .ml-mega-menu .ml-cat-icon {
@@ -1279,14 +1271,23 @@
 
     .ml-category-bar.mobile-active .ml-mega-menu {
         position: static;
-        opacity: 1;
-        visibility: visible;
         transform: none;
         box-shadow: none;
         border: none;
         border-radius: 0;
         background: var(--ml-bg);
+        max-height: 0;
+        opacity: 0;
+        visibility: hidden;
+        overflow: hidden;
+        transition: max-height 0.35s ease, opacity 0.25s ease, visibility 0.35s;
+    }
+
+    .ml-category-bar.mobile-active .ml-mega-menu.show,
+    .ml-category-bar.mobile-active .ml-cat-trigger.active .ml-mega-menu {
         max-height: 60vh;
+        opacity: 1;
+        visibility: visible;
         overflow-y: auto;
     }
 
@@ -1390,6 +1391,32 @@
 
     .ml-sidebar-drawer {
         display: none !important;
+    }
+}
+
+@media (max-width: 576px) {
+    :root {
+        --ml-header-height: 110px;
+    }
+
+    .ml-header-main {
+        flex-wrap: wrap;
+        row-gap: 10px;
+    }
+
+    .ml-header-actions {
+        order: 3;
+        margin-left: auto;
+    }
+
+    .ml-search {
+        order: 10;
+        flex-basis: 100%;
+        max-width: none;
+    }
+
+    .ml-header-action {
+        padding: 6px 6px;
     }
 }
 
@@ -2207,4 +2234,68 @@ body.royal-glow::after {
     .ml-summary-card {
         position: static;
     }
+}
+
+/* ========================================
+   ML Table (Meus Pedidos) / Danger Button
+   ======================================== */
+.ml-table-wrap {
+    background: var(--ml-bg-card);
+    border: 1px solid var(--ml-border);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 16px;
+}
+
+.ml-table {
+    width: 100%;
+    border-collapse: collapse;
+    color: var(--ml-text);
+    font-size: 0.9rem;
+}
+
+.ml-table th {
+    text-align: left;
+    padding: 10px 12px;
+    color: var(--ml-text-secondary);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--ml-border);
+}
+
+.ml-table td {
+    padding: 12px;
+    border-bottom: 1px solid var(--ml-border);
+    vertical-align: middle;
+}
+
+.ml-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.ml-table tfoot td {
+    border-top: 2px solid var(--ml-border);
+    border-bottom: none;
+    font-weight: 600;
+}
+
+@media (max-width: 576px) {
+    .ml-table-wrap {
+        padding: 12px;
+        overflow-x: auto;
+    }
+}
+
+.ml-btn-danger,
+.ml-btn-danger:hover {
+    background: transparent;
+    border-color: rgba(255, 97, 97, 0.5);
+    color: var(--ml-red);
+}
+
+.ml-btn-danger:hover {
+    background: rgba(255, 97, 97, 0.12);
+    border-color: var(--ml-red);
 }
