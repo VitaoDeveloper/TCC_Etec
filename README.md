@@ -122,10 +122,11 @@ TCC_Etec/
 │   ├── footer.php    # Rodapé institucional
 │   └── product-card.php
 ├── database/
-│   ├── database.sql  # Schema completo
-│   ├── connection.php
-│   └── settings.json # Configs do admin
+│   ├── database.sql  # Schema completo (inclui e5_settings)
+│   └── connection.php
 ├── includes/
+│   ├── config.php        # Defaults estáticos da loja + override via banco
+│   ├── mail.php          # Cliente SMTP persistente (PHPMailer + MAIL_* env)
 │   ├── cart_functions.php
 │   ├── csrf.php
 │   └── rate_limit.php
