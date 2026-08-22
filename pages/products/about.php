@@ -6,28 +6,30 @@ $base_path = '../../';
 
 include '../../components/header.php';
 ?>
-<section class="section" style="padding: 100px 0 60px;">
+<section class="ml-section" style="padding-top: 8px;">
     <div class="container">
-        <div class="section-header">
-            <h2>Sobre a Royal Tech</h2>
-            <p>Sua loja de tecnologia premium com os melhores produtos e atendimento diferenciado</p>
+        <div class="ml-section-header">
+            <h2 class="ml-section-title">Sobre a Royal Tech</h2>
         </div>
+        <p style="color: var(--ml-text-secondary); max-width: 700px; margin-top: -8px;">
+            Sua loja de tecnologia premium com os melhores produtos e atendimento diferenciado
+        </p>
     </div>
 </section>
 
 <!-- About Content -->
-<section class="section">
+<section class="ml-section" style="padding-top: 0;">
     <div class="container">
-        <div class="grid-2col">
+        <div class="ml-contact-grid">
             <div>
                 <h3 style="margin-bottom: 20px;">Nossa História</h3>
-                <p style="color: var(--color-gray-light); margin-bottom: 20px;">
+                <p style="color: var(--ml-text-secondary); margin-bottom: 20px;">
                     Fundada com a missão de democratizar o acesso à tecnologia de alta qualidade, a Royal Tech nasceu da paixão por inovação e do compromisso inabalável com a satisfação dos nossos clientes.
                 </p>
-                <p style="color: var(--color-gray-light); margin-bottom: 20px;">
+                <p style="color: var(--ml-text-secondary); margin-bottom: 20px;">
                     Ao longo dos anos, construímos uma reputação sólida no mercado brasileiro, tornando-nos referência em tecnologia premium. Nossa equipe é formada por especialistas apaixonados pelo que fazem, sempre prontos para ajudar você a encontrar a melhor solução tecnológica para suas necessidades.
                 </p>
-                <p style="color: var(--color-gray-light);">
+                <p style="color: var(--ml-text-secondary);">
                     Trabalhamos com as melhores marcas do mundo, garantindo que cada produto em nosso catálogo passe por rigorosos testes de qualidade. Sua satisfação é nossa maior recompensa.
                 </p>
             </div>
@@ -44,116 +46,108 @@ include '../../components/header.php';
 </section>
 
 <!-- Values -->
-<section class="section section-dark">
+<section class="ml-section">
     <div class="container">
-        <div class="section-header">
-            <h2>Nossos Valores</h2>
-            <p>Os princípios que guiam todas as nossas ações</p>
+        <div class="ml-section-header">
+            <h2 class="ml-section-title">Nossos Valores</h2>
         </div>
-        <div class="features-grid">
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <i class="fas fa-star"></i>
+        <p style="color: var(--ml-text-secondary); margin-top: -8px; margin-bottom: 20px;">Os princípios que guiam todas as nossas ações</p>
+        <div class="ml-features-strip">
+            <div class="ml-feature-item">
+                <span class="ml-feature-icon"><i class="fas fa-star"></i></span>
+                <div class="ml-feature-text">
+                    <h4>Qualidade Premium</h4>
+                    <p>Selecionamos apenas produtos dos melhores fabricantes mundiais</p>
                 </div>
-                <h4>Qualidade Premium</h4>
-                <p>Selecionamos apenas produtos dos melhores fabricantes mundiais</p>
             </div>
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <i class="fas fa-heart"></i>
+            <div class="ml-feature-item">
+                <span class="ml-feature-icon"><i class="fas fa-heart"></i></span>
+                <div class="ml-feature-text">
+                    <h4>Atendimento Personalizado</h4>
+                    <p>Nossa equipe está pronta para oferecer as melhores soluções</p>
                 </div>
-                <h4>Atendimento Personalizado</h4>
-                <p>Nossa equipe está pronta para oferecer as melhores soluções</p>
             </div>
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <i class="fas fa-shield-alt"></i>
+            <div class="ml-feature-item">
+                <span class="ml-feature-icon"><i class="fas fa-shield-alt"></i></span>
+                <div class="ml-feature-text">
+                    <h4>Confiança e Segurança</h4>
+                    <p>Transações seguras e garantia em todos os produtos</p>
                 </div>
-                <h4>Confiança e Segurança</h4>
-                <p>Transações seguras e garantia em todos os produtos</p>
             </div>
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <i class="fas fa-truck"></i>
+            <div class="ml-feature-item">
+                <span class="ml-feature-icon"><i class="fas fa-truck"></i></span>
+                <div class="ml-feature-text">
+                    <h4>Entrega Rápida</h4>
+                    <p>Logística eficiente para você receber onde estiver</p>
                 </div>
-                <h4>Entrega Rápida</h4>
-                <p>Logística eficiente para você receber onde estiver</p>
             </div>
         </div>
     </div>
 </section>
 
 <!-- Stats -->
-<section class="section">
+<section class="ml-section">
     <div class="container">
-        <div class="admin-cards">
-            <div class="admin-card">
-                <div class="admin-card-icon">
-                    <i class="fas fa-users"></i>
-                </div>
-                <div class="admin-card-value">10.000+</div>
-                <div class="admin-card-label">Clientes Atendidos</div>
+        <div class="ml-stats-grid">
+            <div class="ml-stat-card">
+                <i class="fas fa-users"></i>
+                <div class="ml-stat-value">10.000+</div>
+                <div class="ml-stat-label">Clientes Atendidos</div>
             </div>
-            <div class="admin-card">
-                <div class="admin-card-icon">
-                    <i class="fas fa-box"></i>
-                </div>
-                <div class="admin-card-value">5.000+</div>
-                <div class="admin-card-label">Produtos Vendidos</div>
+            <div class="ml-stat-card">
+                <i class="fas fa-box"></i>
+                <div class="ml-stat-value">5.000+</div>
+                <div class="ml-stat-label">Produtos Vendidos</div>
             </div>
-            <div class="admin-card">
-                <div class="admin-card-icon">
-                    <i class="fas fa-award"></i>
-                </div>
-                <div class="admin-card-value">50+</div>
-                <div class="admin-card-label">Marcas Parceiras</div>
+            <div class="ml-stat-card">
+                <i class="fas fa-award"></i>
+                <div class="ml-stat-value">50+</div>
+                <div class="ml-stat-label">Marcas Parceiras</div>
             </div>
-            <div class="admin-card">
-                <div class="admin-card-icon">
-                    <i class="fas fa-star"></i>
-                </div>
-                <div class="admin-card-value">4.9/5</div>
-                <div class="admin-card-label">Avaliação Média</div>
+            <div class="ml-stat-card">
+                <i class="fas fa-star"></i>
+                <div class="ml-stat-value">4.9/5</div>
+                <div class="ml-stat-label">Avaliação Média</div>
             </div>
         </div>
     </div>
 </section>
 
 <!-- Team -->
-<section class="section section-dark">
+<section class="ml-section">
     <div class="container">
-        <div class="section-header">
-            <h2> Nossa Equipe</h2>
-            <p>Profissionais dedicados ao seu sucesso</p>
+        <div class="ml-section-header">
+            <h2 class="ml-section-title">Nossa Equipe</h2>
         </div>
-        <div class="grid-4col">
-            <div class="team-member">
-                <div class="placeholder" style="min-height: 250px; border-radius: 10px; margin-bottom: 20px;">
+        <p style="color: var(--ml-text-secondary); margin-top: -8px; margin-bottom: 20px;">Profissionais dedicados ao seu sucesso</p>
+        <div class="ml-team-grid">
+            <div class="ml-team-card">
+                <div class="placeholder" style="min-height: 200px; margin-bottom: 14px;">
                     <i class="fas fa-user"></i>
                 </div>
-                <h4>João Silva</h4>
-                <span style="color: var(--color-primary);">CEO & Fundador</span>
+                <h4>Kauã Caetano</h4>
+                <span class="ml-team-role">CEO &amp; Fundador</span>
             </div>
-            <div class="team-member">
-                <div class="placeholder">
+            <div class="ml-team-card">
+                <div class="placeholder" style="min-height: 200px; margin-bottom: 14px;">
                     <i class="fas fa-user"></i>
                 </div>
-                <h4>Maria Santos</h4>
-                <span style="color: var(--color-primary);">Diretora Comercial</span>
+                <h4>Lucas Almeida</h4>
+                <span class="ml-team-role">Diretor Comercial</span>
             </div>
-            <div class="team-member">
-                <div class="placeholder">
+            <div class="ml-team-card">
+                <div class="placeholder" style="min-height: 200px; margin-bottom: 14px;">
                     <i class="fas fa-user"></i>
                 </div>
-                <h4>Pedro Costa</h4>
-                <span style="color: var(--color-primary);">Gerente de Produtos</span>
+                <h4>Jônatas Honorato</h4>
+                <span class="ml-team-role">Gerente de Produtos</span>
             </div>
-            <div class="team-member">
-                <div class="placeholder">
+            <div class="ml-team-card">
+                <div class="placeholder" style="min-height: 200px; margin-bottom: 14px;">
                     <i class="fas fa-user"></i>
                 </div>
-                <h4>Ana Oliveira</h4>
-                <span style="color: var(--color-primary);">Atendimento ao Cliente</span>
+                <h4>Nicolas Nascimento</h4>
+                <span class="ml-team-role">Atendimento ao Cliente</span>
             </div>
         </div>
     </div>

@@ -2,17 +2,13 @@
 $page_title = 'Configurações - Royal Tech';
 include 'auth_check.php';
 require_once __DIR__ . '/../../includes/csrf.php';
+require_once __DIR__ . '/../../includes/config.php';
 
-$settingsFile = __DIR__ . '/../../database/settings.json';
-$settings = [];
-if (file_exists($settingsFile)) {
-    $settings = json_decode(file_get_contents($settingsFile), true) ?: [];
-}
+$settings = store_config();
 $defaults = [
     'store_name'=>'','store_email'=>'','store_phone'=>'','store_address'=>'','store_cnpj'=>'',
     'store_currency'=>'BRL','store_description'=>'','social_facebook'=>'','social_instagram'=>'',
     'social_twitter'=>'','social_youtube'=>'','store_logo'=>'','store_favicon'=>'',
-    'smtp_host'=>'','smtp_port'=>'587','smtp_user'=>'','smtp_pass'=>'','smtp_encryption'=>'tls',
     'pix_key'=>'','boleto_days'=>'3',
     'free_shipping_threshold'=>'500',
 ];
@@ -24,13 +20,14 @@ if (!in_array($tab, $validTabs, true)) $tab = 'store';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_require_valid();
 
+    $values = [];
     if (isset($_FILES['store_logo']) && is_uploaded_file($_FILES['store_logo']['tmp_name'])) {
         $ext = strtolower(pathinfo($_FILES['store_logo']['name'], PATHINFO_EXTENSION));
         if (in_array($ext, ['png','jpg','jpeg','webp'], true)) {
             $name = 'logo-' . time() . '.' . $ext;
             $target = __DIR__ . '/../../assets/img/' . $name;
             if (move_uploaded_file($_FILES['store_logo']['tmp_name'], $target)) {
-                $settings['store_logo'] = 'assets/img/' . $name;
+                $values['store_logo'] = 'assets/img/' . $name;
             }
         }
     }
@@ -40,18 +37,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $name = 'favicon-' . time() . '.' . $ext;
             $target = __DIR__ . '/../../assets/img/' . $name;
             if (move_uploaded_file($_FILES['store_favicon']['tmp_name'], $target)) {
-                $settings['store_favicon'] = 'assets/img/' . $name;
+                $values['store_favicon'] = 'assets/img/' . $name;
             }
         }
     }
 
-    $keys = array_keys($defaults);
-    foreach ($keys as $k) {
+    foreach ($defaults as $k => $_) {
         if (in_array($k, ['store_logo','store_favicon'], true)) continue;
-        $settings[$k] = trim((string) ($_POST[$k] ?? ''));
+        $values[$k] = trim((string) ($_POST[$k] ?? ''));
     }
-    file_put_contents($settingsFile, json_encode($settings, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-    $_SESSION['admin_message'] = 'Configurações salvas com sucesso.';
+
+    try {
+        store_config_save($values);
+        $_SESSION['admin_message'] = 'Configurações salvas com sucesso.';
+    } catch (Throwable $e) {
+        $_SESSION['admin_message'] = 'Erro ao salvar configurações: banco indisponível.';
+    }
     header('Location: settings.php?tab=' . urlencode($tab));
     exit;
 }
@@ -156,14 +157,17 @@ function sel($key, $val) { global $settings; return ($settings[$key] ?? '') === 
                     <!-- E-mails -->
                     <div class="admin-table-container" style="padding:30px;<?php echo $tab!=='emails'?' display:none;':''; ?>">
                         <h4 style="margin-bottom:25px;">Configurações de E-mail</h4>
-                        <p style="color:var(--color-gray); margin-bottom:20px;">Configurações do servidor SMTP para envio de e-mails transacionais (confirmação de pedido, recuperação de senha).</p>
-                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
-                            <div class="admin-form-group"><label for="smtp_host">Servidor SMTP</label><input type="text" id="smtp_host" name="smtp_host" value="<?php echo val('smtp_host'); ?>" placeholder="smtp.gmail.com"></div>
-                            <div class="admin-form-group"><label for="smtp_port">Porta</label><input type="number" id="smtp_port" name="smtp_port" value="<?php echo val('smtp_port'); ?>" placeholder="587"></div>
-                            <div class="admin-form-group"><label for="smtp_user">Usuário</label><input type="text" id="smtp_user" name="smtp_user" value="<?php echo val('smtp_user'); ?>" placeholder="seu@email.com"></div>
-                            <div class="admin-form-group"><label for="smtp_pass">Senha</label><input type="password" id="smtp_pass" name="smtp_pass" value="<?php echo val('smtp_pass'); ?>" placeholder="********"></div>
-                            <div class="admin-form-group"><label for="smtp_encryption">Criptografia</label><select id="smtp_encryption" name="smtp_encryption"><option value="tls" <?php echo sel('smtp_encryption','tls'); ?>>TLS</option><option value="ssl" <?php echo sel('smtp_encryption','ssl'); ?>>SSL</option><option value="" <?php echo sel('smtp_encryption',''); ?>>Nenhuma</option></select></div>
-                        </div>
+                        <p style="color:var(--color-gray); margin-bottom:20px;">O envio usa SMTP com conexão persistente (PHPMailer). As credenciais são gerenciadas por variáveis de ambiente no arquivo <code>.env</code> / <code>.env.prod</code> — não podem ser alteradas por aqui.</p>
+                        <table class="admin-table">
+                            <thead><tr><th>Parâmetro</th><th>Valor ativo</th></tr></thead>
+                            <tbody>
+                                <tr><td>MAIL_HOST</td><td><?php echo htmlspecialchars($_ENV['MAIL_HOST'] ?? 'localhost', ENT_QUOTES, 'UTF-8'); ?></td></tr>
+                                <tr><td>MAIL_PORT</td><td><?php echo htmlspecialchars($_ENV['MAIL_PORT'] ?? '1025', ENT_QUOTES, 'UTF-8'); ?></td></tr>
+                                <tr><td>MAIL_USERNAME</td><td><?php echo htmlspecialchars(($_ENV['MAIL_USERNAME'] ?? '') !== '' ? $_ENV['MAIL_USERNAME'] : '(sem autenticação)', ENT_QUOTES, 'UTF-8'); ?></td></tr>
+                                <tr><td>MAIL_ENCRYPTION</td><td><?php echo htmlspecialchars(($_ENV['MAIL_ENCRYPTION'] ?? '') !== '' ? strtoupper($_ENV['MAIL_ENCRYPTION']) : 'Nenhuma', ENT_QUOTES, 'UTF-8'); ?></td></tr>
+                                <tr><td>Remetente (From)</td><td><?php echo htmlspecialchars(store_config('store_name') . ' <' . store_config('store_email') . '>', ENT_QUOTES, 'UTF-8'); ?></td></tr>
+                            </tbody>
+                        </table>
                     </div>
 
                     <!-- Pagamentos -->

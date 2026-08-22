@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once __DIR__ . '/../../includes/csrf.php';
+require_once __DIR__ . '/../../includes/rate_limit.php';
 include "../../database/connection.php";
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -10,13 +11,20 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 csrf_require_valid();
 
+if (!rate_limit_check('register_' . $_SERVER['REMOTE_ADDR'], 5, 15)) {
+    $_SESSION['auth_errors'] = ['Muitas tentativas de cadastro. Aguarde 15 minutos.'];
+    header('Location: register.php');
+    exit;
+}
+
 $name = trim((string) filter_input(INPUT_POST, 'name'));
 $email = trim((string) filter_input(INPUT_POST, 'email'));
 $username = trim((string) filter_input(INPUT_POST, 'username'));
 $password = (string) filter_input(INPUT_POST, 'password');
 $postalCode = trim((string) filter_input(INPUT_POST, 'postalcode'));
 $street = trim((string) filter_input(INPUT_POST, 'street'));
-$number = (int) (filter_input(INPUT_POST, 'number') ?: 0);
+$numberRaw = trim((string) filter_input(INPUT_POST, 'number'));
+$number = preg_match('/^\d{1,6}$/', $numberRaw) ? (int) $numberRaw : 0;
 $complement = trim((string) filter_input(INPUT_POST, 'complement')) ?: null;
 
 $_SESSION['auth_old'] = [
@@ -52,7 +60,7 @@ try {
         ':name' => $name,
         ':email' => $email,
         ':username' => $username,
-        ':password' => password_hash($password, PASSWORD_ARGON2ID),
+        ':password' => password_hash($password, PASSWORD_DEFAULT),
         ':postal_code' => $postalCode,
         ':street' => $street,
         ':number' => $number,
