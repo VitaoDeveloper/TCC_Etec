@@ -1267,6 +1267,8 @@
     .ml-category-bar.mobile-active .ml-cat-trigger {
         padding: 14px 20px;
         border-bottom: 1px solid var(--ml-border);
+        flex-wrap: wrap;
+        row-gap: 0;
     }
 
     .ml-category-bar.mobile-active .ml-mega-menu {
@@ -1280,6 +1282,7 @@
         opacity: 0;
         visibility: hidden;
         overflow: hidden;
+        flex-basis: 100%;
         transition: max-height 0.35s ease, opacity 0.25s ease, visibility 0.35s;
     }
 
