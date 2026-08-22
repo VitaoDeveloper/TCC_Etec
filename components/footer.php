@@ -1,3 +1,4 @@
+<?php require_once dirname(__DIR__) . '/includes/config.php'; ?>
     <!-- Footer -->
     <footer class="main-footer">
         <div class="footer-top">
@@ -40,9 +41,9 @@
                     <div class="footer-col">
                         <h4>Contato</h4>
                         <ul class="contact-info">
-                            <li><i class="fas fa-map-marker-alt"></i> <?php echo htmlspecialchars($storeSettings['store_address'] ?? 'Av. Paulista, 1000 - São Paulo, SP', ENT_QUOTES, 'UTF-8'); ?></li>
-                            <li><i class="fas fa-phone"></i> <?php echo htmlspecialchars($storeSettings['store_phone'] ?? '(11) 99999-9999', ENT_QUOTES, 'UTF-8'); ?></li>
-                            <li><i class="fas fa-envelope"></i> <?php echo htmlspecialchars($storeSettings['store_email'] ?? 'contato@royaltech.com.br', ENT_QUOTES, 'UTF-8'); ?></li>
+                            <li><i class="fas fa-map-marker-alt"></i> <?php echo htmlspecialchars(store_config('store_address'), ENT_QUOTES, 'UTF-8'); ?></li>
+                            <li><i class="fas fa-phone"></i> <?php echo htmlspecialchars(store_config('store_phone'), ENT_QUOTES, 'UTF-8'); ?></li>
+                            <li><i class="fas fa-envelope"></i> <?php echo htmlspecialchars(store_config('store_email'), ENT_QUOTES, 'UTF-8'); ?></li>
                             <li><i class="fas fa-clock"></i> Seg-Sex: 09h às 18h</li>
                         </ul>
                     </div>
