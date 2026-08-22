@@ -138,6 +138,12 @@ CREATE TABLE IF NOT EXISTS e5_wishlist (
   CONSTRAINT fk_wishlist_product FOREIGN KEY (product_id) REFERENCES e5_products(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+CREATE TABLE IF NOT EXISTS e5_settings (
+  setting_key VARCHAR(64) PRIMARY KEY,
+  setting_value TEXT NULL,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 -- ======================================================================
 -- REGISTROS DE EXEMPLO (SEED) -- senha padrão: password123 (hash bcrypt)
 -- ======================================================================

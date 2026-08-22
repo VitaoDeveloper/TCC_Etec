@@ -6,13 +6,12 @@ if (session_status() === PHP_SESSION_NONE) {
 $isLoggedIn = isset($_SESSION['user_id']);
 $basePath = $base_path ?? '';
 
-$settingsPath = dirname(__DIR__) . '/database/settings.json';
-$storeSettings = (file_exists($settingsPath)) ? json_decode(file_get_contents($settingsPath), true) : [];
+require_once dirname(__DIR__) . '/includes/config.php';
 $socialLinks = [
-    'facebook' => $storeSettings['social_facebook'] ?? '#',
-    'instagram' => $storeSettings['social_instagram'] ?? '#',
-    'twitter' => $storeSettings['social_twitter'] ?? '#',
-    'youtube' => $storeSettings['social_youtube'] ?? '#',
+    'facebook' => store_config('social_facebook') ?: '#',
+    'instagram' => store_config('social_instagram') ?: '#',
+    'twitter' => store_config('social_twitter') ?: '#',
+    'youtube' => store_config('social_youtube') ?: '#',
 ];
 
 $cartCount = 0;
