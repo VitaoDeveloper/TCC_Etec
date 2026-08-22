@@ -160,6 +160,15 @@ INSERT INTO e5_users (name, email, username, password, role, postal_code, street
 ('Beatriz Nunes', 'beatriz.nunes@email.com', 'beatriz.nunes', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'customer', '90090-000', 'Av. Ipiranga', 500, NULL),
 ('admin', 'admin@royaltech.com', 'admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', '01310-100', 'Av. Paulista', 1, 'Sede');
 
+/* Contas admin dos colaboradores (senhas temporárias entregues à parte) */
+INSERT INTO e5_users (name, email, username, password, role, postal_code, street, number, complement) VALUES
+('Jônatas', 'jonatas@royaltech.com', 'jonatas', '$2y$10$TltWNnvq9FHRuRk7am2L9OyUEl9jLoe2J3ZOtGaCa4qVVMsf177ca', 'admin', '01310-100', 'Av. Paulista', 1, 'Sede'),
+('Paulo Vitor', 'paulo.vitor@royaltech.com', 'paulo.vitor', '$2y$10$d1vT1Y5r6WUVkAHIicHzheQ3loeYC934Oy4d/B1C8hvmIUgSKa3FC', 'admin', '01310-100', 'Av. Paulista', 1, 'Sede'),
+('Paulo Arthur', 'paulo.arthur@royaltech.com', 'paulo.arthur', '$2y$10$HXIgZri2WL71Wpn329E8J.s8DlQhYaCasWHNkGGa9LBYOYgdg7MJi', 'admin', '01310-100', 'Av. Paulista', 1, 'Sede'),
+('Kauã Caitano', 'kaua.caitano@royaltech.com', 'kaua.caitano', '$2y$10$dxderxESgOBhF2hYgqedc.X3pE1DsOqIJdWHV9/qKfWucRKfd.x06', 'admin', '01310-100', 'Av. Paulista', 1, 'Sede'),
+('Lucas', 'lucas@royaltech.com', 'lucas', '$2y$10$tDQt3I.S3Lw8Ty7pdBYYHuzcslFt429fq0qersFARzKRd.9L.jrKy', 'admin', '01310-100', 'Av. Paulista', 1, 'Sede'),
+('Nicolas Jacinto', 'nicolas.jacinto@royaltech.com', 'nicolas.jacinto', '$2y$10$Lvp6Ha7RM.L33nvjNJKPrOm9nqzichzPspVEokyOmYRB3bF6dmoQ.', 'admin', '01310-100', 'Av. Paulista', 1, 'Sede');
+
 INSERT INTO e5_categories (name, slug, description) VALUES
 ('Smartphones', 'smartphones', 'Celulares, smartphones e acessórios móveis'),
 ('Notebooks', 'notebooks', 'Notebooks, ultrabooks e laptops'),

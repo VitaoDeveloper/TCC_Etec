@@ -112,7 +112,14 @@ document.addEventListener('DOMContentLoaded', function() {
         btn.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            if (!loggedFlag) return;
+            if (!loggedFlag) {
+                if (!this.classList.contains('js-require-auth')) {
+                    var wishlistLoginUrl = basePath + 'pages/auth/login.php?next=' + encodeURIComponent(window.location.pathname + window.location.search);
+                    if (window.showToast) showToast('Faça login para favoritar produtos.', 'info');
+                    setTimeout(function() { window.location.href = wishlistLoginUrl; }, 1500);
+                }
+                return;
+            }
             var productId = this.dataset.productId;
             if (!productId) return;
             var self = this;
@@ -161,7 +168,14 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.btn-add-cart').forEach(function(btn) {
         btn.addEventListener('click', function(e) {
             e.preventDefault();
-            if (!loggedFlag) return;
+            if (!loggedFlag) {
+                if (!this.classList.contains('js-require-auth')) {
+                    var cartLoginUrl = basePath + 'pages/auth/login.php?next=' + encodeURIComponent(window.location.pathname + window.location.search);
+                    if (window.showToast) showToast('Faça login para adicionar ao carrinho.', 'info');
+                    setTimeout(function() { window.location.href = cartLoginUrl; }, 1500);
+                }
+                return;
+            }
 
             var card = this.closest('[data-product-id]');
             var productId = card ? card.getAttribute('data-product-id') : null;

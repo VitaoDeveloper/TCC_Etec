@@ -28,7 +28,7 @@ if (!$stmt->fetch()) {
     exit;
 }
 
-$check = validateStock($pdo, $productId, $quantity);
+$check = validateStock($pdo, $productId, $quantity, cartGetItemQuantity($pdo, (int)$_SESSION['user_id'], $productId));
 if (!$check['ok']) {
     echo json_encode(['success' => false, 'message' => $check['msg']]);
     exit;

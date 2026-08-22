@@ -105,7 +105,21 @@ cp config.example.php config.php
 ```
 
 ### Credenciais padrão
-- **Admin:** `admin` / `admin123` (ou cadastre-se e altere o `role` para `'admin'` no banco)
+- **Admin geral:** `admin` / `admin123` (ou cadastre-se e altere o `role` para `'admin'` no banco)
+
+#### Contas de administrador da equipe
+> ⚠️ Senhas temporárias — cada colaborador deve trocar a senha no primeiro login em **Perfil → Alterar Senha**.
+
+| Nome | Usuário | E-mail | Senha temporária |
+|------|---------|--------|------------------|
+| Jônatas | `jonatas` | jonatas@royaltech.com | `AJgCXXdDAT` |
+| Paulo Vitor | `paulo.vitor` | paulo.vitor@royaltech.com | `kvwhXA9t8v` |
+| Paulo Arthur | `paulo.arthur` | paulo.arthur@royaltech.com | `Y9MbfHWWhe` |
+| Kauã Caitano | `kaua.caitano` | kaua.caitano@royaltech.com | `JBr3VrHydd` |
+| Lucas | `lucas` | lucas@royaltech.com | `79bsNC8sFr` |
+| Nicolas Jacinto | `nicolas.jacinto` | nicolas.jacinto@royaltech.com | `sEExK4st5j` |
+
+> As contas são criadas pelo seed em [`database/database.sql`](database/database.sql). Se o banco já estiver importado, execute apenas o bloco `INSERT` dos colaboradores.
 
 ---
 
@@ -177,9 +191,22 @@ TCC_Etec/
 - Variáveis `--ml-*` corrigidas no login admin
 - CSS morto do header antigo removido; offsets de header/breadcrumb/sticky corrigidos
 
+### 🛠️ Atualizações recentes
+- **Menu Categorias no mobile:** virou accordion de verdade (abre fechado, chevron animado) e o estado reseta ao fechar o drawer
+- **Header responsivo:** em telas ≤576px vira 2 linhas (busca ocupa a linha inteira) sem esconder conteúdo
+- **Barra de categorias:** novo link "Início"; contagem de itens por categoria removida do mega menu
+- **Favoritos, Perfil, Meus Pedidos e Detalhe do Pedido** convertidos ao padrão visual `.ml-*` (novos componentes `.ml-table` e `.ml-btn-danger`)
+- **Carrinho deslogado:** clique em favoritar/adicionar agora mostra toast e redireciona para o login (com retorno via `?next=`)
+- **Estoque x carrinho:** adicionar ao carrinho considera a quantidade já existente no carrinho antes de validar o estoque
+- **Página 404** reestilizada com os componentes `.ml-*`
+- **Página Sobre:** equipe atualizada com os 6 desenvolvedores do grupo
+- **Seed do banco:** 6 contas de administrador criadas para a equipe (senhas temporárias na seção de credenciais)
+
+<!-- 
 ### 🎉 Easter Eggs
 - **Modo Realeza:** 10 cliques na lupa (com campo vazio) disparam chuva de coroas, brilho dourado nas bordas e toast
 - Chuva agora mistura ~70% coroas e ~30% escudos do Corinthians (`assets/img/corinthians.png`)
+-->
 
 ## Licença
 
