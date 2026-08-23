@@ -44,19 +44,29 @@ function cartRemoveItem($pdo, $userId, $productId) {
     return $stmt->execute([':uid' => $userId, ':pid' => $productId]);
 }
 
+function cartGetItemQuantity($pdo, $userId, $productId) {
+    $stmt = $pdo->prepare('SELECT COALESCE(SUM(quantity), 0) FROM e5_cart WHERE user_id = :uid AND product_id = :pid');
+    $stmt->execute([':uid' => $userId, ':pid' => $productId]);
+    return (int) $stmt->fetchColumn();
+}
+
 function cartClear($pdo, $userId) {
     $stmt = $pdo->prepare('DELETE FROM e5_cart WHERE user_id = :uid');
     return $stmt->execute([':uid' => $userId]);
 }
 
-function validateStock($pdo, $productId, $quantity) {
+function validateStock($pdo, $productId, $quantity, $cartQty = 0) {
     $stmt = $pdo->prepare('SELECT stock FROM e5_products WHERE id = :pid LIMIT 1');
     $stmt->execute([':pid' => $productId]);
     $product = $stmt->fetch();
     if (!$product) return ['ok' => false, 'msg' => 'Produto não encontrado.'];
     $available = (int) $product['stock'];
     if ($available <= 0) return ['ok' => false, 'msg' => 'Produto esgotado.'];
-    if ($quantity > $available) return ['ok' => false, 'msg' => "Apenas $available unidade(s) disponível(is)."];
+    if ((int) $quantity + (int) $cartQty > $available) {
+        $msg = "Apenas $available unidade(s) disponível(is).";
+        if ($cartQty > 0) $msg .= " Você já tem $cartQty no carrinho.";
+        return ['ok' => false, 'msg' => $msg];
+    }
     return ['ok' => true, 'available' => $available];
 }
 

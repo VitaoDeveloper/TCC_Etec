@@ -125,29 +125,43 @@ include '../../components/header.php';
                 <div class="placeholder" style="min-height: 200px; margin-bottom: 14px;">
                     <i class="fas fa-user"></i>
                 </div>
-                <h4>Kauã Caetano</h4>
-                <span class="ml-team-role">CEO &amp; Fundador</span>
+                <h4>Jônatas</h4>
+                <span class="ml-team-role">Desenvolvedor</span>
             </div>
             <div class="ml-team-card">
                 <div class="placeholder" style="min-height: 200px; margin-bottom: 14px;">
                     <i class="fas fa-user"></i>
                 </div>
-                <h4>Lucas Almeida</h4>
-                <span class="ml-team-role">Diretor Comercial</span>
+                <h4>Paulo Vitor</h4>
+                <span class="ml-team-role">Desenvolvedor</span>
             </div>
             <div class="ml-team-card">
                 <div class="placeholder" style="min-height: 200px; margin-bottom: 14px;">
                     <i class="fas fa-user"></i>
                 </div>
-                <h4>Jônatas Honorato</h4>
-                <span class="ml-team-role">Gerente de Produtos</span>
+                <h4>Paulo Arthur</h4>
+                <span class="ml-team-role">Desenvolvedor</span>
             </div>
             <div class="ml-team-card">
                 <div class="placeholder" style="min-height: 200px; margin-bottom: 14px;">
                     <i class="fas fa-user"></i>
                 </div>
-                <h4>Nicolas Nascimento</h4>
-                <span class="ml-team-role">Atendimento ao Cliente</span>
+                <h4>Kauã Caitano</h4>
+                <span class="ml-team-role">Desenvolvedor</span>
+            </div>
+            <div class="ml-team-card">
+                <div class="placeholder" style="min-height: 200px; margin-bottom: 14px;">
+                    <i class="fas fa-user"></i>
+                </div>
+                <h4>Lucas</h4>
+                <span class="ml-team-role">Desenvolvedor</span>
+            </div>
+            <div class="ml-team-card">
+                <div class="placeholder" style="min-height: 200px; margin-bottom: 14px;">
+                    <i class="fas fa-user"></i>
+                </div>
+                <h4>Nicolas Jacinto</h4>
+                <span class="ml-team-role">Desenvolvedor</span>
             </div>
         </div>
     </div>

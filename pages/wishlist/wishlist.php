@@ -18,18 +18,21 @@ $items = wishlistGetItems($pdo, $userId);
 
 include $base_path . 'components/header.php';
 ?>
-<section class="section"><div class="container">
-    <div class="section-header"><h2>Meus Favoritos</h2><p><?php echo count($items); ?> <?php echo count($items) === 1 ? 'item' : 'itens'; ?></p></div>
+<section class="ml-section" style="padding-top: 8px;"><div class="container">
+    <div class="ml-section-header">
+        <h2 class="ml-section-title">Meus Favoritos</h2>
+        <span class="ml-main-count"><?php echo count($items); ?> <?php echo count($items) === 1 ? 'item' : 'itens'; ?></span>
+    </div>
 
     <?php if (empty($items)): ?>
-        <div style="text-align:center; padding:60px 20px;">
-            <i class="far fa-heart" style="font-size:64px; color:var(--color-gold); opacity:0.5; margin-bottom:20px;"></i>
+        <div class="ml-empty">
+            <i class="far fa-heart"></i>
             <h3>Nenhum favorito ainda</h3>
-            <p style="margin-bottom:20px;">Salve seus produtos favoritos para encontrá-los facilmente depois.</p>
-            <a href="../products/products.php" class="btn btn-primary"><i class="fas fa-store"></i> Ver Produtos</a>
+            <p>Salve seus produtos favoritos para encontrá-los facilmente depois.</p>
+            <p style="margin-top: 16px;"><a href="../products/products.php" class="ml-btn ml-btn-primary"><i class="fas fa-store"></i> Ver Produtos</a></p>
         </div>
     <?php else: ?>
-        <div class="products-grid">
+        <div class="ml-products-grid">
         <?php foreach ($items as $item):
             $product_name = $item['product_name'];
             $product_id = $item['product_id'];
