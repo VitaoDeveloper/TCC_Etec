@@ -161,7 +161,6 @@ $categoryIcons = [
                                     <span class="ml-cat-icon"><i class="fas <?php echo $icon; ?>"></i></span>
                                     <?php echo htmlspecialchars($cat['name'], ENT_QUOTES, 'UTF-8'); ?>
                                 </span>
-                                <span class="ml-cat-count"><?php echo (int) $cat['product_count']; ?></span>
                             </a>
                         <?php endforeach; ?>
                     <?php endif; ?>
@@ -170,6 +169,7 @@ $categoryIcons = [
 
             <!-- Quick category links (scrollable wrapper — keeps mega menu outside any overflow context) -->
             <div class="ml-cat-links-scroll">
+                <a href="<?php echo $basePath; ?>index.php" class="ml-cat-link"><i class="fas fa-home"></i> Início</a>
                 <a href="<?php echo $basePath; ?>pages/products/products.php" class="ml-cat-link">Todos</a>
                 <a href="<?php echo $basePath; ?>pages/products/products.php?sort=newest" class="ml-cat-link">Novidades</a>
                 <a href="<?php echo $basePath; ?>pages/products/products.php?offers=1" class="ml-cat-link">Ofertas</a>
@@ -275,14 +275,22 @@ document.addEventListener('DOMContentLoaded', function() {
     var categoryBar = document.getElementById('ml-category-bar');
     var sidebarOverlay = document.getElementById('ml-sidebar-overlay');
     if (mobileMenuBtn && categoryBar && sidebarOverlay) {
+        var resetCategorySubmenu = function() {
+            if (megaMenu) megaMenu.classList.remove('show');
+            if (catTrigger) catTrigger.classList.remove('active');
+        };
         mobileMenuBtn.addEventListener('click', function() {
             categoryBar.classList.toggle('mobile-active');
             sidebarOverlay.classList.toggle('active');
+            if (!categoryBar.classList.contains('mobile-active')) {
+                resetCategorySubmenu();
+            }
             document.body.style.overflow = categoryBar.classList.contains('mobile-active') ? 'hidden' : '';
         });
         sidebarOverlay.addEventListener('click', function() {
             categoryBar.classList.remove('mobile-active');
             sidebarOverlay.classList.remove('active');
+            resetCategorySubmenu();
             document.body.style.overflow = '';
         });
     }

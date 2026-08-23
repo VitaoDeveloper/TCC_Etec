@@ -85,29 +85,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 include '../../components/header.php';
 ?>
-<section class="section"><div class="container" style="max-width:600px; margin:0 auto;">
-    <div class="section-header"><h2>Meu Perfil</h2></div>
+<section class="ml-section" style="padding-top: 8px;"><div class="container" style="max-width:600px; margin:0 auto;">
+    <div class="ml-section-header">
+        <h2 class="ml-section-title">Meu Perfil</h2>
+    </div>
     <?php if ($successMessage): ?><div class="auth-feedback auth-feedback-success"><?php echo htmlspecialchars($successMessage, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
     <?php if ($errorMessage): ?><div class="auth-feedback auth-feedback-error"><?php echo htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8'); ?></div><?php endif; ?>
-    <form method="POST" class="admin-table-container" style="padding:30px;">
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
-            <div class="admin-form-group"><label for="name">Nome</label><input type="text" id="name" name="name" value="<?php echo htmlspecialchars($user['name'], ENT_QUOTES, 'UTF-8'); ?>" required></div>
-            <div class="admin-form-group"><label for="email">E-mail</label><input type="email" id="email" name="email" value="<?php echo htmlspecialchars($user['email'], ENT_QUOTES, 'UTF-8'); ?>" required></div>
-            <div class="admin-form-group"><label for="username">Usuário</label><input type="text" id="username" name="username" value="<?php echo htmlspecialchars($user['username'], ENT_QUOTES, 'UTF-8'); ?>" required></div>
-            <div class="admin-form-group"><label for="postal_code">CEP</label><input type="text" id="postal_code" name="postal_code" value="<?php echo htmlspecialchars($user['postal_code'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"></div>
-            <div class="admin-form-group"><label for="street">Rua</label><input type="text" id="street" name="street" value="<?php echo htmlspecialchars($user['street'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"></div>
-            <div class="admin-form-group"><label for="number">Número</label><input type="number" id="number" name="number" value="<?php echo (int)($user['number'] ?? 0); ?>"></div>
-            <div class="admin-form-group"><label for="complement">Complemento</label><input type="text" id="complement" name="complement" value="<?php echo htmlspecialchars($user['complement'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"></div>
+    <form method="POST" class="ml-card">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0 15px;">
+            <div class="auth-field"><label class="auth-label" for="name">Nome</label><input type="text" id="name" name="name" value="<?php echo htmlspecialchars($user['name'], ENT_QUOTES, 'UTF-8'); ?>" required></div>
+            <div class="auth-field"><label class="auth-label" for="email">E-mail</label><input type="email" id="email" name="email" value="<?php echo htmlspecialchars($user['email'], ENT_QUOTES, 'UTF-8'); ?>" required></div>
+            <div class="auth-field"><label class="auth-label" for="username">Usuário</label><input type="text" id="username" name="username" value="<?php echo htmlspecialchars($user['username'], ENT_QUOTES, 'UTF-8'); ?>" required></div>
+            <div class="auth-field"><label class="auth-label" for="postal_code">CEP</label><input type="text" id="postal_code" name="postal_code" inputmode="numeric" maxlength="9" value="<?php echo htmlspecialchars($user['postal_code'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"></div>
+            <div class="auth-field"><label class="auth-label" for="street">Rua</label><input type="text" id="street" name="street" value="<?php echo htmlspecialchars($user['street'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"></div>
+            <div class="auth-field"><label class="auth-label" for="number">Número</label><input type="text" id="number" name="number" inputmode="numeric" pattern="[0-9]{1,6}" maxlength="6" value="<?php echo (int)($user['number'] ?? 0); ?>"></div>
+            <div class="auth-field"><label class="auth-label" for="complement">Complemento</label><input type="text" id="complement" name="complement" value="<?php echo htmlspecialchars($user['complement'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"></div>
         </div>
-        <hr style="border-color:var(--color-border); margin:25px 0;">
+        <hr style="border-color:var(--ml-border); margin:20px 0;">
         <h4 style="margin-bottom:15px;">Alterar Senha (opcional)</h4>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
-            <div class="admin-form-group"><label for="current_password">Senha Atual</label><input type="password" id="current_password" name="current_password" placeholder="Deixe em branco para manter"></div>
-            <div class="admin-form-group"><label for="new_password">Nova Senha</label><input type="password" id="new_password" name="new_password" placeholder="Mínimo 6 caracteres" minlength="6"></div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0 15px;">
+            <div class="auth-field"><label class="auth-label" for="current_password">Senha Atual</label><input type="password" id="current_password" name="current_password" placeholder="Deixe em branco para manter"></div>
+            <div class="auth-field"><label class="auth-label" for="new_password">Nova Senha</label><input type="password" id="new_password" name="new_password" placeholder="Mínimo 6 caracteres" minlength="6"></div>
         </div>
         <?php echo csrf_field(); ?>
-        <button type="submit" class="btn btn-primary btn-block mt-20"><i class="fas fa-save"></i> Salvar Alterações</button>
+        <button type="submit" class="ml-btn ml-btn-primary ml-btn-block"><i class="fas fa-save"></i> Salvar Alterações</button>
     </form>
-    <div style="text-align:center; margin-top:15px;"><a href="orders.php" class="btn btn-secondary"><i class="fas fa-box"></i> Meus Pedidos</a></div>
+    <div style="text-align:center; margin-top:15px;"><a href="orders.php" class="ml-btn"><i class="fas fa-box"></i> Meus Pedidos</a></div>
 </div></section>
 <?php include '../../components/footer.php'; ?>
