@@ -1,0 +1,6 @@
+blank_issues_enabled: false
+
+contact_links:
+  - name: Releases e Versões
+    url: https://github.com/VitaoDeveloper/TCC_Etec/releases
+    about: Consulte as versões e tags do projeto para se conectar com os estados da codebase.
