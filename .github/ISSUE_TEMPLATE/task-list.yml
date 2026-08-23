@@ -1,0 +1,30 @@
+name: Lista de Afazeres
+description: Criar uma issue guarda-chuva com subtarefas
+labels: ["task"]
+body:
+  - type: textarea
+    id: objetivo
+    attributes:
+      label: Objetivo geral
+      description: O que essa lista de tarefas entrega no final?
+    validations:
+      required: true
+  - type: textarea
+    id: tarefas
+    attributes:
+      label: Tarefas
+      description: Use checkboxes markdown — cada linha vira um item marcável
+      value: |
+        - [ ] Tarefa 1
+        - [ ] Tarefa 2
+        - [ ] Tarefa 3
+      render: markdown
+    validations:
+      required: true
+  - type: input
+    id: prazo
+    attributes:
+      label: Prazo estimado (opcional)
+      placeholder: "ex: até sexta-feira"
+    validations:
+      required: false

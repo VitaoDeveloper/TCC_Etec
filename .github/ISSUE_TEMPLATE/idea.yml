@@ -1,0 +1,25 @@
+name: Ideia
+description: Compartilhar uma ideia solta, sem necessidade de detalhamento completo
+labels: ["idea", "discussion"]
+body:
+  - type: textarea
+    id: ideia
+    attributes:
+      label: Do que se trata?
+      description: Não precisa estar madura — só descreva o conceito
+    validations:
+      required: true
+  - type: textarea
+    id: contexto
+    attributes:
+      label: Inspiração ou contexto (opcional)
+      description: Viu algo parecido em outro projeto? Surgiu de alguma conversa?
+    validations:
+      required: false
+  - type: checkboxes
+    id: aberto
+    attributes:
+      label: Status
+      options:
+        - label: Ainda estou validando se faz sentido
+        - label: Já tenho uma direção mais concreta

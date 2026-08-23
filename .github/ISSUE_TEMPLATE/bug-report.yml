@@ -1,0 +1,15 @@
+name: Bug Report
+description: Reportar um bug encontrado no sistema
+labels: ["bug", "triage"]
+body:
+  - type: textarea
+    id: descricao
+    attributes:
+      label: Descrição do bug
+    validations:
+      required: true
+  - type: dropdown
+    id: severidade
+    attributes:
+      label: Severidade
+      options: [Crítico, Alto, Médio, Baixo]
