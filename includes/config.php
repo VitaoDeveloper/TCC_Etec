@@ -1,5 +1,18 @@
 <?php
 
+function loadEnv(string $path): void
+{
+    if (!file_exists($path)) return;
+    foreach (file($path) as $line) {
+        $line = trim($line);
+        if ($line === '' || $line[0] === '#') continue;
+        $parts = explode('=', $line, 2);
+        if (count($parts) === 2) {
+            $_ENV[$parts[0]] = $parts[1];
+        }
+    }
+}
+
 // Defaults estáticos da loja. Servem como fonte de verdade quando não há
 // override salvo na tabela e5_settings (painel admin > Configurações).
 function store_defaults(): array

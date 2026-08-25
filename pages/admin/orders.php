@@ -3,6 +3,7 @@ $page_title = 'Gerenciar Pedidos - Royal Tech';
 include 'auth_check.php';
 include '../../database/connection.php';
 require_once __DIR__ . '/../../includes/csrf.php';
+require_once __DIR__ . '/../../includes/status_labels.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'update_status') {
     csrf_require_valid();
@@ -17,14 +18,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
     header('Location: orders.php');
     exit;
 }
-
-$statusLabels = [
-    'pending' => ['label' => 'Pendente', 'class' => 'status-pending'],
-    'paid' => ['label' => 'Pago', 'class' => 'status-active'],
-    'shipped' => ['label' => 'Enviado', 'class' => 'status-processing'],
-    'delivered' => ['label' => 'Concluído', 'class' => 'status-active'],
-    'canceled' => ['label' => 'Cancelado', 'class' => 'status-inactive'],
-];
 
 $filter = (string) ($_GET['status'] ?? '');
 $sql = 'SELECT o.id, o.status, o.total, o.shipping_method, o.shipping_cost, o.payment_method, o.created_at, u.name AS user_name,
@@ -49,10 +42,7 @@ unset($_SESSION['admin_message']);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $page_title; ?></title>
-    <link rel="stylesheet" href="../../assets/css/style.css">
-    <link rel="stylesheet" href="../../assets/css/admin.css">
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <?php include 'head_inc.php'; ?>
 </head>
 <body>
     <div class="admin-wrapper">

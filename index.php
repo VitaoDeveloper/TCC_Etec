@@ -18,13 +18,7 @@ $newProducts = $pdo->query('SELECT p.id, p.name, p.price, p.old_price, p.brand, 
 
 $categories = $pdo->query('SELECT id, name, slug, (SELECT COUNT(*) FROM e5_products WHERE category_id = c.id) AS product_count FROM e5_categories c ORDER BY name ASC')->fetchAll();
 
-$categoryIcons = [
-    'notebooks' => 'fa-laptop', 'smartphones' => 'fa-mobile-alt', 'tablets' => 'fa-tablet-alt',
-    'perifericos' => 'fa-keyboard', 'audio' => 'fa-headphones', 'games' => 'fa-gamepad',
-    'cameras' => 'fa-camera', 'acessorios' => 'fa-headset', 'monitores' => 'fa-tv',
-    'wearables' => 'fa-clock', 'rede' => 'fa-wifi', 'cabo' => 'fa-plug',
-    'componentes' => 'fa-microchip',
-];
+require_once __DIR__ . '/includes/category_icons.php';
 
 include 'components/header.php';
 ?>
