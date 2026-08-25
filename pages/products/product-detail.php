@@ -5,6 +5,7 @@ $current_page = 'produtos';
 $base_path = '../../';
 
 include '../../database/connection.php';
+require_once __DIR__ . '/../../includes/image_helpers.php';
 $productId = (int) ($_GET['id'] ?? 0);
 
 $stmt = $pdo->prepare('SELECT p.*, c.name AS category_name FROM e5_products p INNER JOIN e5_categories c ON c.id = p.category_id WHERE p.id = :id LIMIT 1');
@@ -16,13 +17,6 @@ if ($product) {
     $stmtImg = $pdo->prepare('SELECT id, image_path, is_primary FROM e5_product_images WHERE product_id = :pid ORDER BY is_primary DESC, id ASC');
     $stmtImg->execute([':pid' => $productId]);
     $images = $stmtImg->fetchAll();
-}
-
-function resolveImage($path, $basePath) {
-    if ($path === '') return $basePath . 'assets/img/placeholder-product.svg';
-    if (preg_match('#^/#', $path)) return $basePath . ltrim($path, '/');
-    if (preg_match('#^https?://#i', $path)) return $path;
-    return $basePath . $path;
 }
 
 $mainImage = !empty($images) ? resolveImage($images[0]['image_path'], $base_path) : ($base_path . 'assets/img/placeholder-product.svg');

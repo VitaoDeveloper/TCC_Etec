@@ -11,15 +11,9 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 include '../../database/connection.php';
-$userId = (int) $_SESSION['user_id'];
+require_once __DIR__ . '/../../includes/status_labels.php';
 
-$statusLabels = [
-    'pending' => 'Pendente',
-    'paid' => 'Pago',
-    'shipped' => 'Enviado',
-    'delivered' => 'Concluído',
-    'canceled' => 'Cancelado',
-];
+$userId = (int) $_SESSION['user_id'];
 
 $stmt = $pdo->prepare('
     SELECT o.id, o.status, o.total, o.created_at,
@@ -57,7 +51,7 @@ include '../../components/header.php';
                         <td><?php echo date('d/m/Y', strtotime($o['created_at'])); ?></td>
                         <td><?php echo (int)$o['item_count']; ?></td>
                         <td>R$ <?php echo number_format((float)$o['total'], 2, ',', '.'); ?></td>
-                        <td><span class="status-badge status-<?php echo $o['status'] === 'paid' || $o['status'] === 'delivered' ? 'active' : ($o['status'] === 'canceled' ? 'inactive' : 'pending'); ?>"><?php echo htmlspecialchars($statusLabels[$o['status']] ?? $o['status'], ENT_QUOTES, 'UTF-8'); ?></span></td>
+                        <td><span class="status-badge status-<?php echo $o['status'] === 'paid' || $o['status'] === 'delivered' ? 'active' : ($o['status'] === 'canceled' ? 'inactive' : 'pending'); ?>"><?php echo htmlspecialchars($statusLabelsFlat[$o['status']] ?? $o['status'], ENT_QUOTES, 'UTF-8'); ?></span></td>
                         <td><a href="order-detail.php?id=<?php echo (int)$o['id']; ?>" class="ml-btn" style="padding:4px 12px; font-size:0.8rem;"><i class="fas fa-eye"></i></a></td>
                     </tr>
                 <?php endforeach; ?>

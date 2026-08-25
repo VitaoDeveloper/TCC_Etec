@@ -3,22 +3,8 @@ $page_title = 'Gerenciar Banners - Royal Tech';
 include 'auth_check.php';
 include '../../database/connection.php';
 require_once __DIR__ . '/../../includes/csrf.php';
+require_once __DIR__ . '/../../includes/image_helpers.php';
 $activePage = 'banners';
-
-function normalizeBannerPath(string $rawPath): string
-{
-    $path = trim($rawPath);
-    if ($path === '') {
-        return '';
-    }
-    if (preg_match('#^https?://#i', $path)) {
-        return $path;
-    }
-    if ($path[0] !== '/') {
-        $path = 'assets/img/banners/' . ltrim($path, '/');
-    }
-    return $path;
-}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_require_valid();
@@ -28,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $title = trim((string) ($_POST['title'] ?? ''));
         $subtitle = trim((string) ($_POST['subtitle'] ?? '')) ?: null;
         $linkUrl = trim((string) ($_POST['link_url'] ?? '')) ?: null;
-        $imageUrlInput = normalizeBannerPath((string) ($_POST['image_path'] ?? ''));
+        $imageUrlInput = normalizeImagePath((string) ($_POST['image_path'] ?? ''), 'assets/img/banners/');
         $editId = $action === 'edit' ? (int) ($_POST['banner_id'] ?? 0) : 0;
 
         if ($title === '') {
@@ -135,10 +121,7 @@ if (isset($_GET['edit'])) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $page_title; ?></title>
-    <link rel="stylesheet" href="../../assets/css/style.css">
-    <link rel="stylesheet" href="../../assets/css/admin.css">
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <?php include 'head_inc.php'; ?>
 </head>
 <body>
     <button class="sidebar-toggle" aria-label="Abrir menu"><i class="fas fa-bars"></i></button>

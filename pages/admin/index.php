@@ -2,6 +2,7 @@
 $page_title = 'Painel Administrativo - Royal Tech';
 include 'auth_check.php';
 include '../../database/connection.php';
+require_once __DIR__ . '/../../includes/status_labels.php';
 
 $totalOrders = $pdo->query('SELECT COUNT(*) FROM e5_orders')->fetchColumn();
 $totalRevenue = $pdo->query("SELECT COALESCE(SUM(total), 0) FROM e5_orders WHERE status != 'canceled'")->fetchColumn();
@@ -23,8 +24,6 @@ $customerChange = $prevMonthCustomers > 0 ? round(($currMonthCustomers - $prevMo
 $lowStockCount = $pdo->query("SELECT COUNT(*) FROM e5_products WHERE stock <= 5")->fetchColumn();
 
 $recentOrders = $pdo->query('SELECT o.id, o.status, o.total, o.created_at, u.name AS user_name FROM e5_orders o INNER JOIN e5_users u ON u.id = o.user_id ORDER BY o.created_at DESC LIMIT 5')->fetchAll();
-$statusLabels = ['pending'=>'Pendente','paid'=>'Pago','shipped'=>'Enviado','delivered'=>'Concluído','canceled'=>'Cancelado'];
-$statusClasses = ['pending'=>'status-pending','paid'=>'status-active','shipped'=>'status-processing','delivered'=>'status-active','canceled'=>'status-inactive'];
 
 $topProducts = $pdo->query('
     SELECT p.id, p.name, p.price, SUM(oi.quantity) AS qty,
@@ -42,10 +41,7 @@ $topProducts = $pdo->query('
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $page_title; ?></title>
-    <link rel="stylesheet" href="../../assets/css/style.css">
-    <link rel="stylesheet" href="../../assets/css/admin.css">
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <?php include 'head_inc.php'; ?>
 </head>
 <body>
     <div class="admin-wrapper">
@@ -114,8 +110,9 @@ $topProducts = $pdo->query('
                             <?php if (empty($recentOrders)): ?>
                             <tr><td colspan="4" style="text-align:center; color:var(--color-gray); padding:30px;">Nenhum pedido ainda.</td></tr>
                             <?php else: foreach ($recentOrders as $o):
-                                $label = $statusLabels[$o['status']] ?? $o['status'];
-                                $class = $statusClasses[$o['status']] ?? '';
+                                $info = $statusLabels[$o['status']] ?? ['label' => $o['status'], 'class' => ''];
+                                $label = $info['label'];
+                                $class = $info['class'];
                             ?>
                             <tr>
                                 <td>#<?php echo str_pad((string)$o['id'], 4, '0', STR_PAD_LEFT); ?></td>

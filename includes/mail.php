@@ -2,26 +2,9 @@
 
 use PHPMailer\PHPMailer\PHPMailer;
 
-// Cliente SMTP (PHPMailer) com conexão persistente por requisição,
-// seguindo o mesmo princípio do singleton de PDO em database/connection.php:
-// configuração vem das variáveis de ambiente (MAIL_*) e a instância é
-// reutilizada via $GLOBALS['mailer'].
-
+require_once __DIR__ . '/config.php';
+loadEnv(__DIR__ . '/../.env');
 require_once __DIR__ . '/../vendor/autoload.php';
-
-if (!isset($_ENV['MAIL_HOST'])) {
-    $envFile = __DIR__ . '/../.env';
-    if (file_exists($envFile)) {
-        foreach (file($envFile) as $line) {
-            $line = trim($line);
-            if ($line === '' || $line[0] === '#') continue;
-            $parts = explode('=', $line, 2);
-            if (count($parts) === 2) {
-                $_ENV[$parts[0]] = $parts[1];
-            }
-        }
-    }
-}
 
 // Acesso ao cliente persistente. A conexão SMTP fica aberta entre envios
 // da mesma requisição (SMTPKeepAlive), como o PDO mantém sua conexão.
