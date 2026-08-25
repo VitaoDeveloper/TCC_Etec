@@ -4,6 +4,7 @@ $breadcrumb_title = 'Contato';
 $current_page = 'contato';
 $base_path = '../../';
 require_once __DIR__ . '/../../includes/csrf.php';
+require_once __DIR__ . '/../../includes/config.php';
 
 $contactMessage = null;
 $contactError = null;
@@ -130,10 +131,10 @@ include '../../components/header.php';
                 <div style="margin-top: 30px;">
                     <h4 style="margin-bottom: 20px;">Siga-nos</h4>
                     <div class="footer-social">
-                        <a href="#"><i class="fab fa-facebook-f"></i></a>
-                        <a href="#"><i class="fab fa-instagram"></i></a>
-                        <a href="#"><i class="fab fa-twitter"></i></a>
-                        <a href="#"><i class="fab fa-youtube"></i></a>
+                        <a href="<?php echo htmlspecialchars(store_config('social_facebook') ?: '#', ENT_QUOTES, 'UTF-8'); ?>"><i class="fab fa-facebook-f"></i></a>
+                        <a href="<?php echo htmlspecialchars(store_config('social_instagram') ?: '#', ENT_QUOTES, 'UTF-8'); ?>"><i class="fab fa-instagram"></i></a>
+                        <a href="<?php echo htmlspecialchars(store_config('social_twitter') ?: '#', ENT_QUOTES, 'UTF-8'); ?>"><i class="fab fa-twitter"></i></a>
+                        <a href="<?php echo htmlspecialchars(store_config('social_youtube') ?: '#', ENT_QUOTES, 'UTF-8'); ?>"><i class="fab fa-youtube"></i></a>
                     </div>
                 </div>
             </div>

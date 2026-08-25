@@ -3,30 +3,13 @@ $page_title = 'Formulário de Produto - Royal Tech';
 include 'auth_check.php';
 include '../../database/connection.php';
 require_once __DIR__ . '/../../includes/csrf.php';
+require_once __DIR__ . '/../../includes/image_helpers.php';
 $activePage = 'products';
 
 $productId = (int) ($_GET['id'] ?? 0);
 $product = ['category_id' => '', 'name' => '', 'description' => '', 'brand' => '', 'price' => '', 'old_price' => '', 'stock' => 0, 'is_featured' => 0];
 $errorMessage = null;
 $currentImagePath = '';
-
-function normalizeImagePath(string $rawPath): string
-{
-    $path = trim($rawPath);
-    if ($path === '') {
-        return '';
-    }
-
-    if (preg_match('#^https?://#i', $path)) {
-        return $path;
-    }
-
-    if ($path[0] !== '/') {
-        $path = 'assets/img/products/' . ltrim($path, '/');
-    }
-
-    return $path;
-}
 
 if ($productId > 0) {
     $stmt = $pdo->prepare('SELECT * FROM e5_products WHERE id = :id LIMIT 1');
@@ -147,10 +130,7 @@ $categories = $pdo->query('SELECT id, name FROM e5_categories ORDER BY name')->f
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $page_title; ?></title>
-    <link rel="stylesheet" href="../../assets/css/style.css">
-    <link rel="stylesheet" href="../../assets/css/admin.css">
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <?php include 'head_inc.php'; ?>
 </head>
 <body>
     <button class="sidebar-toggle" aria-label="Abrir menu"><i class="fas fa-bars"></i></button>

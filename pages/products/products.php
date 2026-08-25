@@ -64,13 +64,7 @@ $products = $stmt->fetchAll();
 $categories = $pdo->query('SELECT c.id, c.name, c.slug, (SELECT COUNT(*) FROM e5_products p WHERE p.category_id = c.id) AS product_count FROM e5_categories c ORDER BY c.name ASC')->fetchAll();
 $brands = $pdo->query('SELECT DISTINCT brand FROM e5_products WHERE brand IS NOT NULL AND brand != \'\' ORDER BY brand')->fetchAll(PDO::FETCH_COLUMN);
 
-$categoryIcons = [
-    'notebooks' => 'fa-laptop', 'smartphones' => 'fa-mobile-alt', 'tablets' => 'fa-tablet-alt',
-    'perifericos' => 'fa-keyboard', 'audio' => 'fa-headphones', 'games' => 'fa-gamepad',
-    'cameras' => 'fa-camera', 'acessorios' => 'fa-headset', 'monitores' => 'fa-tv',
-    'wearables' => 'fa-clock', 'rede' => 'fa-wifi', 'cabo' => 'fa-plug',
-    'componentes' => 'fa-microchip',
-];
+require_once __DIR__ . '/../../includes/category_icons.php';
 
 function buildQueryString($overrides) {
     $params = array_merge($_GET, $overrides);

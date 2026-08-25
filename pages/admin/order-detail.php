@@ -2,6 +2,7 @@
 $page_title = 'Detalhe do Pedido - Royal Tech';
 include 'auth_check.php';
 include '../../database/connection.php';
+require_once __DIR__ . '/../../includes/status_labels.php';
 
 $orderId = (int) ($_GET['id'] ?? 0);
 $order = $pdo->prepare('SELECT o.*, u.name AS user_name, u.email AS user_email, u.postal_code, u.street, u.number, u.complement
@@ -20,13 +21,6 @@ $items = $pdo->prepare('SELECT oi.*, p.name AS product_name,
 $items->execute([':oid' => $orderId]);
 $items = $items->fetchAll();
 
-$statusLabels = [
-    'pending' => ['label' => 'Pendente', 'class' => 'status-pending'],
-    'paid' => ['label' => 'Pago', 'class' => 'status-active'],
-    'shipped' => ['label' => 'Enviado', 'class' => 'status-processing'],
-    'delivered' => ['label' => 'Concluído', 'class' => 'status-active'],
-    'canceled' => ['label' => 'Cancelado', 'class' => 'status-inactive'],
-];
 $payLabel = ['pix' => 'Pix', 'boleto' => 'Boleto', 'credit' => 'Cartão', 'delivery' => 'Entrega'];
 $sinfo = $statusLabels[$order['status']] ?? ['label' => $order['status'], 'class' => ''];
 ?>
@@ -36,10 +30,7 @@ $sinfo = $statusLabels[$order['status']] ?? ['label' => $order['status'], 'class
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $page_title; ?></title>
-    <link rel="stylesheet" href="../../assets/css/style.css">
-    <link rel="stylesheet" href="../../assets/css/admin.css">
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <?php include 'head_inc.php'; ?>
 </head>
 <body>
     <div class="admin-wrapper">
