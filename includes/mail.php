@@ -1,22 +1,19 @@
 <?php
 
-use PHPMailer\PHPMailer\PHPMailer;
-
 require_once __DIR__ . '/config.php';
 loadEnv(__DIR__ . '/../.env');
-require_once __DIR__ . '/../vendor/autoload.php';
 
 // Acesso ao cliente persistente. A conexão SMTP fica aberta entre envios
 // da mesma requisição (SMTPKeepAlive), como o PDO mantém sua conexão.
-function mailer(): PHPMailer
+function mailer(): \PHPMailer\PHPMailer\PHPMailer
 {
     if (isset($GLOBALS['mailer'])) {
         return $GLOBALS['mailer'];
     }
 
-    require_once __DIR__ . '/config.php';
+    require_once __DIR__ . '/../vendor/autoload.php';
 
-    $mail = new PHPMailer(false);
+    $mail = new \PHPMailer\PHPMailer\PHPMailer(false);
     $mail->isSMTP();
     $mail->Host = $_ENV['MAIL_HOST'] ?? 'localhost';
     $mail->Port = (int) ($_ENV['MAIL_PORT'] ?? 1025);
@@ -29,10 +26,10 @@ function mailer(): PHPMailer
 
     switch (strtolower(trim($_ENV['MAIL_ENCRYPTION'] ?? ''))) {
         case 'tls':
-            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+            $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
             break;
         case 'ssl':
-            $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+            $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
             break;
         default:
             $mail->SMTPAutoTLS = false;
