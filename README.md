@@ -15,9 +15,9 @@ E-commerce premium desenvolvido como Trabalho de Conclusão de Curso (TCC) da ET
 
 ## Funcionalidades
 
-**Loja:** catálogo responsivo, busca, filtros, paginação, carrinho, checkout, perfil do usuário, histórico de pedidos, recuperação de senha, newsletter e contato.
+**Loja:** catálogo responsivo, busca, filtros, paginação, carrinho, checkout, lista de desejos, perfil do usuário, histórico de pedidos, recuperação de senha, newsletter e contato.
 
-**Admin:** dashboard com métricas, CRUD de produtos/categorias/banners, gerenciamento de pedidos/clientes, relatórios e configurações do sistema.
+**Admin:** dashboard com métricas, CRUD de produtos/categorias/banners, gerenciamento de pedidos/clientes, relatórios, newsletter e configurações do sistema.
 
 ## Instalação
 
@@ -71,16 +71,24 @@ Schema completo em [`database/database.sql`](database/database.sql).
 ## Estrutura
 
 ```
-├── assets/          # CSS, JS, imagens
-├── components/      # header, footer, product-card
-├── database/        # schema SQL e connection
-├── includes/        # config, mail, csrf, rate_limit
+├── assets/
+│   ├── css/          # estilos
+│   ├── img/          # imagens
+│   └── js/           # scripts
+├── components/       # header, footer, product-card
+├── database/
+│   ├── connection.php
+│   └── database.sql  # schema completo
+├── includes/         # config, csrf, mail, rate_limit, helpers
 ├── pages/
-│   ├── admin/       # dashboard, CRUDs, relatórios
-│   ├── auth/        # login, registro, perfil
-│   ├── cart/        # carrinho e checkout
-│   └── products/    # vitrine, categorias, contato
-├── .env.example     # modelo de variáveis de ambiente
+│   ├── admin/        # dashboard, CRUDs, relatórios
+│   ├── auth/         # login, registro, perfil, pedidos
+│   ├── cart/         # carrinho e checkout
+│   ├── products/     # vitrine, categorias, contato
+│   └── wishlist/     # lista de desejos
+├── .env.example      # modelo de variáveis de ambiente
+├── docker-compose.yml
+├── Dockerfile
 └── index.php
 ```
 
