@@ -1,3 +1,5 @@
+SET NAMES utf8mb4;
+
 DROP DATABASE IF EXISTS e5_royaltech;
 CREATE DATABASE e5_royaltech;
 USE e5_royaltech;
