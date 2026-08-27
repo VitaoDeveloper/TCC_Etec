@@ -9,7 +9,7 @@ function normalizeImagePath(string $rawPath, string $prefix = 'assets/img/produc
         return $path;
     }
     if ($path[0] !== '/') {
-        $path = $prefix . ltrim($path, '/');
+        $path = '/' . $prefix . ltrim($path, '/');
     }
     return $path;
 }
