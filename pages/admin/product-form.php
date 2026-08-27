@@ -82,13 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new RuntimeException('Formato de imagem inválido. Use JPG, PNG ou WEBP.');
                 }
 
-                $pathFileName = basename(parse_url($imagePathInput !== '' ? $imagePathInput : '/assets/img/products/' . $slugBase . '.jpg', PHP_URL_PATH));
-                $pathFileName = preg_replace('/[^a-zA-Z0-9._-]/', '-', (string) $pathFileName) ?: 'product-' . $productId;
-
-                $pathExtension = strtolower(pathinfo($pathFileName, PATHINFO_EXTENSION));
-                if ($pathExtension === '') {
-                    $pathFileName .= '.' . $extension;
-                }
+                $pathFileName = $slugBase . '-' . time() . '.' . $extension;
 
                 $targetAbsolute = $targetDir . '/' . $pathFileName;
                 if (!move_uploaded_file($_FILES['product_image']['tmp_name'], $targetAbsolute)) {
