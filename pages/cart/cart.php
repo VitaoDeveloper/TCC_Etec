@@ -12,6 +12,7 @@ if (!isset($_SESSION['user_id'])) {
 
 require_once $base_path . 'database/connection.php';
 require_once $base_path . 'includes/cart_functions.php';
+require_once $base_path . 'includes/image_helpers.php';
 
 $userId = (int) $_SESSION['user_id'];
 $items = cartGetItems($pdo, $userId);
@@ -39,14 +40,7 @@ include $base_path . 'components/header.php';
         <div class="ml-cart-grid">
             <div>
                 <?php foreach ($items as $item):
-                    $img = (string) ($item['image_path'] ?? '');
-                    if ($img === '') {
-                        $img = $base_path . 'assets/img/placeholder-product.svg';
-                    } elseif (preg_match('#^/#', $img)) {
-                        $img = $base_path . ltrim($img, '/');
-                    } elseif (!preg_match('#^https?://#i', $img)) {
-                        $img = $base_path . $img;
-                    }
+                    $img = renderProductImage((string) ($item['image_path'] ?? ''), $base_path);
                     $subtotal = (float)$item['price'] * (int)$item['quantity'];
                 ?>
                 <div class="cart-item" data-product-id="<?php echo (int)$item['product_id']; ?>">

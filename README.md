@@ -19,6 +19,17 @@ E-commerce premium desenvolvido como Trabalho de Conclusão de Curso (TCC) da ET
 
 **Admin:** dashboard com métricas, CRUD de produtos/categorias/banners, gerenciamento de pedidos/clientes, relatórios, newsletter e configurações do sistema.
 
+## Upload e exibição de imagens
+
+- As imagens enviadas pela área administrativa são salvas fisicamente em `assets/img/products/` (produtos) e `assets/img/banners/` (banners), e o caminho correspondente é gravado no banco (`e5_product_images.image_path` / `e5_banners.image_path`).
+- Na tela de produto/banner existem **dois campos de imagem**:
+  1. **Caminho da imagem** (campo manual) — usado quando nenhum arquivo é enviado no upload.
+  2. **Upload de imagem** — ao enviar um arquivo, ele **substitui** o caminho manual.
+- O formulário **edita sem enviar imagem sem quebrar**: a imagem/caminho já existente é preservado.
+- Formatos aceitos: JPG, JPEG, PNG e WEBP (máx. 2 MB).
+- Os diretórios de upload são criados automaticamente, mas a pasta `assets/img` precisa ter permissão de escrita para o usuário do servidor web (ex.: `daemon` no XAMPP/Apache).
+- A exibição usa fallback para uma imagem padrão (`assets/img/placeholder-product.svg`) quando o arquivo não existe em disco — evitando ícone de imagem quebrada. Helpers em [`includes/image_helpers.php`](includes/image_helpers.php) (`renderProductImage`, `imageAvailable`, `uploadErrorMessage`).
+
 ## Configuração
 
 ### Variáveis de Ambiente

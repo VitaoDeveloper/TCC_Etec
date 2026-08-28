@@ -19,7 +19,7 @@ if ($product) {
     $images = $stmtImg->fetchAll();
 }
 
-$mainImage = !empty($images) ? resolveImage($images[0]['image_path'], $base_path) : ($base_path . 'assets/img/placeholder-product.svg');
+$mainImage = !empty($images) ? renderProductImage($images[0]['image_path'], $base_path) : ($base_path . 'assets/img/placeholder-product.svg');
 
 include '../../components/header.php';
 ?>
@@ -47,7 +47,7 @@ $maxQty = max(1, $stock);
         <?php if (count($images) > 1): ?>
         <div class="ml-gallery-thumbs">
             <?php foreach ($images as $i => $img):
-                $thumb = resolveImage($img['image_path'], $base_path);
+                $thumb = renderProductImage($img['image_path'], $base_path);
             ?>
             <div class="ml-gallery-thumb <?php echo $i === 0 ? 'active' : ''; ?>" data-img="<?php echo htmlspecialchars($thumb, ENT_QUOTES, 'UTF-8'); ?>">
                 <img src="<?php echo htmlspecialchars($thumb, ENT_QUOTES, 'UTF-8'); ?>" alt="Thumbnail <?php echo $i + 1; ?>" onerror="this.onerror=null;this.src='<?php echo $base_path; ?>assets/img/placeholder-product.svg'">
