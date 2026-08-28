@@ -221,12 +221,13 @@ $categories = $pdo->query('SELECT id, name FROM e5_categories ORDER BY name')->f
                     <div class="admin-form-group">
                         <label for="image_path">Caminho da imagem</label>
                         <input type="text" id="image_path" name="image_path" data-auto-path="<?php echo $currentImagePath === '' ? '1' : '0'; ?>" placeholder="/assets/img/products/meu-produto.jpg" value="<?php echo htmlspecialchars($currentImagePath, ENT_QUOTES, 'UTF-8'); ?>">
-                        <small style="color:var(--color-gray);">Informe apenas o nome do arquivo (ex: produto.jpg) que o sistema completa o caminho.</small>
+                        <small style="color:var(--color-gray);">Informe apenas o nome do arquivo (ex: produto.jpg) que o sistema completa o caminho. Usado quando nenhum arquivo é enviado no upload abaixo.</small>
                     </div>
 
                     <div class="admin-form-group">
                         <label for="product_image">Upload de imagem (JPG, PNG, WEBP)</label>
                         <input type="file" id="product_image" name="product_image" accept=".jpg,.jpeg,.png,.webp">
+                        <small style="color:var(--color-gray); display:block; margin-top:6px;">Ao enviar um arquivo neste campo, ele substitui o caminho do campo acima.</small>
                         <?php if ($currentImagePath): ?>
                         <small style="color:var(--color-gray); display:block; margin-top:6px;">Imagem atual: <?php echo htmlspecialchars($currentImagePath, ENT_QUOTES, 'UTF-8'); ?></small>
                         <?php endif; ?>

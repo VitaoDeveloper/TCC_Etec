@@ -204,6 +204,7 @@ if (isset($_GET['edit'])) {
                     <div class="admin-form-group">
                         <label for="banner_image">Upload de imagem (JPG, PNG, WEBP)</label>
                         <input type="file" id="banner_image" name="banner_image" accept=".jpg,.jpeg,.png,.webp">
+                        <small style="color:var(--color-gray); display:block; margin-top:6px;">Ao enviar um arquivo neste campo, ele substitui o caminho do campo acima.</small>
                         <?php if ($editBanner && $editBanner['image_path']): ?>
                         <small style="color:var(--color-gray); display:block; margin-top:6px;">
                             Imagem atual: <?php echo htmlspecialchars($editBanner['image_path'], ENT_QUOTES, 'UTF-8'); ?>
