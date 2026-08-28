@@ -83,8 +83,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 $targetDir = $uploadDirAbsolute . '/products';
-                if (!is_dir($targetDir) && !mkdir($targetDir, 0775, true) && !is_dir($targetDir)) {
-                    throw new RuntimeException('Não foi possível criar diretório de upload.');
+                if (!is_dir($targetDir)) {
+                    if (!@mkdir($targetDir, 0775, true) && !is_dir($targetDir)) {
+                        throw new RuntimeException('Não foi possível criar o diretório de uploads (' . $targetDir . '). Verifique as permissões de escrita da pasta assets/img.');
+                    }
+                }
+                if (!is_writable($targetDir)) {
+                    throw new RuntimeException('O diretório de uploads não tem permissão de escrita (' . $targetDir . ').');
                 }
 
                 $allowedExt = ['jpg', 'jpeg', 'png', 'webp'];
@@ -125,7 +130,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         } catch (Throwable $e) {
             error_log('Product form error: ' . $e->getMessage());
-            $errorMessage = 'Erro ao salvar produto/imagem. Verifique os dados e tente novamente.';
+            $errorMessage = 'Erro ao salvar produto/imagem: ' . $e->getMessage();
         }
     }
 }
