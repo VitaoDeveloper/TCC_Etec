@@ -3,3 +3,5 @@
 test
 vendor
 assets/img/*/*
+storage/comprovantes/*
+storage/logs/*

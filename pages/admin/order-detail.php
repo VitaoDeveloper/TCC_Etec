@@ -2,6 +2,7 @@
 $page_title = 'Detalhe do Pedido - Royal Tech';
 include 'auth_check.php';
 include '../../database/connection.php';
+require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../includes/status_labels.php';
 require_once __DIR__ . '/../../includes/comprovante.php';
 
@@ -11,6 +12,15 @@ $orderId = (int) ($_GET['id'] ?? 0);
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'resend') {
     enviarComprovanteEmail($pdo, $orderId);
     header('Location: order-detail.php?id=' . $orderId . '&sent=1');
+    exit;
+}
+
+// Mark PIX order as paid (manual confirmation)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'mark_paid') {
+    csrf_require_valid();
+    $stmt = $pdo->prepare('UPDATE e5_orders SET payment_status = :status, updated_at = NOW() WHERE id = :id');
+    $stmt->execute([':status' => 'paid', ':id' => $orderId]);
+    header('Location: order-detail.php?id=' . $orderId . '&paid=1');
     exit;
 }
 
@@ -89,6 +99,13 @@ $sinfo = $statusLabels[$order['status']] ?? ['label' => $order['status'], 'class
                             <input type="hidden" name="action" value="resend">
                             <button type="submit" class="btn" style="background:#2196f3; color:#fff; padding:8px 16px; border-radius:6px; font-size:0.85rem; border:none; cursor:pointer;"><i class="fas fa-envelope"></i> Reenviar E-mail</button>
                         </form>
+                        <?php if (($order['payment_method'] ?? '') === 'pix' && ($order['payment_status'] ?? '') === 'pending'): ?>
+                        <form method="post" style="display:inline">
+                            <?php echo csrf_field(); ?>
+                            <input type="hidden" name="action" value="mark_paid">
+                            <button type="submit" class="btn" style="background:#4caf50; color:#fff; padding:8px 16px; border-radius:6px; font-size:0.85rem; border:none; cursor:pointer;"><i class="fas fa-check-circle"></i> Marcar como Pago</button>
+                        </form>
+                        <?php endif; ?>
                     </div>
                     <?php endif; ?>
                 </div>

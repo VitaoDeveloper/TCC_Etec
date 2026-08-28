@@ -17,6 +17,9 @@ require_once __DIR__ . '/../../includes/mail.php';
 require_once __DIR__ . '/../../includes/gateways.php';
 require_once __DIR__ . '/../../includes/config.php';
 require_once __DIR__ . '/../../includes/comprovante.php';
+require_once __DIR__ . '/../../includes/shipping.php';
+require_once __DIR__ . '/../../includes/pix.php';
+require_once __DIR__ . '/../../includes/payment.php';
 
 $userId = (int) $_SESSION['user_id'];
 $items = cartGetItems($pdo, $userId);
@@ -48,53 +51,47 @@ foreach ($items as $item) {
     $subtotalCents += (int) round((float) $item['price'] * 100) * (int) $item['quantity'];
 }
 
-// ponytail: simple CEP-based shipping, no external API call
-function calcShipping($cep) {
-    $cep = preg_replace('/\D/', '', $cep);
-    if (strlen($cep) !== 8) return null;
-    $prefix = (int) substr($cep, 0, 3);
-    if ($prefix >= 10 && $prefix <= 199) {
-        return [
-            'pac' => ['method' => 'PAC', 'cost' => 14.90, 'days' => '5-10 úteis'],
-            'sedex' => ['method' => 'Sedex', 'cost' => 29.90, 'days' => '1-2 úteis'],
-        ];
-    } elseif ($prefix >= 1 && $prefix <= 99) {
-        return [
-            'pac' => ['method' => 'PAC', 'cost' => 9.90, 'days' => '3-7 úteis'],
-            'sedex' => ['method' => 'Sedex', 'cost' => 19.90, 'days' => '1 dia útil'],
-        ];
-    } else {
-        return [
-            'pac' => ['method' => 'PAC', 'cost' => 24.90, 'days' => '7-15 úteis'],
-            'sedex' => ['method' => 'Sedex', 'cost' => 39.90, 'days' => '2-4 úteis'],
-        ];
-    }
-}
-
-$shippingOptions = null;
-$selectedShipping = $_POST['shipping_method'] ?? ($_GET['shipping_method'] ?? 'pac');
-$shippingCost = 0.00;
+// === FRETE REAL ===
+$selectedShippingKey = $_POST['shipping_method'] ?? ($_GET['shipping_method'] ?? '');
 $shippingCep = $_POST['shipping_cep'] ?? ($user['postal_code'] ?? '');
 
+$shippingResult = [
+    'success' => false,
+    'provider' => 'estimated',
+    'is_real' => false,
+    'warning' => null,
+    'error' => null,
+    'address' => null,
+    'options' => [],
+];
+
 if (!empty($shippingCep)) {
-    $shippingOptions = calcShipping($shippingCep);
-    if ($shippingOptions && isset($shippingOptions[$selectedShipping])) {
-        $shippingCost = $subtotal >= 500 ? 0.00 : (float) $shippingOptions[$selectedShipping]['cost'];
-    }
+    $shippingResult = shippingCalculate($shippingCep, $subtotal, $items);
 }
 
+$shippingOptions = $shippingResult['options'] ?? [];
+$isRealFrete = $shippingResult['is_real'] ?? false;
+$freteWarning = $shippingResult['warning'] ?? null;
+$freteError = $shippingResult['error'] ?? null;
+$freteAddress = $shippingResult['address'] ?? null;
+
+// Seleciona frete válido (primeiro se não enviado)
+$firstKey = array_key_first($shippingOptions);
+$selectedShipping = $selectedShippingKey !== '' && isset($shippingOptions[$selectedShippingKey])
+    ? $selectedShippingKey
+    : $firstKey;
+$selectedOption = $shippingOptions[$selectedShipping] ?? null;
+$shippingCost = $selectedOption ? (float) $selectedOption['cost'] : 0.00;
+
+// === PAGAMENTO ===
 $paymentMethod = $_POST['payment_method'] ?? 'pix';
-$paymentMethods = [
-    'pix' => ['label' => 'Pix', 'icon' => 'fa-pix', 'desc' => 'Aprovação instantânea. 5% de desconto!'],
-    'boleto' => ['label' => 'Boleto', 'icon' => 'fa-barcode', 'desc' => 'Vencimento em 3 dias úteis.'],
-    'credit' => ['label' => 'Cartão de Crédito', 'icon' => 'fa-credit-card', 'desc' => 'Parcele em até 12x.'],
-    'delivery' => ['label' => 'Pagar na Entrega', 'icon' => 'fa-money-bill-wave', 'desc' => 'Pague ao receber (dinheiro ou cartão).'],
-];
+$paymentMethods = paymentGetMethods(); // do payment.php
 
 $pixDiscount = 0;
 $grandTotal = 0.0;
+$creditFeeInfo = null;
+
 if ($paymentMethod === 'pix') {
-    // Cálculo em centavos (inteiros) para evitar divergência de float
     $shippingCents = (int) round($shippingCost * 100);
     $discountCents = (int) round($subtotalCents * 0.05);
     $grandTotalCents = $subtotalCents + $shippingCents - $discountCents;
@@ -102,6 +99,15 @@ if ($paymentMethod === 'pix') {
     $grandTotal = $grandTotalCents / 100;
 } else {
     $grandTotal = ( ($subtotalCents + (int) round($shippingCost * 100)) ) / 100;
+    // Taxa de gateway informativa (não somada ao total)
+    if ($paymentMethod === 'credit') {
+        $config = paymentGetConfig();
+        $creditFeeInfo = [
+            'percentage' => $config['fee_percentage'],
+            'amount' => round($grandTotal * ($config['fee_percentage'] / 100), 2),
+            'is_estimate' => $config['fee_is_estimate'],
+        ];
+    }
 }
 
 $orderCreated = false;
@@ -114,6 +120,7 @@ $isConfirming = $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['confirm_o
 if ($isConfirming) {
     csrf_require_valid();
 
+    // Validações
     foreach ($items as $item) {
         $check = validateStock($pdo, (int) $item['product_id'], (int) $item['quantity']);
         if (!$check['ok']) {
@@ -122,29 +129,44 @@ if ($isConfirming) {
         }
     }
 
+    if (!$selectedOption) {
+        $errorMessage = 'Selecione uma opção de frete válida.';
+    }
+
     if (!$errorMessage) {
         try {
             $pdo->beginTransaction();
 
-            // Snapshot: gateway and tax regime at order creation time
             $taxRegimeSnapshot = store_config('tax_regime') ?: 'CPF';
             $gatewaySnapshot = $gatewayUsed ?? 'mercadopago';
-            
-            $stmt = $pdo->prepare('INSERT INTO e5_orders (user_id, status, total, shipping_method, shipping_cost, payment_method, gateway_used, payment_status, tax_regime_snapshot, shipping_postal_code, shipping_neighborhood, shipping_city, shipping_state) VALUES (:uid, :status, :total, :ship, :shipcost, :pay, :gateway, :paystatus, :regime, :cep, :neigh, :city, :state)');
+
+            // Dados do endereço do frete (ViaCEP)
+            $shipNeighborhood = $freteAddress['bairro'] ?? null;
+            $shipCity = $freteAddress['cidade'] ?? null;
+            $shipState = $freteAddress['uf'] ?? null;
+
+            $stmt = $pdo->prepare('
+                INSERT INTO e5_orders 
+                (user_id, status, total, shipping_method, shipping_carrier, shipping_cost, shipping_delivery_time, shipping_is_estimated, payment_method, gateway_used, payment_status, tax_regime_snapshot, shipping_postal_code, shipping_neighborhood, shipping_city, shipping_state) 
+                VALUES (:uid, :status, :total, :ship, :carrier, :shipcost, :shipdays, :shipest, :pay, :gateway, :paystatus, :regime, :cep, :neigh, :city, :state)
+            ');
             $stmt->execute([
                 ':uid' => $userId,
                 ':status' => 'pending',
                 ':total' => $grandTotal,
-                ':ship' => $shippingOptions ? ($shippingOptions[$selectedShipping]['method'] ?? null) : null,
+                ':ship' => $selectedOption['method'] ?? null,
+                ':carrier' => $selectedOption['carrier'] ?? null,
                 ':shipcost' => $shippingCost,
+                ':shipdays' => $selectedOption['days'] ?? null,
+                ':shipest' => $isRealFrete ? 0 : 1,
                 ':pay' => $paymentMethod,
                 ':gateway' => $gatewaySnapshot,
-                ':paystatus' => $paymentMethod === 'delivery' ? 'pending' : ($paymentMethod === 'pix' ? 'paid' : 'pending'),
+                ':paystatus' => $paymentMethod === 'delivery' ? 'pending' : 'pending', // PIX = pending até confirmação
                 ':regime' => $taxRegimeSnapshot,
-                ':cep' => $shippingCep,
-                ':neigh' => null,
-                ':city' => null,
-                ':state' => null,
+                ':cep' => preg_replace('/\D/', '', $shippingCep),
+                ':neigh' => $shipNeighborhood,
+                ':city' => $shipCity,
+                ':state' => $shipState,
             ]);
             $orderId = (int) $pdo->lastInsertId();
 
@@ -161,26 +183,42 @@ if ($isConfirming) {
 
             cartClear($pdo, $userId);
 
+            // Gera informações de pagamento por método
             if ($paymentMethod === 'pix') {
-                $orderPaymentInfo = [
-                    'method' => 'Pix',
-                    'instructions' => 'Escaneie o QR Code abaixo ou copie o código Pix para pagamento.',
-                    // ponytail: fake Pix payload, real gateway would generate dynamically
-                    'pix_code' => '00020126580014BR.GOV.BCB.PIX0136' . bin2hex(random_bytes(20)) . '5204000053039865406' . number_format($grandTotal, 2, '', '') . '5802BR5913Royal Tech LTDA6009SAO PAULO62070503***6304' . strtoupper(substr(bin2hex(random_bytes(4)), 0, 4)),
-                    'expires' => date('d/m/Y H:i', strtotime('+30 minutes')),
-                ];
+                $pix = pixGenerateForOrder($grandTotal, (string) $orderId, ['name' => $user['name'] ?? '']);
+                if ($pix['success']) {
+                    $orderPaymentInfo = [
+                        'method' => 'Pix',
+                        'instructions' => 'Escaneie o QR Code abaixo ou copie o código Pix (copia-e-cola) no app do seu banco.',
+                        'br_code' => $pix['data']['br_code'],
+                        'qr_data_uri' => $pix['data']['qr_data_uri'],
+                        'expires' => date('d/m/Y H:i', strtotime($pix['data']['expires_at'])),
+                        'txid' => $pix['data']['txid'],
+                    ];
+                } else {
+                    $orderPaymentInfo = [
+                        'method' => 'Pix',
+                        'instructions' => 'Erro ao gerar código Pix. Tente novamente ou use outro método.',
+                        'br_code' => null,
+                        'qr_data_uri' => null,
+                        'expires' => date('d/m/Y H:i', strtotime('+30 minutes')),
+                    ];
+                }
             } elseif ($paymentMethod === 'boleto') {
                 $orderPaymentInfo = [
                     'method' => 'Boleto',
-                    'instructions' => 'Pague o boleto em qualquer banco, casa lotérica ou app até o vencimento.',
-                    'boleto_number' => '34191.79001 01043.510047 91020.150008 ' . random_int(100000000, 999999999) . ' ' . random_int(1, 9),
+                    'instructions' => 'Boleto será gerado via gateway. Aguarde o e-mail ou acesse "Meus Pedidos".',
+                    'boleto_number' => null,
                     'expires' => date('d/m/Y', strtotime('+3 days')),
                 ];
             } elseif ($paymentMethod === 'credit') {
+                $installments = min(12, max(1, (int) floor($grandTotal / 50)));
+                $installmentValue = $grandTotal / $installments;
                 $orderPaymentInfo = [
                     'method' => 'Cartão de Crédito',
-                    'instructions' => 'Seu pagamento será processado em até 2 dias úteis.',
-                    'installments' => min(12, max(1, floor($grandTotal / 50))) . 'x de R$ ' . number_format($grandTotal / min(12, max(1, floor($grandTotal / 50))), 2, ',', '.'),
+                    'instructions' => 'Pagamento será processado pelo gateway ativo (' . $gatewaySnapshot . ').',
+                    'installments' => $installments . 'x de R$ ' . number_format($installmentValue, 2, ',', '.'),
+                    'gateway' => $gatewaySnapshot,
                 ];
             } else {
                 $orderPaymentInfo = [
@@ -192,36 +230,24 @@ if ($isConfirming) {
             $pdo->commit();
             $orderCreated = true;
 
-            $itemsHtml = '';
-            foreach ($items as $it) {
-                $itemsHtml .= '<tr><td>' . htmlspecialchars($it['name'] ?? 'Produto', ENT_QUOTES, 'UTF-8') . '</td><td>' . (int)$it['quantity'] . '</td><td>R$ ' . number_format((float)$it['price'], 2, ',', '.') . '</td></tr>';
+            // Comprovante + e-mail
+            try {
+                $comp = gerarComprovanteCompra($pdo, $orderId, true);
+            } catch (Throwable $e) {
+                error_log('Comprovante generation failed: ' . $e->getMessage());
             }
-            $payMethod = ['pix'=>'Pix','boleto'=>'Boleto','credit'=>'Cartão','delivery'=>'Entrega'];
-            $body = '<h2>Pedido Confirmado!</h2><p>Olá ' . htmlspecialchars($user['name'] ?? '', ENT_QUOTES, 'UTF-8') . ',</p><p>Seu pedido #' . str_pad((string)$orderId, 4, '0', STR_PAD_LEFT) . ' foi criado com sucesso.</p><table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;width:100%;"><thead><tr bgcolor="#d4af37"><th>Produto</th><th>Qtd</th><th>Preço</th></tr></thead><tbody>' . $itemsHtml . '</tbody></table><p><strong>Total:</strong> R$ ' . number_format($grandTotal, 2, ',', '.') . '</p><p><strong>Pagamento:</strong> ' . ($payMethod[$paymentMethod] ?? $paymentMethod) . '</p><p><strong>Frete:</strong> ' . htmlspecialchars($shippingOptions[$selectedShipping]['method'] ?? '—', ENT_QUOTES, 'UTF-8') . '</p><p><a href="https://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/TCC_Etec/pages/auth/orders.php" style="display:inline-block;padding:12px 30px;background:#d4af37;color:#1a1a1a;text-decoration:none;font-weight:700;border-radius:30px;">Ver Meus Pedidos</a></p>';
+            try {
+                enviarComprovanteEmail($pdo, $orderId);
+            } catch (Throwable $e) {
+                error_log('Checkout comprovante email failed: ' . $e->getMessage());
+            }
+
         } catch (Throwable $e) {
             if ($pdo->inTransaction()) {
                 $pdo->rollBack();
             }
             $errorMessage = 'Erro ao processar pedido. Tente novamente.';
             error_log('Checkout error: ' . $e->getMessage());
-        }
-
-        if ($orderCreated) {
-            // Gerar comprovante de compra (HTML + PDF)
-            try {
-                $comp = gerarComprovanteCompra($pdo, $orderId, true);
-                $compNumero = $comp['numero'];
-            } catch (Throwable $e) {
-                error_log('Comprovante generation failed: ' . $e->getMessage());
-                $compNumero = null;
-            }
-
-            // Enviar e-mail com comprovante + PDF anexado
-            try {
-                enviarComprovanteEmail($pdo, $orderId);
-            } catch (Throwable $e) {
-                error_log('Checkout comprovante email failed: ' . $e->getMessage());
-            }
         }
     }
 }
@@ -247,21 +273,31 @@ include $base_path . 'components/header.php';
                     <h3><?php echo htmlspecialchars($orderPaymentInfo['method'], ENT_QUOTES, 'UTF-8'); ?></h3>
                 </div>
                 <p style="color: var(--ml-text-secondary); font-size: 0.92rem;"><?php echo htmlspecialchars($orderPaymentInfo['instructions'], ENT_QUOTES, 'UTF-8'); ?></p>
-                <?php if (isset($orderPaymentInfo['pix_code'])): ?>
-                <div class="payment-code-box">
-                    <code id="pixCode"><?php echo htmlspecialchars($orderPaymentInfo['pix_code'], ENT_QUOTES, 'UTF-8'); ?></code>
-                    <button type="button" class="ml-btn" onclick="navigator.clipboard.writeText(document.getElementById('pixCode').textContent);this.textContent='Copiado!';setTimeout(()=>this.textContent='Copiar Código Pix',2000);" style="margin-top:10px;"><i class="fas fa-copy"></i> Copiar Código Pix</button>
-                </div>
-                <small style="color: var(--ml-text-muted);">Válido até: <?php echo htmlspecialchars($orderPaymentInfo['expires'], ENT_QUOTES, 'UTF-8'); ?></small>
+
+                <?php if ($orderPaymentInfo['method'] === 'Pix' && !empty($orderPaymentInfo['br_code'])): ?>
+                    <div style="margin-top: 16px; text-align: center;">
+                        <?php if (!empty($orderPaymentInfo['qr_data_uri'])): ?>
+                            <img src="<?php echo htmlspecialchars($orderPaymentInfo['qr_data_uri'], ENT_QUOTES, 'UTF-8'); ?>" alt="QR Code Pix" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        <?php endif; ?>
+                        <div class="payment-code-box" style="margin-top: 12px; max-width: 100%; overflow-x: auto;">
+                            <code id="pixCode" style="font-size: 0.75rem; word-break: break-all;"><?php echo htmlspecialchars($orderPaymentInfo['br_code'], ENT_QUOTES, 'UTF-8'); ?></code>
+                            <button type="button" class="ml-btn" onclick="navigator.clipboard.writeText(document.getElementById('pixCode').textContent);this.innerHTML='<i class=\'fas fa-check\'></i> Copiado!';setTimeout(()=>this.innerHTML='<i class=\'fas fa-copy\'></i> Copiar Código Pix',2000);" style="margin-top:10px;"><i class="fas fa-copy"></i> Copiar Código Pix</button>
+                        </div>
+                        <small style="color: var(--ml-text-muted); display: block; margin-top: 8px;">Válido até: <?php echo htmlspecialchars($orderPaymentInfo['expires'], ENT_QUOTES, 'UTF-8'); ?></small>
+                    </div>
                 <?php endif; ?>
+
                 <?php if (isset($orderPaymentInfo['boleto_number'])): ?>
-                <div class="payment-code-box">
-                    <code><?php echo htmlspecialchars($orderPaymentInfo['boleto_number'], ENT_QUOTES, 'UTF-8'); ?></code>
-                </div>
-                <small style="color: var(--ml-text-muted);">Vencimento: <?php echo htmlspecialchars($orderPaymentInfo['expires'], ENT_QUOTES, 'UTF-8'); ?></small>
+                    <div class="payment-code-box">
+                        <code><?php echo htmlspecialchars($orderPaymentInfo['boleto_number'], ENT_QUOTES, 'UTF-8'); ?></code>
+                    </div>
+                    <small style="color: var(--ml-text-muted);">Vencimento: <?php echo htmlspecialchars($orderPaymentInfo['expires'], ENT_QUOTES, 'UTF-8'); ?></small>
                 <?php endif; ?>
                 <?php if (isset($orderPaymentInfo['installments'])): ?>
-                <p style="font-size: 1.1rem; color: var(--ml-accent); margin-top: 10px;"><strong><?php echo htmlspecialchars($orderPaymentInfo['installments'], ENT_QUOTES, 'UTF-8'); ?></strong></p>
+                    <p style="font-size: 1.1rem; color: var(--ml-accent); margin-top: 10px;"><strong><?php echo htmlspecialchars($orderPaymentInfo['installments'], ENT_QUOTES, 'UTF-8'); ?></strong></p>
+                    <?php if (!empty($orderPaymentInfo['gateway'])): ?>
+                        <small style="color: var(--ml-text-muted);">Via: <?php echo htmlspecialchars(strtoupper($orderPaymentInfo['gateway']), ENT_QUOTES, 'UTF-8'); ?></small>
+                    <?php endif; ?>
                 <?php endif; ?>
             </div>
         </div>
@@ -276,6 +312,11 @@ include $base_path . 'components/header.php';
     <?php else: ?>
         <?php if ($errorMessage): ?>
             <div class="auth-feedback auth-feedback-error"><?php echo htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8'); ?></div>
+        <?php endif; ?>
+        <?php if ($freteError): ?>
+            <div class="auth-feedback auth-feedback-error" style="margin-bottom: 16px;">
+                <i class="fas fa-exclamation-triangle"></i> <?php echo htmlspecialchars($freteError, ENT_QUOTES, 'UTF-8'); ?>
+            </div>
         <?php endif; ?>
 
         <div class="checkout-grid">
@@ -293,17 +334,28 @@ include $base_path . 'components/header.php';
                         </div>
                         <button type="submit" form="checkoutForm" class="ml-btn" name="calc_shipping" value="1"><i class="fas fa-search"></i> Calcular</button>
                     </div>
+
+                    <?php if ($freteWarning): ?>
+                    <div style="margin: 10px 0; padding: 10px 12px; background: rgba(255,152,0,0.1); border: 1px solid rgba(255,152,0,0.3); border-radius: 6px; font-size: 0.85rem;">
+                        <i class="fas fa-info-circle"></i> <?php echo $freteWarning; ?>
+                    </div>
+                    <?php endif; ?>
+
                     <?php if ($shippingOptions): ?>
                     <div class="shipping-options">
-                        <?php foreach ($shippingOptions as $key => $opt):
-                            $optCost = $subtotal >= 500 ? 0.00 : (float) $opt['cost'];
-                        ?>
+                        <?php foreach ($shippingOptions as $key => $opt): ?>
                         <label class="shipping-option <?php echo $selectedShipping === $key ? 'selected' : ''; ?>">
                             <input type="radio" name="shipping_method" form="checkoutForm" value="<?php echo $key; ?>" <?php echo $selectedShipping === $key ? 'checked' : ''; ?>>
                             <div class="shipping-option-content">
                                 <strong><?php echo htmlspecialchars($opt['method'], ENT_QUOTES, 'UTF-8'); ?></strong>
+                                <?php if (!empty($opt['carrier']) && $opt['carrier'] !== $opt['method']): ?>
+                                    <span style="color: var(--ml-text-muted); font-size: 0.8rem; margin-left: 6px;">por <?php echo htmlspecialchars($opt['carrier'], ENT_QUOTES, 'UTF-8'); ?></span>
+                                <?php endif; ?>
                                 <span class="shipping-days"><?php echo htmlspecialchars($opt['days'], ENT_QUOTES, 'UTF-8'); ?></span>
-                                <span class="shipping-cost"><?php echo $optCost > 0 ? 'R$ ' . number_format($optCost, 2, ',', '.') : '<strong style="color:var(--ml-green);">Grátis</strong>'; ?></span>
+                                <?php if (!empty($opt['estimated'])): ?>
+                                    <span class="shipping-badge" style="background: rgba(255,152,0,0.2); color: #e65100; padding: 2px 6px; border-radius: 3px; font-size: 0.7rem; margin-left: 6px;">ESTIMADO</span>
+                                <?php endif; ?>
+                                <span class="shipping-cost"><?php echo $opt['cost'] > 0 ? 'R$ ' . number_format($opt['cost'], 2, ',', '.') : '<strong style="color:var(--ml-green);">Grátis</strong>'; ?></span>
                             </div>
                         </label>
                         <?php endforeach; ?>
@@ -311,7 +363,8 @@ include $base_path . 'components/header.php';
                     <?php elseif (!empty($shippingCep)): ?>
                     <p style="color: var(--ml-text-muted); margin-top: 10px;">CEP não encontrado. Verifique o número.</p>
                     <?php endif; ?>
-                    <?php if ($subtotal >= 500): ?>
+
+                    <?php if ($subtotal >= 500 && ($freteAddress ?? false)): ?>
                     <p class="free-shipping-badge"><i class="fas fa-gift"></i> Frete Grátis! Compras acima de R$ 500,00.</p>
                     <?php endif; ?>
                 </div>
@@ -323,13 +376,20 @@ include $base_path . 'components/header.php';
                         <h3><i class="fas fa-credit-card"></i> Pagamento</h3>
                     </div>
                     <div class="payment-options">
-                        <?php foreach ($paymentMethods as $key => $pm): ?>
+                        <?php foreach ($paymentMethods as $key => $pm):
+                            if (!$pm['enabled']) continue;
+                        ?>
                         <label class="payment-option <?php echo $paymentMethod === $key ? 'selected' : ''; ?>">
                             <input type="radio" name="payment_method" form="checkoutForm" value="<?php echo $key; ?>" <?php echo $paymentMethod === $key ? 'checked' : ''; ?>>
                             <div class="payment-option-content">
                                 <strong><?php echo htmlspecialchars($pm['label'], ENT_QUOTES, 'UTF-8'); ?></strong>
                                 <span class="payment-desc"><?php echo htmlspecialchars($pm['desc'], ENT_QUOTES, 'UTF-8'); ?></span>
                                 <?php if ($key === 'pix'): ?><span class="pix-discount">5% OFF</span><?php endif; ?>
+                                <?php if ($key === 'credit' && $creditFeeInfo): ?>
+                                    <span class="fee-badge" style="background: rgba(212,175,55,0.15); color: var(--ml-accent); padding: 2px 6px; border-radius: 3px; font-size: 0.7rem; margin-left: 6px;">
+                                        Taxa: <?php echo number_format($creditFeeInfo['percentage'], 2, ',', '.'); ?>% (~R$ <?php echo number_format($creditFeeInfo['amount'], 2, ',', '.'); ?>)
+                                    </span>
+                                <?php endif; ?>
                             </div>
                         </label>
                         <?php endforeach; ?>
@@ -344,7 +404,12 @@ include $base_path . 'components/header.php';
                     </div>
                     <p><strong><?php echo htmlspecialchars($user['name'], ENT_QUOTES, 'UTF-8'); ?></strong></p>
                     <p style="color: var(--ml-text-secondary);"><?php echo htmlspecialchars($user['street'] ?? '', ENT_QUOTES, 'UTF-8'); ?>, <?php echo (int)($user['number'] ?? 0); ?><?php if ($user['complement']): ?> - <?php echo htmlspecialchars($user['complement'], ENT_QUOTES, 'UTF-8'); ?><?php endif; ?></p>
-                    <p style="color: var(--ml-text-secondary);">CEP: <?php echo htmlspecialchars($user['postal_code'] ?? '', ENT_QUOTES, 'UTF-8'); ?></p>
+                    <p style="color: var(--ml-text-secondary);">
+                        <?php if ($freteAddress && $freteAddress['bairro']): ?>
+                            <?php echo htmlspecialchars($freteAddress['bairro'], ENT_QUOTES, 'UTF-8'); ?> - <?php echo htmlspecialchars($freteAddress['cidade'], ENT_QUOTES, 'UTF-8'); ?>/<?php echo htmlspecialchars($freteAddress['uf'], ENT_QUOTES, 'UTF-8'); ?><br>
+                        <?php endif; ?>
+                        CEP: <?php echo htmlspecialchars($shippingCep, ENT_QUOTES, 'UTF-8'); ?>
+                    </p>
                     <a href="../auth/profile.php" class="ml-btn" style="font-size: 0.85rem; padding: 8px 16px; margin-top: 10px;"><i class="fas fa-edit"></i> Alterar Endereço</a>
                 </div>
             </div>
@@ -362,12 +427,15 @@ include $base_path . 'components/header.php';
                         <span>Subtotal (<?php echo count($items); ?> <?php echo count($items) === 1 ? 'item' : 'itens'; ?>)</span>
                         <span>R$ <?php echo number_format($subtotal, 2, ',', '.'); ?></span>
                     </div>
-                    <?php if ($shippingOptions): $shipDays = $shippingOptions[$selectedShipping]['days'] ?? ''; ?>
+                    <?php if ($selectedOption): ?>
                     <div class="ml-summary-line">
-                        <span>Frete <?php echo htmlspecialchars($selectedShipping === 'pac' ? 'PAC' : 'Sedex', ENT_QUOTES, 'UTF-8'); ?></span>
+                        <span>Frete: <?php echo htmlspecialchars($selectedOption['method'], ENT_QUOTES, 'UTF-8'); ?> <?php echo !empty($selectedOption['carrier']) && $selectedOption['carrier'] !== $selectedOption['method'] ? '(' . htmlspecialchars($selectedOption['carrier'], ENT_QUOTES, 'UTF-8') . ')' : ''; ?></span>
                         <span><?php echo $shippingCost > 0 ? 'R$ ' . number_format($shippingCost, 2, ',', '.') : '<span style="color:var(--ml-green);">Grátis</span>'; ?></span>
                     </div>
-                    <div style="font-size: 0.8rem; color: var(--ml-text-muted); text-align: right; padding: 2px 0 6px;">Previsão: <?php echo htmlspecialchars($shipDays, ENT_QUOTES, 'UTF-8'); ?></div>
+                    <div style="font-size: 0.8rem; color: var(--ml-text-muted); text-align: right; padding: 2px 0 6px;">Previsão: <?php echo htmlspecialchars($selectedOption['days'] ?? '—', ENT_QUOTES, 'UTF-8'); ?></div>
+                    <?php if (!$isRealFrete): ?>
+                    <div style="font-size: 0.75rem; color: #e65100; text-align: right; padding: 2px 0 8px;"><i class="fas fa-exclamation-circle"></i> Valor estimado — configure o token do Melhor Envio para preços reais.</div>
+                    <?php endif; ?>
                     <?php endif; ?>
                     <?php if ($pixDiscount > 0): ?>
                     <div class="ml-summary-line discount">
@@ -375,13 +443,19 @@ include $base_path . 'components/header.php';
                         <span>- R$ <?php echo number_format($pixDiscount, 2, ',', '.'); ?></span>
                     </div>
                     <?php endif; ?>
+                    <?php if ($creditFeeInfo): ?>
+                    <div class="ml-summary-line" style="color: var(--ml-text-secondary); font-size: 0.85rem;">
+                        <span>Taxa do gateway (<?php echo number_format($creditFeeInfo['percentage'], 2, ',', '.'); ?>%) <small><?php echo $creditFeeInfo['is_estimate'] ? '(estimativa)' : ''; ?></small></span>
+                        <span>R$ <?php echo number_format($creditFeeInfo['amount'], 2, ',', '.'); ?></span>
+                    </div>
+                    <?php endif; ?>
                     <div class="ml-summary-line total">
                         <span>Total</span>
                         <span>R$ <?php echo number_format($grandTotal, 2, ',', '.'); ?></span>
                     </div>
-                    <?php if ($paymentMethod === 'credit' && $grandTotal > 0): $parc = min(12, max(1, floor($grandTotal / 50))); ?>
+                    <?php if ($paymentMethod === 'credit' && $grandTotal > 0 && isset($installments)): ?>
                     <div style="font-size: 0.85rem; color: var(--ml-text-secondary); text-align: center; padding-top: 10px; border-top: 1px solid var(--ml-border); margin-top: 8px;">
-                        ou <strong><?php echo $parc; ?>x de R$ <?php echo number_format($grandTotal / $parc, 2, ',', '.'); ?></strong> sem juros
+                        ou <strong><?php echo $installments; ?>x de R$ <?php echo number_format($grandTotal / $installments, 2, ',', '.'); ?></strong> sem juros
                     </div>
                     <?php endif; ?>
 
@@ -389,7 +463,7 @@ include $base_path . 'components/header.php';
                         <?php echo csrf_field(); ?>
                         <input type="hidden" name="shipping_cep" value="<?php echo htmlspecialchars($shippingCep, ENT_QUOTES, 'UTF-8'); ?>">
                         <p style="margin-bottom: 15px; font-size: 0.85rem; color: var(--ml-text-muted);"><i class="fas fa-info-circle"></i> Ao finalizar, você concorda com nossos termos de compra.</p>
-                        <button type="submit" name="confirm_order" class="ml-btn ml-btn-primary ml-btn-block" style="padding: 14px; font-size: 1.05rem;"><i class="fas fa-check"></i> Confirmar Pedido</button>
+                        <button type="submit" name="confirm_order" class="ml-btn ml-btn-primary ml-btn-block" style="padding: 14px; font-size: 1.05rem;" <?php echo !$selectedOption ? 'disabled' : ''; ?>><i class="fas fa-check"></i> Confirmar Pedido</button>
                         <a href="cart.php" class="ml-btn ml-btn-block" style="margin-top: 10px;"><i class="fas fa-arrow-left"></i> Voltar ao Carrinho</a>
                     </form>
                 </div>
@@ -398,6 +472,12 @@ include $base_path . 'components/header.php';
 
         <script>
         document.querySelectorAll('input[name="shipping_method"]').forEach(function(el) {
+            el.addEventListener('change', function() {
+                var f = this.form;
+                if (f) f.submit();
+            });
+        });
+        document.querySelectorAll('input[name="payment_method"]').forEach(function(el) {
             el.addEventListener('change', function() {
                 var f = this.form;
                 if (f) f.submit();

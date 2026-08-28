@@ -11,6 +11,8 @@ $defaults = [
     'social_twitter'=>'','social_youtube'=>'','store_logo'=>'','store_favicon'=>'',
     'pix_key'=>'','boleto_days'=>'3',
     'free_shipping_threshold'=>'500',
+    'store_postal_code'=>'01310-100',
+    'melhor_envio_table'=>'public',
 ];
 
 $tab = (string) ($_GET['tab'] ?? 'store');
@@ -391,8 +393,12 @@ function sel($key, $val) { global $settings; return ($settings[$key] ?? '') === 
                     <!-- Frete -->
                     <div class="admin-table-container" style="padding:30px;<?php echo $tab!=='frete'?' display:none;':''; ?>">
                         <h4 style="margin-bottom:25px;">Configurações de Frete</h4>
+                        <div class="admin-form-group"><label for="store_postal_code">CEP de Origem da Loja</label><input type="text" id="store_postal_code" name="store_postal_code" value="<?php echo val('store_postal_code'); ?>" placeholder="00000-000" maxlength="9" oninput="this.value=this.value.replace(/\D/g,'').replace(/(\d{5})(\d)/,'$1-$2')"></div>
+                        <p style="color:var(--color-gray); font-size:0.85rem; margin-top:-10px;">CEP de onde os produtos são enviados. Usado para cálculo de frete no Melhor Envio.</p>
                         <div class="admin-form-group"><label for="free_shipping_threshold">Frete Grátis a partir de (R$)</label><input type="number" id="free_shipping_threshold" name="free_shipping_threshold" value="<?php echo val('free_shipping_threshold'); ?>" min="0" step="0.01"></div>
                         <p style="color:var(--color-gray); font-size:0.85rem; margin-top:-10px;">Valor mínimo do pedido para frete grátis. Deixe 0 para desabilitar.</p>
+                        <div class="admin-form-group"><label for="melhor_envio_table">Tabela Melhor Envio</label><select id="melhor_envio_table" name="melhor_envio_table"><option value="public" <?php echo sel('melhor_envio_table','public'); ?>>Pública (CPF)</option><option value="commercial" <?php echo sel('melhor_envio_table','commercial'); ?>>Comercial (MEI/PJ)</option></select></div>
+                        <p style="color:var(--color-gray); font-size:0.85rem; margin-top:-10px;">Mudança automática quando MEI ativo + token configurado.</p>
                     </div>
 
                     <!-- Segurança -->
