@@ -3,8 +3,17 @@ $page_title = 'Detalhe do Pedido - Royal Tech';
 include 'auth_check.php';
 include '../../database/connection.php';
 require_once __DIR__ . '/../../includes/status_labels.php';
+require_once __DIR__ . '/../../includes/comprovante.php';
 
 $orderId = (int) ($_GET['id'] ?? 0);
+
+// Resend comprovante email
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'resend') {
+    enviarComprovanteEmail($pdo, $orderId);
+    header('Location: order-detail.php?id=' . $orderId . '&sent=1');
+    exit;
+}
+
 $order = $pdo->prepare('SELECT o.*, u.name AS user_name, u.email AS user_email, u.postal_code, u.street, u.number, u.complement
     FROM e5_orders o INNER JOIN e5_users u ON u.id = o.user_id WHERE o.id = :id LIMIT 1');
 $order->execute([':id' => $orderId]);
@@ -70,7 +79,19 @@ $sinfo = $statusLabels[$order['status']] ?? ['label' => $order['status'], 'class
             </div>
 
             <div class="admin-table-container">
-                <div class="admin-table-header"><h3>Itens do Pedido</h3></div>
+                <div class="admin-table-header" style="display:flex; justify-content:space-between; align-items:center;">
+                    <h3>Itens do Pedido</h3>
+                    <?php if (($order['tax_regime_snapshot'] ?? 'CPF') === 'CPF' || empty($order['invoice_number'])): ?>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <a href="../comprovante.php?id=<?php echo $orderId; ?>" target="_blank" class="btn" style="background:var(--color-primary); color:#fff; padding:8px 16px; border-radius:6px; text-decoration:none; font-size:0.85rem;"><i class="fas fa-file-invoice"></i> Baixar</a>
+                        <a href="../comprovante.php?id=<?php echo $orderId; ?>&format=pdf" target="_blank" class="btn" style="background:#555; color:#fff; padding:8px 16px; border-radius:6px; text-decoration:none; font-size:0.85rem;"><i class="fas fa-file-pdf"></i> PDF</a>
+                        <form method="post" style="display:inline">
+                            <input type="hidden" name="action" value="resend">
+                            <button type="submit" class="btn" style="background:#2196f3; color:#fff; padding:8px 16px; border-radius:6px; font-size:0.85rem; border:none; cursor:pointer;"><i class="fas fa-envelope"></i> Reenviar E-mail</button>
+                        </form>
+                    </div>
+                    <?php endif; ?>
+                </div>
                 <table class="admin-table">
                     <thead>
                         <tr><th>Produto</th><th>Imagem</th><th>Preço Unit.</th><th>Qtd</th><th>Subtotal</th></tr>

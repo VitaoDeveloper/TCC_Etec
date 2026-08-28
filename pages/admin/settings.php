@@ -170,6 +170,220 @@ function sel($key, $val) { global $settings; return ($settings[$key] ?? '') === 
                     <!-- Pagamentos -->
                     <div class="admin-table-container" style="padding:30px;<?php echo $tab!=='pagamentos'?' display:none;':''; ?>">
                         <h4 style="margin-bottom:25px;">Configurações de Pagamento</h4>
+                        
+                        <!-- Gateway Selection -->
+                        <?php
+                        require_once __DIR__ . '/../../includes/gateways.php';
+                        $allGateways = gatewayGetAll();
+                        $activeGateway = gatewayGetActive();
+                        $gwMessage = null;
+                        
+                        // Handle gateway activation POST
+                        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['activate_gateway'])) {
+                            $targetGw = trim($_POST['activate_gateway']);
+                            $gwResult = gatewayActivate($pdo, $targetGw, (int)$_SESSION['user_id']);
+                            $gwMessage = $gwResult;
+                        }
+                        
+                        // Handle gateway credentials save POST
+                        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_gateway_credentials'])) {
+                            $gwName = trim($_POST['save_gateway_credentials']);
+                            $gwCreds = [
+                                'access_token' => trim($_POST['gw_access_token'] ?? ''),
+                                'public_key' => trim($_POST['gw_public_key'] ?? ''),
+                                'webhook_secret' => trim($_POST['gw_webhook_secret'] ?? ''),
+                            ];
+                            $gwResult = gatewaySaveCredentials($pdo, $gwName, $gwCreds);
+                            $gwMessage = $gwResult;
+                        }
+                        
+                        // Handle gateway test POST
+                        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['test_gateway'])) {
+                            $testGw = trim($_POST['test_gateway']);
+                            $testToken = trim($_POST['test_token'] ?? '');
+                            if (!empty($testToken)) {
+                                $gwHealth = gatewayHealthCheck($testGw, $testToken);
+                                $gwMessage = $gwHealth;
+                            } else {
+                                $gwMessage = ['success' => false, 'message' => 'Forneça um token para testar.'];
+                            }
+                        }
+                        
+                        // Handle gateway credential removal
+                        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_gateway_credentials'])) {
+                            $removeGw = trim($_POST['remove_gateway_credentials']);
+                            $keys = ['access_token', 'public_key', 'webhook_secret'];
+                            foreach ($keys as $key) {
+                                $fullKey = $removeGw . '_' . $key;
+                                $pdo->prepare('DELETE FROM e5_encrypted_settings WHERE setting_key = :k')->execute([':k' => $fullKey]);
+                                $pdo->prepare('DELETE FROM e5_settings WHERE setting_key = :k')->execute([':k' => $fullKey]);
+                            }
+                            $pdo->prepare('UPDATE e5_payment_gateways SET is_configured = 0 WHERE gateway_name = :n')->execute([':n' => $removeGw]);
+                            $gwMessage = ['success' => true, 'message' => 'Credenciais removidas.'];
+                        }
+                        
+                        $allGateways = gatewayGetAll();
+                        $activeGateway = gatewayGetActive();
+                        ?>
+                        
+                        <?php if ($gwMessage): ?>
+                        <div style="padding:12px 16px; border-radius:8px; margin-bottom:20px; background:<?php echo $gwMessage['success'] ? '#e8f5e9' : '#ffebee'; ?>; color:<?php echo $gwMessage['success'] ? '#2e7d32' : '#c62828'; ?>; border:1px solid <?php echo $gwMessage['success'] ? '#4caf50' : '#f44336'; ?>;">
+                            <?php echo htmlspecialchars($gwMessage['message'], ENT_QUOTES, 'UTF-8'); ?>
+                        </div>
+                        <?php endif; ?>
+
+                        <div style="margin-bottom:25px; padding:16px; background:rgba(255,152,0,0.1); border:1px solid rgba(255,152,0,0.3); border-radius:8px; font-size:0.9rem; color:#e65100;">
+                            <strong>Nota:</strong> A troca de gateway (Mercado Pago ↔ Asaas) é <strong>independente</strong> da migração de regime tributário (CPF ↔ MEI). São dois controles separados.
+                        </div>
+
+                        <h5 style="margin-bottom:15px; color:var(--color-primary);">Gateway Ativo</h5>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:30px;">
+                            <?php foreach ($allGateways as $gw): ?>
+                            <div style="border:2px solid <?php echo $gw['is_active'] ? 'var(--color-primary)' : 'var(--color-border)'; ?>; border-radius:10px; padding:20px; background:var(--color-bg-card); position:relative;">
+                                <?php if ($gw['is_active']): ?>
+                                <div style="position:absolute; top:10px; right:10px; background:var(--color-primary); color:#1a1a1a; padding:4px 10px; border-radius:12px; font-size:0.75rem; font-weight:700;">ATIVO</div>
+                                <?php endif; ?>
+                                <h4 style="margin:0 0 10px;"><i class="fas fa-<?php echo $gw['gateway_name'] === 'mercadopago' ? 'credit-card' : 'university'; ?>"></i> <?php echo htmlspecialchars($gw['display_name'], ENT_QUOTES, 'UTF-8'); ?></h4>
+                                <p style="color:var(--color-gray); font-size:0.85rem; margin-bottom:10px;">
+                                    Status: <?php echo $gw['is_configured'] ? '<span style="color:#4caf50;">✓ Configurado</span>' : '<span style="color:#f44336;">✗ Não configurado</span>'; ?>
+                                </p>
+                                <?php if ($gw['last_health_check']): ?>
+                                <p style="font-size:0.8rem; color:var(--color-gray);">
+                                    Último teste: <?php echo date('d/m/Y H:i', strtotime($gw['last_health_check'])); ?>
+                                    — <?php echo $gw['health_check_status'] === 'success' ? '<span style="color:#4caf50;">✓ OK</span>' : '<span style="color:#f44336;">✗ Falhou</span>'; ?>
+                                </p>
+                                <?php endif; ?>
+                                <p style="font-size:0.8rem; color:var(--color-gray); margin-bottom:15px;">
+                                    Suporta: <?php echo $gw['supports_cpf'] ? 'CPF ' : ''; ?><?php echo $gw['supports_cnpj'] ? 'CNPJ' : ''; ?>
+                                </p>
+                                
+                                <?php if (!$gw['is_active']): ?>
+                                <form method="POST" style="margin-bottom:10px;">
+                                    <?php echo csrf_field(); ?>
+                                    <button type="submit" name="activate_gateway" value="<?php echo htmlspecialchars($gw['gateway_name'], ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-primary" style="width:100%;">
+                                        <i class="fas fa-power-off"></i> Ativar este Gateway
+                                    </button>
+                                </form>
+                                <?php endif; ?>
+                                
+                                <details style="margin-top:10px;">
+                                    <summary style="cursor:pointer; color:var(--color-gray); font-size:0.85rem;">Credenciais</summary>
+                                    <form method="POST" style="margin-top:10px;">
+                                        <?php echo csrf_field(); ?>
+                                        <input type="hidden" name="save_gateway_credentials" value="<?php echo htmlspecialchars($gw['gateway_name'], ENT_QUOTES, 'UTF-8'); ?>">
+                                        <div class="admin-form-group">
+                                            <label style="font-size:0.8rem;">Access Token</label>
+                                            <input type="password" name="gw_access_token" placeholder="<?php echo $gw['is_configured'] ? '(manter atual)' : 'Cole o token aqui'; ?>" style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:4px;">
+                                        </div>
+                                        <div class="admin-form-group">
+                                            <label style="font-size:0.8rem;">Public Key</label>
+                                            <input type="password" name="gw_public_key" placeholder="(opcional)" style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:4px;">
+                                        </div>
+                                        <div class="admin-form-group">
+                                            <label style="font-size:0.8rem;">Webhook Secret</label>
+                                            <input type="password" name="gw_webhook_secret" placeholder="(opcional)" style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:4px;">
+                                        </div>
+                                        <div style="display:flex; gap:8px;">
+                                            <button type="submit" class="btn" style="background:var(--color-primary); color:#1a1a1a;">
+                                                <i class="fas fa-save"></i> Salvar
+                                            </button>
+                                            <?php if ($gw['is_configured']): ?>
+                                            <form method="POST" style="display:inline;">
+                                                <?php echo csrf_field(); ?>
+                                                <input type="hidden" name="remove_gateway_credentials" value="<?php echo htmlspecialchars($gw['gateway_name'], ENT_QUOTES, 'UTF-8'); ?>">
+                                                <button type="submit" class="btn" style="background:#f44336; color:#fff;">
+                                                    <i class="fas fa-trash"></i> Remover
+                                                </button>
+                                            </form>
+                                            <?php endif; ?>
+                                        </div>
+                                    </form>
+                                </details>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+
+                        <hr style="border:none; border-top:1px solid var(--color-border); margin:25px 0;">
+
+                        <h5 style="margin-bottom:15px; color:var(--color-primary);">Histórico de Trocas de Gateway</h5>
+                        <?php
+                        $gwHistory = gatewayGetChangeHistory($pdo, 10);
+                        if ($gwHistory):
+                        ?>
+                        <table class="admin-table">
+                            <thead><tr><th>Data</th><th>Admin</th><th>Mudança</th><th>IP</th></tr></thead>
+                            <tbody>
+                            <?php foreach ($gwHistory as $h): ?>
+                            <tr>
+                                <td><?php echo date('d/m/Y H:i', strtotime($h['created_at'])); ?></td>
+                                <td><?php echo htmlspecialchars($h['admin_name'] ?? '—', ENT_QUOTES, 'UTF-8'); ?></td>
+                                <td><?php echo htmlspecialchars(($h['config_before'] ?? '—') . ' → ' . ($h['config_after'] ?? '—'), ENT_QUOTES, 'UTF-8'); ?></td>
+                                <td><?php echo htmlspecialchars($h['ip_address'] ?? '—', ENT_QUOTES, 'UTF-8'); ?></td>
+                            </tr>
+                            <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                        <?php else: ?>
+                        <p style="color:var(--color-gray); font-size:0.9rem;">Nenhuma troca de gateway registrada.</p>
+                        <?php endif; ?>
+
+                        <hr style="border:none; border-top:1px solid var(--color-border); margin:25px 0;">
+
+                        <!-- Fee Source Verification -->
+                        <h5 style="margin-bottom:15px; color:var(--color-primary);">Taxas Documentadas</h5>
+                        <?php
+                        $feeRecords = $pdo->query('SELECT * FROM e5_gateway_fees ORDER BY gateway_name, document_type')->fetchAll();
+                        if ($feeRecords):
+                        ?>
+                        <table class="admin-table">
+                            <thead><tr><th>Gateway</th><th>Documento</th><th>Taxa</th><th>Fonte</th><th>Última Verificação</th><th>Status</th></tr></thead>
+                            <tbody>
+                            <?php foreach ($feeRecords as $fr): ?>
+                            <?php
+                            $daysAgo = $fr['last_verified_at'] ? (int)date_diff(date_create($fr['last_verified_at']), date_create())->format('%r%a') : null;
+                            $isOutdated = $daysAgo === null || $daysAgo > 90;
+                            ?>
+                            <tr style="<?php echo $isOutdated ? 'background:rgba(255,152,0,0.05);' : ''; ?>">
+                                <td><?php echo htmlspecialchars($fr['gateway_name'], ENT_QUOTES, 'UTF-8'); ?></td>
+                                <td><?php echo htmlspecialchars($fr['document_type'], ENT_QUOTES, 'UTF-8'); ?></td>
+                                <td><?php echo number_format($fr['fee_percentage'], 2, ',', '.'); ?>%</td>
+                                <td>
+                                    <?php if ($fr['source_url']): ?>
+                                    <a href="<?php echo htmlspecialchars($fr['source_url'], ENT_QUOTES, 'UTF-8'); ?>" target="_blank" rel="noopener" style="color:var(--color-primary); font-size:0.85rem;">
+                                        <?php echo htmlspecialchars($fr['source_url'], ENT_QUOTES, 'UTF-8'); ?>
+                                    </a>
+                                    <?php else: ?>
+                                    <span style="color:#f44336;">Sem URL de fonte</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if ($fr['last_verified_at']): ?>
+                                    <?php echo date('d/m/Y', strtotime($fr['last_verified_at'])); ?> (há <?php echo $daysAgo; ?> dias)
+                                    <?php else: ?>
+                                    <span style="color:#f44336;">Nunca verificado</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if ($isOutdated): ?>
+                                    <span style="background:#ff9800; color:#fff; padding:2px 8px; border-radius:10px; font-size:0.75rem;">⚠ Desatualizado</span>
+                                    <?php else: ?>
+                                    <span style="background:#4caf50; color:#fff; padding:2px 8px; border-radius:10px; font-size:0.75rem;">✓ Atual</span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                        <p style="color:var(--color-gray); font-size:0.8rem; margin-top:10px;">
+                            ⚠ Taxas são <strong>estimativas</strong>. Verifique periodicamente com a documentação oficial.
+                            Taxas desatualizadas há mais de 90 dias são sinalizadas automaticamente.
+                        </p>
+                        <?php else: ?>
+                        <p style="color:var(--color-gray); font-size:0.9rem;">Nenhuma taxa documentada encontrada.</p>
+                        <?php endif; ?>
+
+                        <hr style="border:none; border-top:1px solid var(--color-border); margin:25px 0;">
+
                         <div class="admin-form-group"><label for="pix_key">Chave Pix</label><input type="text" id="pix_key" name="pix_key" value="<?php echo val('pix_key'); ?>" placeholder="CNPJ, CPF, e-mail, telefone ou chave aleatória"></div>
                         <div class="admin-form-group"><label for="boleto_days">Vencimento do Boleto (dias)</label><input type="number" id="boleto_days" name="boleto_days" value="<?php echo val('boleto_days'); ?>" min="1" max="30"></div>
                     </div>

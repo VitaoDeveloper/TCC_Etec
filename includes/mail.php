@@ -11,7 +11,11 @@ function mailer(): \PHPMailer\PHPMailer\PHPMailer
         return $GLOBALS['mailer'];
     }
 
-    require_once __DIR__ . '/../vendor/autoload.php';
+    $autoload = __DIR__ . '/../vendor/autoload.php';
+    if (!file_exists($autoload)) {
+        throw new RuntimeException('PHPMailer não instalado: rode "composer install" (vendor/autoload.php ausente).');
+    }
+    require_once $autoload;
 
     $mail = new \PHPMailer\PHPMailer\PHPMailer(false);
     $mail->isSMTP();
@@ -50,8 +54,8 @@ function mailer(): \PHPMailer\PHPMailer\PHPMailer
 // Envia um e-mail HTML reaproveitando o cliente persistente.
 function sendMail(string $to, string $subject, string $body): bool
 {
-    $mail = mailer();
     try {
+        $mail = mailer();
         // Reset do estado por-mensagem; a conexão TCP permanece aberta.
         $mail->clearAllRecipients();
         $mail->clearReplyTos();
@@ -63,6 +67,7 @@ function sendMail(string $to, string $subject, string $body): bool
         $mail->AltBody = html_entity_decode($alt, ENT_QUOTES, 'UTF-8');
         return $mail->send();
     } catch (Throwable $e) {
+        error_log('Mail send failed: ' . $e->getMessage());
         return false;
     }
 }

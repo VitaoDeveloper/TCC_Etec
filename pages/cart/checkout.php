@@ -11,9 +11,12 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 require_once $base_path . 'database/connection.php';
-require_once $base_path . 'includes/cart_functions.php';
+require_once $base_path . '/includes/cart_functions.php';
 require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../includes/mail.php';
+require_once __DIR__ . '/../../includes/gateways.php';
+require_once __DIR__ . '/../../includes/config.php';
+require_once __DIR__ . '/../../includes/comprovante.php';
 
 $userId = (int) $_SESSION['user_id'];
 $items = cartGetItems($pdo, $userId);
@@ -23,13 +26,26 @@ if (empty($items)) {
     exit;
 }
 
+// Lock gateway at checkout start to prevent mid-checkout gateway switching
+$checkoutSessionId = session_id();
+if (!isset($_SESSION['checkout_gateway_locked'])) {
+    $activeGw = gatewayGetActive();
+    $taxRegime = store_config('tax_regime') ?: 'CPF';
+    $lockedGateway = $activeGw ? $activeGw['gateway_name'] : 'mercadopago';
+    gatewayLockForCheckout($checkoutSessionId, $lockedGateway, $taxRegime);
+    $_SESSION['checkout_gateway_locked'] = $lockedGateway;
+}
+$gatewayUsed = $_SESSION['checkout_gateway_locked'];
+
 $stmt = $pdo->prepare('SELECT * FROM e5_users WHERE id = :id LIMIT 1');
 $stmt->execute([':id' => $userId]);
 $user = $stmt->fetch();
 
 $subtotal = 0;
+$subtotalCents = 0;
 foreach ($items as $item) {
     $subtotal += (float) $item['price'] * (int) $item['quantity'];
+    $subtotalCents += (int) round((float) $item['price'] * 100) * (int) $item['quantity'];
 }
 
 // ponytail: simple CEP-based shipping, no external API call
@@ -75,8 +91,18 @@ $paymentMethods = [
     'delivery' => ['label' => 'Pagar na Entrega', 'icon' => 'fa-money-bill-wave', 'desc' => 'Pague ao receber (dinheiro ou cartão).'],
 ];
 
-$pixDiscount = $paymentMethod === 'pix' ? round($subtotal * 0.05, 2) : 0;
-$grandTotal = $subtotal + $shippingCost - $pixDiscount;
+$pixDiscount = 0;
+$grandTotal = 0.0;
+if ($paymentMethod === 'pix') {
+    // Cálculo em centavos (inteiros) para evitar divergência de float
+    $shippingCents = (int) round($shippingCost * 100);
+    $discountCents = (int) round($subtotalCents * 0.05);
+    $grandTotalCents = $subtotalCents + $shippingCents - $discountCents;
+    $pixDiscount = $discountCents / 100;
+    $grandTotal = $grandTotalCents / 100;
+} else {
+    $grandTotal = ( ($subtotalCents + (int) round($shippingCost * 100)) ) / 100;
+}
 
 $orderCreated = false;
 $orderId = null;
@@ -100,7 +126,11 @@ if ($isConfirming) {
         try {
             $pdo->beginTransaction();
 
-            $stmt = $pdo->prepare('INSERT INTO e5_orders (user_id, status, total, shipping_method, shipping_cost, payment_method, payment_status, shipping_postal_code, shipping_neighborhood, shipping_city, shipping_state) VALUES (:uid, :status, :total, :ship, :shipcost, :pay, :paystatus, :cep, :neigh, :city, :state)');
+            // Snapshot: gateway and tax regime at order creation time
+            $taxRegimeSnapshot = store_config('tax_regime') ?: 'CPF';
+            $gatewaySnapshot = $gatewayUsed ?? 'mercadopago';
+            
+            $stmt = $pdo->prepare('INSERT INTO e5_orders (user_id, status, total, shipping_method, shipping_cost, payment_method, gateway_used, payment_status, tax_regime_snapshot, shipping_postal_code, shipping_neighborhood, shipping_city, shipping_state) VALUES (:uid, :status, :total, :ship, :shipcost, :pay, :gateway, :paystatus, :regime, :cep, :neigh, :city, :state)');
             $stmt->execute([
                 ':uid' => $userId,
                 ':status' => 'pending',
@@ -108,7 +138,9 @@ if ($isConfirming) {
                 ':ship' => $shippingOptions ? ($shippingOptions[$selectedShipping]['method'] ?? null) : null,
                 ':shipcost' => $shippingCost,
                 ':pay' => $paymentMethod,
+                ':gateway' => $gatewaySnapshot,
                 ':paystatus' => $paymentMethod === 'delivery' ? 'pending' : ($paymentMethod === 'pix' ? 'paid' : 'pending'),
+                ':regime' => $taxRegimeSnapshot,
                 ':cep' => $shippingCep,
                 ':neigh' => null,
                 ':city' => null,
@@ -166,11 +198,30 @@ if ($isConfirming) {
             }
             $payMethod = ['pix'=>'Pix','boleto'=>'Boleto','credit'=>'Cartão','delivery'=>'Entrega'];
             $body = '<h2>Pedido Confirmado!</h2><p>Olá ' . htmlspecialchars($user['name'] ?? '', ENT_QUOTES, 'UTF-8') . ',</p><p>Seu pedido #' . str_pad((string)$orderId, 4, '0', STR_PAD_LEFT) . ' foi criado com sucesso.</p><table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;width:100%;"><thead><tr bgcolor="#d4af37"><th>Produto</th><th>Qtd</th><th>Preço</th></tr></thead><tbody>' . $itemsHtml . '</tbody></table><p><strong>Total:</strong> R$ ' . number_format($grandTotal, 2, ',', '.') . '</p><p><strong>Pagamento:</strong> ' . ($payMethod[$paymentMethod] ?? $paymentMethod) . '</p><p><strong>Frete:</strong> ' . htmlspecialchars($shippingOptions[$selectedShipping]['method'] ?? '—', ENT_QUOTES, 'UTF-8') . '</p><p><a href="https://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/TCC_Etec/pages/auth/orders.php" style="display:inline-block;padding:12px 30px;background:#d4af37;color:#1a1a1a;text-decoration:none;font-weight:700;border-radius:30px;">Ver Meus Pedidos</a></p>';
-            sendMail($user['email'], 'Pedido #' . str_pad((string)$orderId, 4, '0', STR_PAD_LEFT) . ' Confirmado - Royal Tech', $body);
         } catch (Throwable $e) {
-            $pdo->rollBack();
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
             $errorMessage = 'Erro ao processar pedido. Tente novamente.';
             error_log('Checkout error: ' . $e->getMessage());
+        }
+
+        if ($orderCreated) {
+            // Gerar comprovante de compra (HTML + PDF)
+            try {
+                $comp = gerarComprovanteCompra($pdo, $orderId, true);
+                $compNumero = $comp['numero'];
+            } catch (Throwable $e) {
+                error_log('Comprovante generation failed: ' . $e->getMessage());
+                $compNumero = null;
+            }
+
+            // Enviar e-mail com comprovante + PDF anexado
+            try {
+                enviarComprovanteEmail($pdo, $orderId);
+            } catch (Throwable $e) {
+                error_log('Checkout comprovante email failed: ' . $e->getMessage());
+            }
         }
     }
 }

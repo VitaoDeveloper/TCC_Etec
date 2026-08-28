@@ -13,9 +13,16 @@ if (!isset($_SESSION['user_id'])) {
 include '../../database/connection.php';
 require_once $base_path . 'includes/csrf.php';
 require_once $base_path . 'includes/status_labels.php';
+require_once $base_path . 'includes/comprovante.php';
 $userId = (int) $_SESSION['user_id'];
 $orderId = (int) ($_GET['id'] ?? 0);
 $message = null;
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'resend') {
+    csrf_require_valid();
+    enviarComprovanteEmail($pdo, $orderId);
+    $message = 'Comprovante reenviado por e-mail.';
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'cancel') {
     csrf_require_valid();
@@ -112,6 +119,15 @@ include '../../components/header.php';
         <?php endif; ?>
         <div style="margin-top:20px; display:flex; gap:12px; flex-wrap:wrap;">
             <a href="orders.php" class="ml-btn"><i class="fas fa-arrow-left"></i> Voltar</a>
+            <?php if (($order['tax_regime_snapshot'] ?? 'CPF') === 'CPF' || empty($order['invoice_number'])): ?>
+            <a href="../comprovante.php?id=<?php echo $orderId; ?>" target="_blank" class="ml-btn ml-btn-primary"><i class="fas fa-file-invoice"></i> Baixar Comprovante de Compra</a>
+            <a href="../comprovante.php?id=<?php echo $orderId; ?>&format=pdf" target="_blank" class="ml-btn"><i class="fas fa-file-pdf"></i> Baixar PDF</a>
+            <form method="post" style="display:inline">
+                <?php csrf_field(); ?>
+                <input type="hidden" name="action" value="resend">
+                <button type="submit" class="ml-btn"><i class="fas fa-envelope"></i> Reenviar por E-mail</button>
+            </form>
+            <?php endif; ?>
             <?php if ($order['status'] === 'pending'): ?>
             <form method="post" style="display:inline" onsubmit="return confirm('Tem certeza que deseja cancelar este pedido?')">
                 <?php csrf_field(); ?>

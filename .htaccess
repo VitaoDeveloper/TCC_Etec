@@ -21,8 +21,13 @@ RedirectMatch 403 ^/nul$
 # Desligar listagem de diretórios
 Options -Indexes
 
-# Bloquear acesso a arquivos ocultos
+# Bloquear acesso a arquivos ocultos (incluindo .encryption_key)
 RedirectMatch 403 /\..*$
+
+# Proteção adicional para arquivo de criptografia
+<Files ".encryption_key">
+    Require all denied
+</Files>
 
 # Headers de segurança
 <IfModule mod_headers.c>
