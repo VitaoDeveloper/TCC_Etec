@@ -63,7 +63,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $finalImagePath = $imagePathInput;
-            if (isset($_FILES['product_image']) && is_uploaded_file($_FILES['product_image']['tmp_name'])) {
+
+            $hasFile = isset($_FILES['product_image']);
+            $uploadError = $hasFile ? (int) $_FILES['product_image']['error'] : UPLOAD_ERR_NO_FILE;
+            $hasUploadAttempt = $uploadError !== UPLOAD_ERR_NO_FILE;
+
+            if ($hasUploadAttempt) {
+                if ($uploadError !== UPLOAD_ERR_OK) {
+                    throw new RuntimeException(uploadErrorMessage($uploadError));
+                }
+
+                if ((int) $_FILES['product_image']['size'] > 2097152) {
+                    throw new RuntimeException('A imagem deve ter no máximo 2MB.');
+                }
+
                 $uploadDirAbsolute = realpath(__DIR__ . '/../../assets/img');
                 if ($uploadDirAbsolute === false) {
                     throw new RuntimeException('Diretório de imagens não encontrado.');

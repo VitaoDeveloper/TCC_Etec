@@ -24,7 +24,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 $finalImagePath = $imageUrlInput;
 
-                if (isset($_FILES['banner_image']) && is_uploaded_file($_FILES['banner_image']['tmp_name'])) {
+                $hasFile = isset($_FILES['banner_image']);
+                $uploadError = $hasFile ? (int) $_FILES['banner_image']['error'] : UPLOAD_ERR_NO_FILE;
+                $hasUploadAttempt = $uploadError !== UPLOAD_ERR_NO_FILE;
+
+                if ($hasUploadAttempt) {
+                    if ($uploadError !== UPLOAD_ERR_OK) {
+                        throw new RuntimeException(uploadErrorMessage($uploadError));
+                    }
+
+                    if ((int) $_FILES['banner_image']['size'] > 2097152) {
+                        throw new RuntimeException('A imagem deve ter no máximo 2MB.');
+                    }
+
                     $uploadDirAbsolute = realpath(__DIR__ . '/../../assets/img');
                     if ($uploadDirAbsolute === false) {
                         throw new RuntimeException('Diretório de imagens não encontrado.');
@@ -220,9 +232,10 @@ if (isset($_GET['edit'])) {
                     } elseif ($imgPath !== '') {
                         $imgUrl = '../../' . ltrim($imgPath, '/');
                     }
+                    $imgAvailable = imageAvailable($imgPath);
                     ?>
                     <div style="height:180px; background:#1a1a1a; display:flex; align-items:center; justify-content:center; overflow:hidden; position:relative;">
-                        <?php if ($imgUrl && file_exists(str_replace('../../', __DIR__ . '/../../', $imgUrl))): ?>
+                        <?php if ($imgUrl && $imgAvailable): ?>
                         <img src="<?php echo htmlspecialchars($imgUrl, ENT_QUOTES, 'UTF-8'); ?>"
                              alt="<?php echo htmlspecialchars($b['title'], ENT_QUOTES, 'UTF-8'); ?>"
                              style="width:100%; height:100%; object-fit:cover;">
