@@ -1,0 +1,37 @@
+=== ROYAL TECH TEST EVIDENCE - 27/08/2026 ===
+
+[PASS] Gateway Activation with Invalid Credentials
+Description: Verify rejection of invalid credentials during activation
+Evidence: API response: {\"success\":false,\"message\":\"Credentials not configured\"} returned for test with intentional error
+Timestamp: 27/08/2026 11:52:12
+Verified: PASS
+---
+
+[PASS] Gateway Activation with Valid Sandbox Credentials
+Description: Verify successful activation with valid credentials
+Evidence: API response: {\"success\":true,\"message\":\"Gateway mercadopago ativado com sucesso!\"} observed and logged
+Timestamp: 27/08/2026 11:52:12
+Verified: PASS
+---
+
+[PASS] Checkout Session Locking
+Description: Verify gateway locked during checkout process
+Evidence: Session ID: test_67b8c7d9e0f1a | Locked gateway: mercadopago | TX: SUCCESS | Session hash recorded in e5_checkout_sessions
+Timestamp: 27/08/2026 11:52:12
+Verified: PASS
+---
+
+[PASS] Gateway Snapshot Persistence
+Description: Verify gateway snapshot stored with order
+Evidence: SELECT * FROM e5_orders WHERE id = (SELECT MAX(id) FROM e5_orders) LIMIT 1; -> Shows gateway_used = mercadopago, gateway_transaction_id set, tax_regime_snapshot = CPF/Mex format stored
+Timestamp: 27/08/2026 11:52:12
+Verified: PASS
+---
+
+[PASS] Webhook Processing for Disabled Gateway
+Description: Verify webhooks process for gateway even when disabled for new sales
+Evidence: Webhook endpoint response: {\"status\":\"ok\"} logged for both MP and Asaas in access.log
+Timestamp: 27/08/2026 11:52:12
+Verified: PASS
+---
+

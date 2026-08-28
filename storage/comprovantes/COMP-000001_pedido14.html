@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Comprovante de Compra COMP-000001 — Royal Tech</title>
+<style>
+  @media print {
+    body { margin: 0; }
+    .no-print { display: none !important; }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Segoe UI", Arial, sans-serif; background: #f5f5f5; color: #333; }
+  .container { max-width: 700px; margin: 30px auto; background: #fff; border-radius: 10px; box-shadow: 0 2px 12px rgba(0,0,0,.08); overflow: hidden; }
+  .header { background: #1a1a1a; color: #d4af37; padding: 30px; text-align: center; }
+  .header h1 { font-size: 1.5rem; letter-spacing: 2px; margin-bottom: 4px; }
+  .header .numero { font-size: 0.9rem; color: #ccc; }
+  .disclaimer { background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px 20px; font-size: 0.85rem; color: #856404; margin: 20px 24px 0; border-radius: 4px; }
+  .section { padding: 20px 24px; }
+  .section h2 { font-size: 0.95rem; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 6px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid p { font-size: 0.9rem; line-height: 1.5; }
+  .grid .label { color: #999; font-size: 0.8rem; text-transform: uppercase; }
+  table.items { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  table.items th { background: #f9f9f9; padding: 10px 12px; text-align: left; font-size: 0.8rem; color: #888; text-transform: uppercase; }
+  table.items th:nth-child(2), table.items th:nth-child(3), table.items th:nth-child(4) { text-align: right; }
+  .totals { padding: 16px 24px; border-top: 2px solid #eee; }
+  .totals table { width: 100%; }
+  .totals td { padding: 6px 0; font-size: 0.95rem; }
+  .totals .total-row td { font-size: 1.1rem; font-weight: 700; color: #1a1a1a; border-top: 2px solid #1a1a1a; padding-top: 10px; }
+  .footer { background: #f9f9f9; padding: 20px 24px; font-size: 0.8rem; color: #888; text-align: center; border-top: 1px solid #eee; }
+  .btn-print { display: inline-block; margin: 20px auto; padding: 10px 24px; background: #d4af37; color: #1a1a1a; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.95rem; }
+  .btn-print:hover { background: #c9a22e; }
+  .actions { text-align: center; padding: 10px 24px 24px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <h1>COMPROVANTE DE COMPRA</h1>
+    <div class="numero">COMP-000001</div>
+  </div>
+
+  <div class="disclaimer">
+    <strong>Este documento não possui valor fiscal e não substitui a Nota Fiscal Eletrônica.</strong><br>
+    Comprovante de compra válido como recibo de transação entre as partes.
+  </div>
+
+  <div class="section">
+    <h2>Dados da Compra</h2>
+    <div class="grid">
+      <div>
+        <p><span class="label">Número do Pedido</span><br><strong>#0014</strong></p>
+        <p style="margin-top:8px;"><span class="label">Data da Compra</span><br>27/08/2026 às 21:17</p>
+        <p style="margin-top:8px;"><span class="label">Forma de Pagamento</span><br>Pix</p>
+      </div>
+      <div>
+        <p><span class="label">Status do Pedido</span><br>Pending</p>
+        <p style="margin-top:8px;"><span class="label">Status do Pagamento</span><br><span style="color:#2e7d32;">Pago</span></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Itens</h2>
+    <table class="items">
+      <thead>
+        <tr>
+          <th>Produto</th>
+          <th>Qtd</th>
+          <th>Preço Unit.</th>
+          <th>Subtotal</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+            <td style="padding:10px 12px; border-bottom:1px solid #e0e0e0;">Notebook Nitro V15 i7 <small style="color:#777;">(Acer)</small></td>
+            <td style="padding:10px 12px; border-bottom:1px solid #e0e0e0; text-align:center;">1</td>
+            <td style="padding:10px 12px; border-bottom:1px solid #e0e0e0; text-align:right;">R$ 4.899,99</td>
+            <td style="padding:10px 12px; border-bottom:1px solid #e0e0e0; text-align:right; font-weight:600;">R$ 4.899,99</td>
+        </tr></tbody>
+    </table>
+  </div>
+
+  <div class="totals">
+    <table><tr><td style="padding:8px 12px; color:#555;">Frete</td><td style="text-align:right; padding:8px 12px; color:#2e7d32;">Grátis</td></tr><tr><td style="padding:8px 12px; color:#2e7d32;">Desconto Pix (5%)</td><td style="text-align:right; padding:8px 12px; color:#2e7d32;">− R$ 245,00</td></tr>
+      <tr class="total-row">
+        <td>Total</td>
+        <td style="text-align:right;">R$ 4.654,99</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>Endereço de Entrega</h2>
+    <p style="font-size:0.9rem; line-height:1.6;">Cliente TCC<br>Av Paulista, 1000<br>/<br>CEP: 01310-100</p>
+  </div>
+
+  <div class="section">
+    <h2>Vendedor</h2>
+    <p style="font-size:0.9rem; line-height:1.6;">
+      <strong>Royal Tech</strong><br>contato@royaltech.com.br<br>Av. Paulista, 1000 - São Paulo, SP</p>
+  </div>
+
+  <div class="actions no-print">
+    <button class="btn-print" onclick="window.print();"><i class="fas fa-print"></i> Imprimir / Salvar PDF</button>
+  </div>
+
+  <div class="footer">
+    COMP-000001 — Royal Tech<br>
+    Gerado em 28/08/2026 às 02:17:06<br>
+    <em>Este documento não possui valor fiscal e não substitui a Nota Fiscal Eletrônica.</em>
+  </div>
+
+</div>
+</body>
+</html>
