@@ -492,6 +492,15 @@ Sistema de cupons implementado em `includes/coupons.php`.
 - **Campo no pedido**: `e5_orders.coupon_code` grava o código aplicado.
 - **UI**: Campo de cupom no checkout (Etapa 3, antes do botão confirmar), com validação inline e desconto visível no resumo.
 
+## Recuperação de Carrinho Abandonado
+
+Script cron em `pages/cart/abandoned-cart-cron.php`:
+
+- Identifica usuários com itens no carrinho (`e5_cart`) cuja primeira inserção tem mais de 24h sem pedido associado.
+- Envia e-mail HTML com lista de itens, total e link direto para retomar a compra.
+- Uso: `php pages/cart/abandoned-cart-cron.php` (pode ser agendado via crontab).
+- Requer infraestrutura de e-mail funcional (Mailpit em dev, SMTP em prod).
+
 Migrations existentes:
 
 - `database/migrations/001_add_seller_profile_and_tax_regime.sql`.
