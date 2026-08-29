@@ -18,15 +18,15 @@
                         </div>
                     </div>
                     
-                    <div class="footer-col">
-                        <h4>Institucional</h4>
-                        <ul>
-                            <li><a href="<?php echo $base_path ?? ''; ?>pages/products/about.php">Sobre Nós</a></li>
-                            <li><a href="#">Trabalhe Conosco</a></li>
-                            <li><a href="#">Termos de Uso</a></li>
-                            <li><a href="#">Política de Privacidade</a></li>
-                        </ul>
-                    </div>
+<div class="footer-col">
+                         <h4>Institucional</h4>
+                         <ul>
+                             <li><a href="<?php echo $base_path ?? ''; ?>pages/products/about.php">Sobre Nós</a></li>
+                             <li><a href="#">Trabalhe Conosco</a></li>
+                             <li><a href="<?php echo htmlspecialchars($base_path ?? '', ENT_QUOTES, 'UTF-8'); ?>pages/terms-of-service.php">Termos de Uso</a></li>
+                             <li><a href="<?php echo htmlspecialchars($base_path ?? '', ENT_QUOTES, 'UTF-8'); ?>pages/privacy-policy.php">Política de Privacidade</a></li>
+                         </ul>
+                     </div>
                     
                     <div class="footer-col">
                         <h4>Atendimento</h4>

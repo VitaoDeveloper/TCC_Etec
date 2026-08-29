@@ -66,8 +66,12 @@ unset($_SESSION['auth_errors'], $_SESSION['auth_old']);
           <div class="auth-field"><label class="auth-label" for="number">Número</label><div class="auth-input-wrap"><input type="text" id="number" name="number" inputmode="numeric" pattern="[0-9]{1,6}" maxlength="6" value="<?php echo htmlspecialchars($old['number'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" required></div></div>
           <div class="auth-field"><label class="auth-label" for="complement">Complemento (Apto, etc)</label><div class="auth-input-wrap"><input type="text" id="complement" name="complement" value="<?php echo htmlspecialchars($old['complement'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"></div></div>
           <div class="auth-field"><label class="auth-label" for="senha">Senha</label><div class="auth-input-wrap"><input type="password" id="senha" name="password" required minlength="8"><button type="button" class="password-toggle" id="togglePassword" aria-label="Mostrar ou ocultar senha"><i class="fas fa-eye"></i></button></div></div>
-          <div class="auth-field"><label class="auth-label" for="confirm_senha">Confirmar senha</label><div class="auth-input-wrap"><input type="password" id="confirm_senha" required></div></div>
-          <button type="submit" class="auth-submit"><i class="fas fa-user-plus"></i> Cadastrar</button>
+<div class="auth-field"><label class="auth-label" for="confirm_senha">Confirmar senha</label><div class="auth-input-wrap"><input type="password" id="confirm_senha" required></div></div>
+           <div class="auth-field">
+               <input type="checkbox" id="privacy_accepted" name="privacy_accepted" required>
+               <label for="privacy_accepted">Li e aceito a Política de Privacidade e os Termos de Uso</label>
+           </div>
+           <button type="submit" class="auth-submit"><i class="fas fa-user-plus"></i> Cadastrar</button>
         </form>
 
         <div class="auth-alt">Já possui uma conta? <a href="login.php">Faça login</a></div>

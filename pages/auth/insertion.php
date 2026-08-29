@@ -26,6 +26,7 @@ $street = trim((string) filter_input(INPUT_POST, 'street'));
 $numberRaw = trim((string) filter_input(INPUT_POST, 'number'));
 $number = preg_match('/^\d{1,6}$/', $numberRaw) ? (int) $numberRaw : 0;
 $complement = trim((string) filter_input(INPUT_POST, 'complement')) ?: null;
+$privacyAccepted = isset($_POST['privacy_accepted']) ? 1 : 0;
 
 $_SESSION['auth_old'] = [
     'name' => $name,
@@ -45,6 +46,7 @@ if (strlen($password) < 8) $errors[] = 'Senha deve ter no mínimo 8 caracteres.'
 if (!preg_match('/^\d{5}-?\d{3}$/', $postalCode)) $errors[] = 'CEP inválido. Use o formato 00000-000.';
 if (mb_strlen($street) < 4) $errors[] = 'Rua deve conter pelo menos 4 caracteres.';
 if ($number <= 0) $errors[] = 'Número deve ser maior que zero.';
+if (!$privacyAccepted) $errors[] = 'Você precisa aceitar a Política de Privacidade e os Termos de Uso.';
 
 if (!empty($errors)) {
     $_SESSION['auth_errors'] = $errors;
@@ -52,7 +54,7 @@ if (!empty($errors)) {
     exit;
 }
 
-$sql = 'INSERT INTO e5_users (name, email, username, password, postal_code, street, number, complement) VALUES (:name, :email, :username, :password, :postal_code, :street, :number, :complement)';
+$sql = 'INSERT INTO e5_users (name, email, username, password, postal_code, street, number, complement, privacy_accepted_at) VALUES (:name, :email, :username, :password, :postal_code, :street, :number, :complement, NOW())';
 
 try {
     $stmt = $pdo->prepare($sql);
