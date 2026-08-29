@@ -227,6 +227,7 @@ function paymentProcessCreditCard(array $cardData, float $amount, string $orderI
     $items = $cardData['items'] ?? [];
 
     if ($gatewayName === 'mercadopago') {
+        $customer['card_brand'] = $cardData['card_brand'] ?? 'visa';
         return paymentMercadoPagoCreatePayment($amount, $orderId, $items, $customer, $token, $installments);
     }
     if ($gatewayName === 'asaas') {
@@ -311,18 +312,22 @@ function paymentGetMigrationChecklist(PDO $pdo): array
 }
 
 /**
- * Mercado Pago — Checkout Transparente (pagamento com cartão)
+ * Mercado Pago — Checkout Transparente via API de Orders
  *
- * Docs: https://www.mercadopago.com.br/developers/en/docs/checkout-transparente/landing
+ * Docs: https://www.mercadopago.com.br/developers/pt/docs/checkout-api-orders/overview
+ * Ref:  https://www.mercadopago.com.br/developers/pt/reference/orders/_orders/post
  *
  * Fluxo:
  *  1. Front-end usa JS SDK do MP para tokenizar o cartão (nunca envia número ao servidor).
- *  2. Este servidor envia o token + dados para POST /v1/payments com o access_token.
- *  3. Se aprovado, retorna status=approved; senão, status=rejected com detalhes.
+ *  2. Este servidor envia o token + dados para POST /v1/orders com o access_token.
+ *  3. A API de Orders retorna status=processed/status_detail=accredited quando aprovado.
+ *
+ * Observação: A API de Orders exige X-Idempotency-Key e estrutura diferente da API legada
+ * de pagamentos (/v1/payments). transactions é um objeto com sub-array payments[].
  *
  * @param float  $amount        Valor total (R$)
  * @param string $orderId       ID interno do pedido (external_reference)
- * @param array  $items         Itens do pedido [['title', 'quantity', 'unit_price']]
+ * @param array  $items         Itens do pedido [['title', 'quantity', 'unit_price', ...]]
  * @param array  $customer      ['name', 'email', 'cpf' => '00000000000']
  * @param string $cardToken     Token gerado pelo JS SDK do MP
  * @param int    $installments  Parcelas
@@ -333,67 +338,96 @@ function paymentMercadoPagoCreatePayment(float $amount, string $orderId, array $
     if (empty($accessToken)) {
         return ['success' => false, 'message' => 'Access token do Mercado Pago não configurado.', 'data' => null];
     }
-
-    $sandboxMode = (bool) store_config('mercadopago_sandbox') ?: true;
-    $baseUrl = $sandboxMode
-        ? 'https://api.mercadopago.com'
-        : 'https://api.mercadopago.com';
-
-    $payload = [
-        'transaction_amount' => round($amount, 2),
-        'token'              => $cardToken,
-        'description'        => 'Pedido #' . $orderId,
-        'installments'       => $installments,
-        'payment_method_id'  => 'visa', // Will be overwritten by MP from token
-        'external_reference' => $orderId,
-        'payer' => [
-            'email' => $customer['email'] ?? '',
-            'first_name' => $customer['name'] ?? '',
-            'identification' => [
-                'type'   => 'CPF',
-                'number' => preg_replace('/\D/', '', $customer['cpf'] ?? ''),
-            ],
-        ],
-    ];
-
-    // Item details
-    if (!empty($items)) {
-        $payload['additional_info'] = [
-            'items' => array_map(function ($item) {
-                return [
-                    'id'          => $item['id'] ?? '',
-                    'title'       => $item['title'] ?? '',
-                    'description' => $item['description'] ?? '',
-                    'quantity'    => (int) ($item['quantity'] ?? 1),
-                    'unit_price'  => (float) ($item['unit_price'] ?? 0),
-                ];
-            }, $items),
-        ];
+    if (empty($cardToken)) {
+        return ['success' => false, 'message' => 'Token do cartão ausente. Verifique o formulário de pagamento.', 'data' => null];
     }
 
-    $result = paymentGatewayCurl($baseUrl . '/v1/payments', $payload, $accessToken);
+    $baseUrl = 'https://api.mercadopago.com';
+    $cpf = preg_replace('/\D/', '', $customer['cpf'] ?? '');
+    $nameParts = explode(' ', trim($customer['name'] ?? ''), 2);
+    $firstName = $nameParts[0] ?? 'Comprador';
+    $lastName = !empty($nameParts[1]) ? $nameParts[1] : ' Cliente';
+
+    // Card brand from checkout JS (passed via $customer) or default to 'visa'
+    $cardBrand = $customer['card_brand'] ?? 'visa';
+
+    $payload = [
+        'type'               => 'online',
+        'external_reference' => $orderId,
+        'total_amount'       => (string) round($amount, 2),
+        'transactions'       => [
+            'payments' => [
+                [
+                    'payment_method' => [
+                        'id'                     => $cardBrand,
+                        'type'                   => 'credit_card',
+                        'token'                  => $cardToken,
+                        'installments'           => $installments,
+                        'statement_descriptor'   => 'ROYALTECH',
+                    ],
+                    'amount' => (string) round($amount, 2),
+                ],
+            ],
+        ],
+        'payer' => [
+            'email'      => $customer['email'] ?? '',
+            'first_name' => $firstName,
+            'last_name'  => $lastName,
+            'identification' => [
+                'type'   => 'CPF',
+                'number' => $cpf,
+            ],
+            'address' => [
+                'zip_code'      => '01310100',
+                'street_name'   => 'Av. Paulista',
+                'street_number' => '1000',
+                'neighborhood'  => 'Bela Vista',
+                'city'          => 'Sao Paulo',
+                'state'         => 'SP',
+            ],
+        ],
+        'items' => array_map(function ($item) {
+            return [
+                'title'       => $item['title'] ?? 'Produto',
+                'description' => $item['description'] ?? ($item['title'] ?? ''),
+                'unit_price'  => (string) round((float) ($item['unit_price'] ?? 0), 2),
+                'quantity'    => (int) ($item['quantity'] ?? 1),
+                'category_id' => 'electronic',
+            ];
+        }, $items),
+    ];
+
+    $result = paymentGatewayCurl($baseUrl . '/v1/orders', $payload, $accessToken, 'POST', [
+        'X-Idempotency-Key: ' . 'order_' . $orderId,
+    ]);
 
     if ($result['success']) {
         $data = $result['data'];
-        $status = $data['status'] ?? 'rejected';
+        $orderStatus = $data['status'] ?? 'rejected';
+        $pmt = $data['transactions']['payments'][0] ?? [];
+        $pmtStatus = $pmt['status'] ?? 'rejected';
+        $pmtDetail = $pmt['status_detail'] ?? '';
+        $approved = $orderStatus === 'processed' && in_array($pmtStatus, ['processed', 'approved']);
+
         return [
-            'success' => $status === 'approved',
-            'message' => $status === 'approved'
+            'success' => $approved,
+            'message' => $approved
                 ? 'Pagamento aprovado pelo Mercado Pago!'
-                : 'Pagamento ' . $status . ': ' . ($data['status_detail'] ?? ''),
+                : 'Pagamento ' . $orderStatus . '/' . $pmtStatus . ': ' . $pmtDetail,
             'data'    => [
-                'status'            => $status,
-                'status_detail'     => $data['status_detail'] ?? '',
+                'status'            => $pmtStatus,
+                'status_detail'     => $pmtDetail,
                 'transaction_id'    => $data['id'] ?? null,
+                'payment_id'        => $pmt['id'] ?? null,
                 'external_reference'=> $data['external_reference'] ?? $orderId,
-                'payment_method_id' => $data['payment_method_id'] ?? null,
-                'installments'      => $data['installments'] ?? $installments,
-                'total_paid_amount' => $data['transaction_details']['total_paid_amount'] ?? $amount,
+                'payment_method_id' => $pmt['payment_method']['id'] ?? null,
+                'installments'      => $installments,
+                'total_paid_amount' => (float) ($data['total_paid_amount'] ?? $amount),
             ],
         ];
     }
 
-    return ['success' => false, 'message' => $result['message'], 'data' => null];
+    return ['success' => false, 'message' => $result['message'] ?? 'Erro desconhecido.', 'data' => null];
 }
 
 /**
@@ -599,14 +633,14 @@ function paymentGatewayGetAccessToken(string $gatewayName): string
  * @param string       $method   'POST' (default) or 'GET'
  * @return array ['success' => bool, 'data' => ?array, 'message' => string, 'raw' => ?string]
  */
-function paymentGatewayCurl(string $url, ?array $payload, string $accessToken, string $method = 'POST'): array
+function paymentGatewayCurl(string $url, ?array $payload, string $accessToken, string $method = 'POST', array $extraHeaders = []): array
 {
     $ch = curl_init();
-    $headers = [
+    $headers = array_merge([
         'Content-Type: application/json',
         'Authorization: Bearer ' . $accessToken,
         'Accept: application/json',
-    ];
+    ], $extraHeaders);
 
     curl_setopt_array($ch, [
         CURLOPT_URL            => $url,
@@ -639,8 +673,15 @@ function paymentGatewayCurl(string $url, ?array $payload, string $accessToken, s
         return ['success' => true, 'data' => $data, 'message' => 'OK', 'raw' => $raw];
     }
 
-    $errorMsg = $data['message'] ?? $data['error_description'] ?? $data['detail'] ?? ('HTTP ' . $httpCode);
-    return ['success' => false, 'data' => $data, 'message' => $errorMsg, 'raw' => $raw];
+    $errorMsg = $data['message'] ?? $data['error_description'] ?? $data['detail'] ?? null;
+    if (!$errorMsg && !empty($data['errors'])) {
+        $firstError = $data['errors'][0];
+        $errorMsg = ($firstError['code'] ?? '') . ': ' . ($firstError['message'] ?? '');
+        if (!empty($firstError['details'])) {
+            $errorMsg .= ' (' . implode('; ', (array) $firstError['details']) . ')';
+        }
+    }
+    return ['success' => false, 'data' => $data, 'message' => $errorMsg ?? ('HTTP ' . $httpCode), 'raw' => $raw];
 }
 
 /**

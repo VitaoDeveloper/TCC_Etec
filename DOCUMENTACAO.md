@@ -738,6 +738,7 @@ O projeto possui template de Pull Request em `.github/PULL_REQUEST_TEMPLATE.md` 
 - Checkout usando frete oficial: ✅ CONECTADO (`shippingCalculate`).
 - Validação de CEP: ✅ RIGOROSA (8 dígitos + ViaCEP).
 - Pix real: ✅ **BR CODE EMV VÁLIDO + QR CODE PNG** (estático/manual; `payment_status=pending`).
+- **Cartão de crédito (API de Orders):** ✅ **PAGAMENTO APROVADO EM SANDBOX** — Pedido #27, `payment_status=paid`, `gateway_transaction_id=ORDTST...`. Integração usa a API de Orders do Mercado Pago (não a API legada `/v1/payments`). Documentação oficial: https://www.mercadopago.com.br/developers/pt/docs/checkout-api-orders/overview
 - Comprovante + E-mail: ✅ PDF GERADO + ANEXO ENVIADO (Mailpit confirmado).
 - Segurança: ⚠️ Chave criptografia hardcoded (revise), webhooks (validar specs).
 - Próximo passo crítico: **Criar conta Melhor Envio + gerar token + configurar no admin**.
@@ -816,20 +817,23 @@ FROM e5_orders ORDER BY id DESC LIMIT 1;
 
 Esperado: `payment_status = 'paid'` e `gateway_transaction_id` preenchido com o ID do pagamento no Mercado Pago.
 
-### Fluxo técnico do Checkout Transparente
+### Fluxo técnico do Checkout Transparente (API de Orders)
 
 ```
 Front-end (JS SDK)          Servidor (PHP)                    API Mercado Pago
 ─────────────────          ──────────────                    ────────────────
 1. JS SDK tokeniza     →
    o cartão com a           paymentProcessCreditCard()
-   public key TEST-xxx      → paymentMercadoPagoCreatePayment()
+   public key APP_USR-xxx   → paymentMercadoPagoCreatePayment()
                              → paymentGatewayGetAccessToken()
                              → lê access token de e5_encrypted_settings
-                             → POST /v1/payments com Bearer token
+                             → POST /v1/orders com Bearer token
+                               + header X-Idempotency-Key
+                               + payload: type, transactions.payments[],
+                                 payer, items
                                                   ──→  API valida token + cartão
                                               ←──  Retorna JSON com status
-                         ←  Interpreta resposta
+                           ←  Interpreta resposta
    Exibe resultado     ←
 ```
 
@@ -837,7 +841,26 @@ Front-end (JS SDK)          Servidor (PHP)                    API Mercado Pago
 
 | Erro | Causa | Solução |
 |------|-------|---------|
-| `Unauthorized use of live credentials` | Usando credenciais `APP_USR-*` (produção) com cartão de teste | Trocar para credenciais `TEST-*` (sandbox) |
+| `Unauthorized use of live credentials` | Usando credenciais `APP_USR-*` (produção) com cartão de teste em sandbox | Verificar se as credenciais são sandbox (`TEST-*`) ou usar a API de Orders corretamente |
 | `Token do cartão ausente` | JS SDK não tokenizou (public key incorreta ou erro de rede) | Verificar public key no painel admin |
-| `Payment rejected` | Cartão recusado pelo gateway | Usar cartão `4444 4444 4444 0008` com nome `APRO` |
-| `Invalid card token` | Token expirado (>30 min) ou cartão inválido | Gerar novo token via JS SDK |
+| `Payment rejected` | Cartão recusado pelo gateway | Usar cartão de teste com nome `APRO` (força aprovação) |
+| `Invalid card token` | Token expirado (>30 min) ou já utilizado (single-use) | Gerar novo token via JS SDK |
+| `payment_method.id invalid` | `id` com valor `credit_card` em vez da bandeira | Usar `visa`, `master`, `elo`, etc. |
+| `payer.last_name vazio` | Nome do titular com uma palavra só | Usar nome completo (ex: `APRO Teste`) |
+
+### Nota sobre cartões de teste
+
+> Os números de cartão de teste do Mercado Pago podem mudar sem aviso — sempre consultar a lista atual em **Suas integrações → Contas de teste → Cartões de teste**, dentro do próprio painel do desenvolvedor, em vez de depender de listas antigas salvas em documentação.
+
+### Nota sobre API de Orders
+
+A integração usa a **API de Orders** do Mercado Pago (`POST /v1/orders`), não a API legada de Pagamentos (`/v1/payments`). Principais diferenças:
+
+- Endpoint: `/v1/orders` em vez de `/v1/payments`
+- Header obrigatório: `X-Idempotency-Key` (chave de idempotência)
+- Estrutura: `transactions.payments[]` (objeto com array), em vez de campos flat
+- `payment_method.id`: deve conter a **bandeira** do cartão (`visa`, `master`, etc.)
+- `payer`: precisa incluir `address` com `neighborhood`, `city`, `state`
+- Resposta: `status: processed` + `status_detail: accredited` quando aprovado
+
+Documentação oficial: https://www.mercadopago.com.br/developers/pt/docs/checkout-api-orders/overview

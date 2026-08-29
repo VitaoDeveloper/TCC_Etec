@@ -274,6 +274,7 @@ if ($isConfirming) {
                     'token'        => $ccToken,
                     'installments' => $ccInstallments,
                     'items'        => $itemsForGateway,
+                    'card_brand'   => trim($_POST['cc_brand'] ?? 'visa'),
                 ], $grandTotal, (string) $orderId, [
                     'name'  => $customerName,
                     'email' => $customerEmail,
@@ -610,6 +611,7 @@ include $base_path . 'components/header.php';
                                 <?php endfor; ?>
                             </select></div></div>
                             <input type="hidden" id="cc_token" name="cc_token" value="">
+                            <input type="hidden" id="cc_brand" name="cc_brand" value="visa">
                             <p id="cc_error" style="color: #c0392b; font-size: 0.82rem; margin-top: 8px; display: none;"></p>
                             <p id="cc_waiting" style="color: var(--ml-text-muted); font-size: 0.82rem; margin-top: 8px; display: none;"><i class="fas fa-spinner fa-spin"></i> Processando pagamento...</p>
                         </div>
@@ -719,6 +721,10 @@ include $base_path . 'components/header.php';
                             identificationNumber: (ccCpf ? ccCpf.value : '').replace(/\D/g, '')
                         }).then(function(token) {
                             ccTokenInput.value = token.id;
+                            var brandInput = document.getElementById('cc_brand');
+                            if (brandInput && token.card && token.card.brand) {
+                                brandInput.value = token.card.brand;
+                            }
                             ccWaiting.style.display = 'none';
                             form.submit();
                         }).catch(function(err) {
