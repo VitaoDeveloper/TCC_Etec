@@ -5,10 +5,7 @@ $current_page = 'carrinho';
 $base_path = '../../';
 
 session_start();
-if (!isset($_SESSION['user_id'])) {
-    header('Location: ../auth/login.php?next=' . urlencode($_SERVER['REQUEST_URI']));
-    exit;
-}
+$isGuest = !isset($_SESSION['user_id']);
 
 require_once $base_path . 'database/connection.php';
 require_once $base_path . '/includes/cart_functions.php';
@@ -21,8 +18,17 @@ require_once __DIR__ . '/../../includes/shipping.php';
 require_once __DIR__ . '/../../includes/pix.php';
 require_once __DIR__ . '/../../includes/payment.php';
 
-$userId = (int) $_SESSION['user_id'];
-$items = cartGetItems($pdo, $userId);
+if ($isGuest) {
+    $userId = null;
+    $items = sessionCartGetItems($pdo);
+    $user = ['name' => '', 'street' => '', 'number' => 0, 'complement' => '', 'postal_code' => ''];
+} else {
+    $userId = (int) $_SESSION['user_id'];
+    $items = cartGetItems($pdo, $userId);
+    $stmt = $pdo->prepare('SELECT * FROM e5_users WHERE id = :id LIMIT 1');
+    $stmt->execute([':id' => $userId]);
+    $user = $stmt->fetch();
+}
 
 if (empty($items)) {
     header('Location: cart.php');
@@ -39,10 +45,6 @@ if (!isset($_SESSION['checkout_gateway_locked'])) {
     $_SESSION['checkout_gateway_locked'] = $lockedGateway;
 }
 $gatewayUsed = $_SESSION['checkout_gateway_locked'];
-
-$stmt = $pdo->prepare('SELECT * FROM e5_users WHERE id = :id LIMIT 1');
-$stmt->execute([':id' => $userId]);
-$user = $stmt->fetch();
 
 $subtotal = 0;
 $subtotalCents = 0;
@@ -120,6 +122,18 @@ $isConfirming = $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['confirm_o
 if ($isConfirming) {
     csrf_require_valid();
 
+    $guestName = trim($_POST['guest_name'] ?? '');
+    $guestEmail = trim($_POST['guest_email'] ?? '');
+    $guestStreet = trim($_POST['guest_street'] ?? '');
+    $guestNumber = trim($_POST['guest_number'] ?? '');
+
+    if ($isGuest) {
+        if (empty($guestName) || mb_strlen($guestName) < 3) $errorMessage = 'Nome completo é obrigatório (mínimo 3 caracteres).';
+        elseif (!filter_var($guestEmail, FILTER_VALIDATE_EMAIL)) $errorMessage = 'E-mail inválido.';
+        elseif (empty($guestStreet) || mb_strlen($guestStreet) < 4) $errorMessage = 'Rua é obrigatória.';
+        elseif (empty($guestNumber)) $errorMessage = 'Número é obrigatório.';
+    }
+
     // Validações
     foreach ($items as $item) {
         $check = validateStock($pdo, (int) $item['product_id'], (int) $item['quantity']);
@@ -147,11 +161,13 @@ if ($isConfirming) {
 
             $stmt = $pdo->prepare('
                 INSERT INTO e5_orders 
-                (user_id, status, total, shipping_method, shipping_carrier, shipping_cost, shipping_delivery_time, shipping_is_estimated, payment_method, gateway_used, payment_status, tax_regime_snapshot, shipping_postal_code, shipping_neighborhood, shipping_city, shipping_state) 
-                VALUES (:uid, :status, :total, :ship, :carrier, :shipcost, :shipdays, :shipest, :pay, :gateway, :paystatus, :regime, :cep, :neigh, :city, :state)
+                (user_id, guest_name, guest_email, status, total, shipping_method, shipping_carrier, shipping_cost, shipping_delivery_time, shipping_is_estimated, payment_method, gateway_used, payment_status, tax_regime_snapshot, shipping_postal_code, shipping_neighborhood, shipping_city, shipping_state) 
+                VALUES (:uid, :guest_name, :guest_email, :status, :total, :ship, :carrier, :shipcost, :shipdays, :shipest, :pay, :gateway, :paystatus, :regime, :cep, :neigh, :city, :state)
             ');
             $stmt->execute([
                 ':uid' => $userId,
+                ':guest_name' => $isGuest ? $guestName : null,
+                ':guest_email' => $isGuest ? $guestEmail : null,
                 ':status' => 'pending',
                 ':total' => $grandTotal,
                 ':ship' => $selectedOption['method'] ?? null,
@@ -181,11 +197,15 @@ if ($isConfirming) {
                 decrementStock($pdo, (int) $item['product_id'], (int) $item['quantity']);
             }
 
-            cartClear($pdo, $userId);
+            if ($isGuest) {
+                sessionCartClear();
+            } else {
+                cartClear($pdo, $userId);
+            }
 
             // Gera informações de pagamento por método
             if ($paymentMethod === 'pix') {
-                $pix = pixGenerateForOrder($grandTotal, (string) $orderId, ['name' => $user['name'] ?? '']);
+                $pix = pixGenerateForOrder($grandTotal, (string) $orderId, ['name' => $user['name'] ?? ($guestName ?? '')]);
                 if ($pix['success']) {
                     $orderPaymentInfo = [
                         'method' => 'Pix',
@@ -402,6 +422,16 @@ include $base_path . 'components/header.php';
                         <span class="ml-step-num">3</span>
                         <h3><i class="fas fa-map-marker-alt"></i> Endereço de Entrega</h3>
                     </div>
+                    <?php if ($isGuest): ?>
+                    <p style="font-size: 0.85rem; color: var(--ml-text-muted); margin-bottom: 12px;">Preencha seus dados para entrega:</p>
+                    <div class="auth-field"><label class="auth-label" for="guest_name">Nome completo</label><div class="auth-input-wrap"><input type="text" id="guest_name" name="guest_name" form="checkoutForm" required minlength="3" value="<?php echo htmlspecialchars($_POST['guest_name'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                    <div class="auth-field"><label class="auth-label" for="guest_email">E-mail</label><div class="auth-input-wrap"><input type="email" id="guest_email" name="guest_email" form="checkoutForm" required value="<?php echo htmlspecialchars($_POST['guest_email'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                    <div class="auth-field"><label class="auth-label" for="guest_street">Rua</label><div class="auth-input-wrap"><input type="text" id="guest_street" name="guest_street" form="checkoutForm" required minlength="4" value="<?php echo htmlspecialchars($_POST['guest_street'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                    <div style="display: flex; gap: 10px;">
+                        <div class="auth-field" style="flex: 1;"><label class="auth-label" for="guest_number">Número</label><div class="auth-input-wrap"><input type="text" id="guest_number" name="guest_number" form="checkoutForm" required inputmode="numeric" value="<?php echo htmlspecialchars($_POST['guest_number'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                        <div class="auth-field" style="flex: 2;"><label class="auth-label" for="guest_complement">Complemento</label><div class="auth-input-wrap"><input type="text" id="guest_complement" name="guest_complement" form="checkoutForm" value="<?php echo htmlspecialchars($_POST['guest_complement'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"></div></div>
+                    </div>
+                    <?php else: ?>
                     <p><strong><?php echo htmlspecialchars($user['name'], ENT_QUOTES, 'UTF-8'); ?></strong></p>
                     <p style="color: var(--ml-text-secondary);"><?php echo htmlspecialchars($user['street'] ?? '', ENT_QUOTES, 'UTF-8'); ?>, <?php echo (int)($user['number'] ?? 0); ?><?php if ($user['complement']): ?> - <?php echo htmlspecialchars($user['complement'], ENT_QUOTES, 'UTF-8'); ?><?php endif; ?></p>
                     <p style="color: var(--ml-text-secondary);">
@@ -411,6 +441,7 @@ include $base_path . 'components/header.php';
                         CEP: <?php echo htmlspecialchars($shippingCep, ENT_QUOTES, 'UTF-8'); ?>
                     </p>
                     <a href="../auth/profile.php" class="ml-btn" style="font-size: 0.85rem; padding: 8px 16px; margin-top: 10px;"><i class="fas fa-edit"></i> Alterar Endereço</a>
+                    <?php endif; ?>
                 </div>
             </div>
 
@@ -463,6 +494,9 @@ include $base_path . 'components/header.php';
                         <?php echo csrf_field(); ?>
                         <input type="hidden" name="shipping_cep" value="<?php echo htmlspecialchars($shippingCep, ENT_QUOTES, 'UTF-8'); ?>">
                         <p style="margin-bottom: 15px; font-size: 0.85rem; color: var(--ml-text-muted);"><i class="fas fa-info-circle"></i> Ao finalizar, você concorda com nossos termos de compra.</p>
+                        <?php if ($isGuest): ?>
+                        <p style="margin-bottom: 12px; font-size: 0.85rem; color: var(--ml-text-muted);"><a href="../auth/login.php?next=<?php echo urlencode($_SERVER['REQUEST_URI']); ?>" style="color: var(--ml-accent);"><i class="fas fa-sign-in-alt"></i> Já tem conta? Faça login</a></p>
+                        <?php endif; ?>
                         <button type="submit" name="confirm_order" class="ml-btn ml-btn-primary ml-btn-block" style="padding: 14px; font-size: 1.05rem;" <?php echo !$selectedOption ? 'disabled' : ''; ?>><i class="fas fa-check"></i> Confirmar Pedido</button>
                         <a href="cart.php" class="ml-btn ml-btn-block" style="margin-top: 10px;"><i class="fas fa-arrow-left"></i> Voltar ao Carrinho</a>
                     </form>

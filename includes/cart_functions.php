@@ -1,4 +1,74 @@
 <?php
+
+function sessionCartInit() {
+    if (!isset($_SESSION['guest_cart'])) {
+        $_SESSION['guest_cart'] = [];
+    }
+}
+
+function sessionCartGetItems($pdo) {
+    sessionCartInit();
+    $cart = $_SESSION['guest_cart'];
+    if (empty($cart)) return [];
+    $ids = array_keys($cart);
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+    $stmt = $pdo->prepare("
+        SELECT p.id AS product_id, p.name, p.price, p.old_price, p.brand, p.stock,
+               (SELECT pi.image_path FROM e5_product_images pi WHERE pi.product_id = p.id ORDER BY pi.is_primary DESC, pi.id ASC LIMIT 1) AS image_path
+        FROM e5_products p WHERE p.id IN ($placeholders)
+    ");
+    $stmt->execute($ids);
+    $products = [];
+    foreach ($stmt->fetchAll() as $row) {
+        $products[$row['product_id']] = $row;
+    }
+    $items = [];
+    foreach ($cart as $pid => $qty) {
+        if (isset($products[$pid]) && $qty > 0) {
+            $item = $products[$pid];
+            $item['quantity'] = $qty;
+            $items[] = $item;
+        }
+    }
+    return $items;
+}
+
+function sessionCartAddItem($productId, $quantity = 1) {
+    sessionCartInit();
+    if (isset($_SESSION['guest_cart'][$productId])) {
+        $_SESSION['guest_cart'][$productId] += $quantity;
+    } else {
+        $_SESSION['guest_cart'][$productId] = $quantity;
+    }
+}
+
+function sessionCartUpdateQuantity($productId, $quantity) {
+    sessionCartInit();
+    if ($quantity <= 0) {
+        sessionCartRemoveItem($productId);
+        return;
+    }
+    $_SESSION['guest_cart'][$productId] = $quantity;
+}
+
+function sessionCartRemoveItem($productId) {
+    sessionCartInit();
+    unset($_SESSION['guest_cart'][$productId]);
+}
+
+function sessionCartGetCount() {
+    sessionCartInit();
+    $count = 0;
+    foreach ($_SESSION['guest_cart'] as $qty) {
+        $count += (int) $qty;
+    }
+    return $count;
+}
+
+function sessionCartClear() {
+    $_SESSION['guest_cart'] = [];
+}
+
 function cartGetCount($pdo, $userId) {
     $stmt = $pdo->prepare('SELECT COALESCE(SUM(quantity), 0) FROM e5_cart WHERE user_id = :uid');
     $stmt->execute([':uid' => $userId]);

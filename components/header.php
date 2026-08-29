@@ -16,25 +16,20 @@ $socialLinks = [
 
 $cartCount = 0;
 $wishlistCount = 0;
-if ($isLoggedIn) {
-    if (!isset($pdo)) {
-        $connPath = dirname(__DIR__) . '/database/connection.php';
-        if (file_exists($connPath)) {
-            include $connPath;
-        }
-    }
-    if (isset($pdo)) {
-        require_once dirname(__DIR__) . '/includes/cart_functions.php';
-        $cartCount = cartGetCount($pdo, (int)$_SESSION['user_id']);
-        require_once dirname(__DIR__) . '/includes/wishlist_functions.php';
-        $wishlistCount = wishlistCount($pdo, (int)$_SESSION['user_id']);
-    }
-}
-
 if (!isset($pdo)) {
     $connPath = dirname(__DIR__) . '/database/connection.php';
     if (file_exists($connPath)) {
         include $connPath;
+    }
+}
+if (isset($pdo)) {
+    require_once dirname(__DIR__) . '/includes/cart_functions.php';
+    if ($isLoggedIn) {
+        $cartCount = cartGetCount($pdo, (int)$_SESSION['user_id']);
+        require_once dirname(__DIR__) . '/includes/wishlist_functions.php';
+        $wishlistCount = wishlistCount($pdo, (int)$_SESSION['user_id']);
+    } else {
+        $cartCount = sessionCartGetCount();
     }
 }
 

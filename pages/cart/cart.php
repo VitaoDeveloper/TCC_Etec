@@ -5,16 +5,16 @@ $current_page = 'carrinho';
 $base_path = '../../';
 
 session_start();
-if (!isset($_SESSION['user_id'])) {
-    header('Location: ../auth/login.php?next=' . urlencode($_SERVER['REQUEST_URI']));
-    exit;
-}
-
+$isGuest = !isset($_SESSION['user_id']);
 require_once $base_path . 'database/connection.php';
 require_once $base_path . 'includes/cart_functions.php';
 
-$userId = (int) $_SESSION['user_id'];
-$items = cartGetItems($pdo, $userId);
+if ($isGuest) {
+    $items = sessionCartGetItems($pdo);
+} else {
+    $userId = (int) $_SESSION['user_id'];
+    $items = cartGetItems($pdo, $userId);
+}
 $total = 0;
 foreach ($items as $item) {
     $total += (float) $item['price'] * (int) $item['quantity'];

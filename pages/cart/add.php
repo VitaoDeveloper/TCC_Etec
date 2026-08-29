@@ -2,11 +2,7 @@
 session_start();
 header('Content-Type: application/json');
 
-if (!isset($_SESSION['user_id'])) {
-    http_response_code(401);
-    echo json_encode(['success' => false, 'message' => 'Faça login para adicionar ao carrinho.']);
-    exit;
-}
+$isGuest = !isset($_SESSION['user_id']);
 
 $productId = (int) ($_POST['product_id'] ?? 0);
 $quantity = max(1, (int) ($_POST['quantity'] ?? 1));
@@ -28,13 +24,17 @@ if (!$stmt->fetch()) {
     exit;
 }
 
-$check = validateStock($pdo, $productId, $quantity, cartGetItemQuantity($pdo, (int)$_SESSION['user_id'], $productId));
-if (!$check['ok']) {
-    echo json_encode(['success' => false, 'message' => $check['msg']]);
-    exit;
+if ($isGuest) {
+    sessionCartAddItem($productId, $quantity);
+    $count = sessionCartGetCount();
+} else {
+    $check = validateStock($pdo, $productId, $quantity, cartGetItemQuantity($pdo, (int)$_SESSION['user_id'], $productId));
+    if (!$check['ok']) {
+        echo json_encode(['success' => false, 'message' => $check['msg']]);
+        exit;
+    }
+    cartAddItem($pdo, (int)$_SESSION['user_id'], $productId, $quantity);
+    $count = cartGetCount($pdo, (int)$_SESSION['user_id']);
 }
-
-cartAddItem($pdo, (int)$_SESSION['user_id'], $productId, $quantity);
-$count = cartGetCount($pdo, (int)$_SESSION['user_id']);
 
 echo json_encode(['success' => true, 'message' => 'Produto adicionado ao carrinho!', 'count' => $count]);

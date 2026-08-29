@@ -367,18 +367,20 @@ O checkout está em `pages/cart/checkout.php`.
 
 Fluxo atual:
 
-1. Inicia sessão, exige usuário logado.
-2. Carrega itens do carrinho.
-3. Bloqueia gateway no início do checkout (`gatewayLockForCheckout`).
-4. Calcula subtotal (inteiros em centavos para evitar float drift).
-5. **Frete real**: `shippingCalculate($cep, $subtotal, $items)` → envelope com `provider`/`is_real`/`warning`/`options[]`.
-6. UI exibe transportadora + prazo + custo; badge "ESTIMADO" no fallback; auto-submit ao trocar opção.
-7. **Pagamento**: usa `paymentGetMethods()` do `includes/payment.php`; taxa gateway exibida no cartão (informativo); desconto Pix 5% aplicado.
-7. Cria pedido em `e5_orders` com: `shipping_method`, `shipping_carrier`, `shipping_cost`, `shipping_delivery_time`, `shipping_is_estimated`, `shipping_postal_code`, `shipping_neighborhood/city/state` (ViaCEP).
-8. Cria itens em `e5_order_items`, decrementa estoque, limpa carrinho.
-9. **PIX real**: `pixGenerateForOrder()` → BR Code EMV + QR Code PNG + copia-e-cola; `payment_status = pending`.
-10. Boleto/Cartão/Entrega: placeholders (integração gateway TODO).
-11. Gera comprovante (`gerarComprovanteCompra`) + envia e-mail (`enviarComprovanteEmail`).
+1. Inicia sessão; **usuário convidado** é permitido (sem exigir login). `e5_orders.user_id` agora é nullable, com `guest_name`/`guest_email` para pedidos de convidados.
+2. **Carrinho de convidado** fica em sessão PHP (`$_SESSION['guest_cart']`) até a finalização (`sessionCartGetItems`/`sessionCartAddItem`/`sessionCartUpdateQuantity`/`sessionCartRemoveItem`/`sessionCartGetCount` em `includes/cart_functions.php`).
+3. Usuário logado usa o carrinho no banco (`e5_cart`).
+4. No checkout, o convidado preenche nome/e-mail/endereço (Etapa 3) — sem criar conta.
+5. Bloqueia gateway no início do checkout (`gatewayLockForCheckout`).
+6. Calcula subtotal (inteiros em centavos para evitar float drift).
+7. **Frete real**: `shippingCalculate($cep, $subtotal, $items)` → envelope com `provider`/`is_real`/`warning`/`options[]`.
+8. UI exibe transportadora + prazo + custo; badge "ESTIMADO" no fallback; auto-submit ao trocar opção.
+9. **Pagamento**: usa `paymentGetMethods()` do `includes/payment.php`; taxa gateway exibida no cartão (informativo); desconto Pix 5% aplicado.
+10. Cria pedido em `e5_orders` com: `shipping_method`, `shipping_carrier`, `shipping_cost`, `shipping_delivery_time`, `shipping_is_estimated`, `shipping_postal_code`, `shipping_neighborhood/city/state` (ViaCEP). Para convidados: `user_id = NULL`, `guest_name`/`guest_email` preenchidos.
+11. Cria itens em `e5_order_items`, decrementa estoque, limpa carrinho (sessão para convidado, banco para logado).
+12. **PIX real**: `pixGenerateForOrder()` → BR Code EMV + QR Code PNG + copia-e-cola; `payment_status = pending`.
+13. Boleto/Cartão/Entrega: placeholders (integração gateway TODO).
+14. Gera comprovante (`gerarComprovanteCompra`) + envia e-mail (`enviarComprovanteEmail`).
 
 Campos de frete no pedido:
 
