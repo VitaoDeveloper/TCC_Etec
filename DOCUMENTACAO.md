@@ -345,7 +345,13 @@ GET https://melhorenvio.com.br/api/v2/me → HTTP 401 {"message":"Unauthenticate
 POST https://melhorenvio.com.br/api/v2/me/shipment/calculate → HTTP 401 {"message":"Unauthenticated."}
 ```
 
-> **BLOQUEADOR**: Token Melhor Envio não configurado. O banco só tem `melhor_envio_client_id/secret/redirect_uri` (OAuth app). Falta `melhor_envio_token` (access token). Configure no admin → MEI Migration → "Token Melhor Envio" após criar conta no Melhor Envio.
+> **BLOQUEADOR**: Token Melhor Envio não configurado. O banco só tem `melhor_envio_client_id/secret/redirect_uri` (OAuth app). Falta `melhor_envio_token` (access token). 
+
+**Solution**: Rota de callback OAuth criada em `pages/admin/melhor-envio-callback.php`. Fluxo:
+1. Configurar no painel do Melhor Envio a URL de callback: `https://SUA-URL-TUNEL.trycloudflare.com/pages/admin/melhor-envio-callback.php`
+2. Redirecionar o usuário para a URL de autorização do Melhor Envio (com os parâmetros `client_id`, `redirect_uri`, `response_type=code`, `scope`, `state`)
+3. O callback recebe o `code`, troca por `access_token` via POST para `https://melhorenvio.com.br/oauth/token` e salva o token criptografado em `melhor_envio_token` no `e5_encrypted_settings`
+4. A rota exige sessão admin autenticada e registra o resultado no log de auditoria (`e5_system_change_log` com `change_type='melhor_envio_oauth_callback'`)
 
 **Limitações conhecidas:**
 
