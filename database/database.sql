@@ -353,6 +353,7 @@ CREATE TABLE `e5_orders` (
   `shipping_city` varchar(80) DEFAULT NULL,
   `shipping_state` varchar(40) DEFAULT NULL,
   `shipping_postal_code` varchar(10) DEFAULT NULL,
+  `coupon_code` varchar(40) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   PRIMARY KEY (`id`),
@@ -378,6 +379,28 @@ UNLOCK TABLES;
 LOCK TABLES e5_orders WRITE;
 ALTER TABLE e5_orders MODIFY user_id int(11) NULL;
 UNLOCK TABLES;
+
+--
+-- Table structure for table `e5_coupons`
+--
+
+DROP TABLE IF EXISTS `e5_coupons`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `e5_coupons` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `code` varchar(40) NOT NULL,
+  `discount_type` enum('percentage','fixed') NOT NULL DEFAULT 'percentage',
+  `discount_value` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `expires_at` timestamp NULL DEFAULT NULL,
+  `max_uses` int(11) DEFAULT NULL COMMENT 'NULL = unlimited',
+  `uses_current` int(11) NOT NULL DEFAULT 0,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `code` (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `e5_password_reset_tokens`

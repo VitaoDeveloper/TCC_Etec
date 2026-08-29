@@ -17,6 +17,7 @@ require_once __DIR__ . '/../../includes/comprovante.php';
 require_once __DIR__ . '/../../includes/shipping.php';
 require_once __DIR__ . '/../../includes/pix.php';
 require_once __DIR__ . '/../../includes/payment.php';
+require_once __DIR__ . '/../../includes/coupons.php';
 
 if ($isGuest) {
     $userId = null;
@@ -59,6 +60,18 @@ $subtotalCents = 0;
 foreach ($items as $item) {
     $subtotal += (float) $item['price'] * (int) $item['quantity'];
     $subtotalCents += (int) round((float) $item['price'] * 100) * (int) $item['quantity'];
+}
+
+// === CUPOM DE DESCONTO ===
+$couponCodeInput = strtoupper(trim($_POST['coupon_code'] ?? $_GET['coupon_code'] ?? ''));
+$couponApplied = null;
+$couponDiscount = 0.0;
+if (!empty($couponCodeInput)) {
+    $couponResult = couponValidate($pdo, $couponCodeInput);
+    if ($couponResult['valid']) {
+        $couponApplied = $couponResult['coupon'];
+        $couponDiscount = couponCalculateDiscount($couponApplied, $subtotal);
+    }
 }
 
 // === FRETE REAL ===
@@ -106,9 +119,9 @@ if ($paymentMethod === 'pix') {
     $discountCents = (int) round($subtotalCents * 0.05);
     $grandTotalCents = $subtotalCents + $shippingCents - $discountCents;
     $pixDiscount = $discountCents / 100;
-    $grandTotal = $grandTotalCents / 100;
+    $grandTotal = max(0, ($grandTotalCents / 100) - $couponDiscount);
 } else {
-    $grandTotal = ( ($subtotalCents + (int) round($shippingCost * 100)) ) / 100;
+    $grandTotal = max(0, ( ($subtotalCents + (int) round($shippingCost * 100)) ) / 100 - $couponDiscount);
     // Taxa de gateway informativa (não somada ao total)
     if ($paymentMethod === 'credit') {
         $config = paymentGetConfig();
@@ -169,8 +182,8 @@ if ($isConfirming) {
 
             $stmt = $pdo->prepare('
                 INSERT INTO e5_orders 
-                (user_id, guest_name, guest_email, status, total, shipping_method, shipping_carrier, shipping_cost, shipping_delivery_time, shipping_is_estimated, payment_method, gateway_used, payment_status, tax_regime_snapshot, shipping_postal_code, shipping_neighborhood, shipping_city, shipping_state) 
-                VALUES (:uid, :guest_name, :guest_email, :status, :total, :ship, :carrier, :shipcost, :shipdays, :shipest, :pay, :gateway, :paystatus, :regime, :cep, :neigh, :city, :state)
+                (user_id, guest_name, guest_email, status, total, shipping_method, shipping_carrier, shipping_cost, shipping_delivery_time, shipping_is_estimated, payment_method, gateway_used, payment_status, tax_regime_snapshot, shipping_postal_code, shipping_neighborhood, shipping_city, shipping_state, coupon_code) 
+                VALUES (:uid, :guest_name, :guest_email, :status, :total, :ship, :carrier, :shipcost, :shipdays, :shipest, :pay, :gateway, :paystatus, :regime, :cep, :neigh, :city, :state, :coupon)
             ');
             $stmt->execute([
                 ':uid' => $userId,
@@ -191,6 +204,7 @@ if ($isConfirming) {
                 ':neigh' => $shipNeighborhood,
                 ':city' => $shipCity,
                 ':state' => $shipState,
+                ':coupon' => $couponApplied ? $couponApplied['code'] : null,
             ]);
             $orderId = (int) $pdo->lastInsertId();
 
@@ -301,6 +315,11 @@ if ($isConfirming) {
 
             $pdo->commit();
             $orderCreated = true;
+
+            // Incrementa uso do cupom após commit
+            if ($couponApplied) {
+                couponIncrementUsage($pdo, (int) $couponApplied['id']);
+            }
 
             // Comprovante + e-mail
             try {
@@ -526,6 +545,12 @@ include $base_path . 'components/header.php';
                         <span>- R$ <?php echo number_format($pixDiscount, 2, ',', '.'); ?></span>
                     </div>
                     <?php endif; ?>
+                    <?php if ($couponDiscount > 0): ?>
+                    <div class="ml-summary-line discount">
+                        <span>Cupom <?php echo htmlspecialchars($couponApplied['code'] ?? '', ENT_QUOTES, 'UTF-8'); ?></span>
+                        <span>- R$ <?php echo number_format($couponDiscount, 2, ',', '.'); ?></span>
+                    </div>
+                    <?php endif; ?>
                     <?php if ($creditFeeInfo): ?>
                     <div class="ml-summary-line" style="color: var(--ml-text-secondary); font-size: 0.85rem;">
                         <span>Taxa do gateway (<?php echo number_format($creditFeeInfo['percentage'], 2, ',', '.'); ?>%) <small><?php echo $creditFeeInfo['is_estimate'] ? '(estimativa)' : ''; ?></small></span>
@@ -545,6 +570,24 @@ include $base_path . 'components/header.php';
                     <form method="POST" id="checkoutForm">
                         <?php echo csrf_field(); ?>
                         <input type="hidden" name="shipping_cep" value="<?php echo htmlspecialchars($shippingCep, ENT_QUOTES, 'UTF-8'); ?>">
+
+                        <!-- Cupom de Desconto -->
+                        <div style="margin-bottom: 16px; padding: 12px; border: 1px solid var(--ml-border); border-radius: 8px;">
+                            <label style="font-size: 0.82rem; font-weight: 600; display: block; margin-bottom: 6px;"><i class="fas fa-tag"></i> Cupom de Desconto</label>
+                            <?php if ($couponApplied): ?>
+                                <div style="background: rgba(76,175,80,0.1); color: #2e7d32; padding: 8px 10px; border-radius: 4px; font-size: 0.85rem;">
+                                    <i class="fas fa-check-circle"></i> Cupom <strong><?php echo htmlspecialchars($couponApplied['code'], ENT_QUOTES, 'UTF-8'); ?></strong> aplicado! Desconto: -R$ <?php echo number_format($couponDiscount, 2, ',', '.'); ?>
+                                </div>
+                            <?php else: ?>
+                                <div style="display: flex; gap: 6px;">
+                                    <input type="text" name="coupon_code" form="checkoutForm" value="<?php echo htmlspecialchars($couponCodeInput, ENT_QUOTES, 'UTF-8'); ?>" placeholder="Código do cupom" style="flex:1; padding:8px; border:1px solid var(--ml-border); border-radius:6px; text-transform:uppercase; font-size:0.85rem;">
+                                    <button type="submit" form="checkoutForm" class="ml-btn" name="apply_coupon" value="1" style="padding: 8px 12px; font-size: 0.82rem;"><i class="fas fa-check"></i> Aplicar</button>
+                                </div>
+                                <?php if ($couponCodeInput && !$couponApplied): ?>
+                                    <p style="color: #c0392b; font-size: 0.82rem; margin-top: 6px;"><i class="fas fa-times-circle"></i> Cupom inválido ou expirado.</p>
+                                <?php endif; ?>
+                            <?php endif; ?>
+                        </div>
 
                         <?php if ($paymentMethod === 'credit'): ?>
                         <!-- Campos de Cartão de Crédito — Checkout Transparente -->

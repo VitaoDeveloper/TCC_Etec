@@ -472,6 +472,25 @@ Tabelas principais do schema base:
 - `e5_banners`.
 - `e5_wishlist`.
 - `e5_settings`.
+- `e5_coupons`.
+- `e5_payment_gateways`.
+- `e5_gateway_fees`.
+- `e5_checkout_sessions`.
+- `e5_encrypted_settings`.
+- `e5_cpf_revenue_tracking`.
+- `e5_system_change_log`.
+- `e5_webhook_log`.
+
+## Cupons de Desconto
+
+Sistema de cupons implementado em `includes/coupons.php`.
+
+- **Tabela**: `e5_coupons` (code, discount_type [percentage|fixed], discount_value, expires_at, max_uses, uses_current, is_active).
+- **Validação**: `couponValidate($pdo, $code)` — verifica existência, ativo, validade e uso máximo.
+- **Cálculo**: `couponCalculateDiscount($coupon, $subtotal)` — retorna valor em R$.
+- **Incremento**: `couponIncrementUsage($pdo, $couponId)` — chamado após commit do pedido.
+- **Campo no pedido**: `e5_orders.coupon_code` grava o código aplicado.
+- **UI**: Campo de cupom no checkout (Etapa 3, antes do botão confirmar), com validação inline e desconto visível no resumo.
 
 Migrations existentes:
 
