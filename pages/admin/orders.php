@@ -20,9 +20,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
 }
 
 $filter = (string) ($_GET['status'] ?? '');
-$sql = 'SELECT o.id, o.status, o.total, o.shipping_method, o.shipping_cost, o.payment_method, o.created_at, u.name AS user_name,
+$sql = 'SELECT o.id, o.status, o.total, o.shipping_method, o.shipping_cost, o.payment_method, o.created_at, COALESCE(u.name, o.guest_name, "Convidado") AS user_name,
         (SELECT COUNT(*) FROM e5_order_items oi WHERE oi.order_id = o.id) AS item_count
-        FROM e5_orders o INNER JOIN e5_users u ON u.id = o.user_id';
+        FROM e5_orders o LEFT JOIN e5_users u ON u.id = o.user_id';
 $params = [];
 if ($filter !== '' && in_array($filter, array_keys($statusLabels), true)) {
     $sql .= ' WHERE o.status = :status';

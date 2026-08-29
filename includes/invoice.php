@@ -46,9 +46,9 @@ function emitirNotaFiscal(PDO $pdo, int $orderId): array
 {
     // Load order with items
     $stmt = $pdo->prepare('
-        SELECT o.*, u.name AS customer_name, u.email AS customer_email, u.postal_code
+        SELECT o.*, COALESCE(u.name, o.guest_name, "Convidado") AS customer_name, COALESCE(u.email, o.guest_email, "") AS customer_email, u.postal_code
         FROM e5_orders o
-        INNER JOIN e5_users u ON u.id = o.user_id
+        LEFT JOIN e5_users u ON u.id = o.user_id
         WHERE o.id = :id LIMIT 1
     ');
     $stmt->execute([':id' => $orderId]);

@@ -23,7 +23,7 @@ $customerChange = $prevMonthCustomers > 0 ? round(($currMonthCustomers - $prevMo
 
 $lowStockCount = $pdo->query("SELECT COUNT(*) FROM e5_products WHERE stock <= 5")->fetchColumn();
 
-$recentOrders = $pdo->query('SELECT o.id, o.status, o.total, o.created_at, u.name AS user_name FROM e5_orders o INNER JOIN e5_users u ON u.id = o.user_id ORDER BY o.created_at DESC LIMIT 5')->fetchAll();
+$recentOrders = $pdo->query('SELECT o.id, o.status, o.total, o.created_at, COALESCE(u.name, o.guest_name, "Convidado") AS user_name FROM e5_orders o LEFT JOIN e5_users u ON u.id = o.user_id ORDER BY o.created_at DESC LIMIT 5')->fetchAll();
 
 $topProducts = $pdo->query('
     SELECT p.id, p.name, p.price, SUM(oi.quantity) AS qty,

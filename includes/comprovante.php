@@ -209,10 +209,11 @@ function gerarPdfComprovante(string $html): string|false
 function gerarComprovanteCompra(PDO $pdo, int $orderId, bool $salvar = true): array
 {
     $stmt = $pdo->prepare('
-        SELECT o.*, u.name AS customer_name, u.email AS customer_email,
+        SELECT o.*, COALESCE(u.name, o.guest_name, "Convidado") AS customer_name,
+               COALESCE(u.email, o.guest_email, "") AS customer_email,
                u.postal_code AS user_postal_code, u.street AS user_street,
                u.number AS user_number, u.complement AS user_complement
-        FROM e5_orders o INNER JOIN e5_users u ON u.id = o.user_id
+        FROM e5_orders o LEFT JOIN e5_users u ON u.id = o.user_id
         WHERE o.id = :id LIMIT 1
     ');
     $stmt->execute([':id' => $orderId]);
@@ -259,7 +260,7 @@ function enviarComprovanteEmail(PDO $pdo, int $orderId): bool
 
     require_once __DIR__ . '/mail.php';
 
-    $stmt = $pdo->prepare('SELECT o.*, u.name AS customer_name, u.email AS customer_email FROM e5_orders o INNER JOIN e5_users u ON u.id = o.user_id WHERE o.id = :id LIMIT 1');
+    $stmt = $pdo->prepare('SELECT o.*, COALESCE(u.name, o.guest_name, "Convidado") AS customer_name, COALESCE(u.email, o.guest_email, "") AS customer_email FROM e5_orders o LEFT JOIN e5_users u ON u.id = o.user_id WHERE o.id = :id LIMIT 1');
     $stmt->execute([':id' => $orderId]);
     $order = $stmt->fetch();
     if (!$order || empty($order['customer_email'])) return false;
