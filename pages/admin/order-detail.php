@@ -5,6 +5,7 @@ include '../../database/connection.php';
 require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../includes/status_labels.php';
 require_once __DIR__ . '/../../includes/comprovante.php';
+require_once __DIR__ . '/../../includes/payment.php';
 
 $orderId = (int) ($_GET['id'] ?? 0);
 
@@ -24,8 +25,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'mark_
     exit;
 }
 
+// Refund (estorno)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'refund') {
+    csrf_require_valid();
+    $orderStmt = $pdo->prepare('SELECT * FROM e5_orders WHERE id = :id AND payment_status = "paid" AND gateway_transaction_id IS NOT NULL LIMIT 1');
+    $orderStmt->execute([':id' => $orderId]);
+    $refundOrder = $orderStmt->fetch();
+    if ($refundOrder) {
+        $refundResult = paymentProcessRefund($refundOrder['gateway_transaction_id'], (float) $refundOrder['total']);
+        if ($refundResult['success']) {
+            $upd = $pdo->prepare('UPDATE e5_orders SET payment_status = "refunded", status = "canceled", updated_at = NOW() WHERE id = :id');
+            $upd->execute([':id' => $orderId]);
+            error_log("Refund OK order #$orderId: " . ($refundResult['message'] ?? ''));
+            header('Location: order-detail.php?id=' . $orderId . '&refunded=1');
+        } else {
+            error_log("Refund FAILED order #$orderId: " . ($refundResult['message'] ?? ''));
+            header('Location: order-detail.php?id=' . $orderId . '&refund_error=' . urlencode($refundResult['message'] ?? 'Erro'));
+        }
+    } else {
+        header('Location: order-detail.php?id=' . $orderId . '&refund_error=' . urlencode('Pedido não elegível para estorno.'));
+    }
+    exit;
+}
+
 $order = $pdo->prepare('SELECT o.*, u.name AS user_name, u.email AS user_email, u.postal_code, u.street, u.number, u.complement
-    FROM e5_orders o INNER JOIN e5_users u ON u.id = o.user_id WHERE o.id = :id LIMIT 1');
+    FROM e5_orders o LEFT JOIN e5_users u ON u.id = o.user_id WHERE o.id = :id LIMIT 1');
 $order->execute([':id' => $orderId]);
 $order = $order->fetch();
 
@@ -83,8 +107,11 @@ $sinfo = $statusLabels[$order['status']] ?? ['label' => $order['status'], 'class
                         CEP: <?php echo htmlspecialchars($order['shipping_postal_code'] ?? $order['postal_code'] ?? '', ENT_QUOTES, 'UTF-8'); ?>
                     </p>
                     <h3 style="margin:15px 0 8px; font-size:1.1rem;">Cliente</h3>
-                    <p style="color:var(--color-gray-light);"><?php echo htmlspecialchars($order['user_name'], ENT_QUOTES, 'UTF-8'); ?><br>
-                    <a href="mailto:<?php echo htmlspecialchars($order['user_email'], ENT_QUOTES, 'UTF-8'); ?>" style="color:var(--color-primary);"><?php echo htmlspecialchars($order['user_email'], ENT_QUOTES, 'UTF-8'); ?></a></p>
+                    <p style="color:var(--color-gray-light);"><?php echo htmlspecialchars($order['user_name'] ?? $order['guest_name'] ?? 'Convidado', ENT_QUOTES, 'UTF-8'); ?><br>
+                    <?php $custEmail = $order['user_email'] ?? $order['guest_email'] ?? ''; ?>
+                    <?php if ($custEmail): ?>
+                    <a href="mailto:<?php echo htmlspecialchars($custEmail, ENT_QUOTES, 'UTF-8'); ?>" style="color:var(--color-primary);"><?php echo htmlspecialchars($custEmail, ENT_QUOTES, 'UTF-8'); ?></a>
+                    <?php endif; ?></p>
                 </div>
             </div>
 
@@ -104,6 +131,13 @@ $sinfo = $statusLabels[$order['status']] ?? ['label' => $order['status'], 'class
                             <?php echo csrf_field(); ?>
                             <input type="hidden" name="action" value="mark_paid">
                             <button type="submit" class="btn" style="background:#4caf50; color:#fff; padding:8px 16px; border-radius:6px; font-size:0.85rem; border:none; cursor:pointer;"><i class="fas fa-check-circle"></i> Marcar como Pago</button>
+                        </form>
+                        <?php endif; ?>
+                        <?php if (($order['payment_status'] ?? '') === 'paid' && !empty($order['gateway_transaction_id'])): ?>
+                        <form method="post" style="display:inline" onsubmit="return confirm('Tem certeza que deseja estornar este pedido? Esta ação é irreversível.');">
+                            <?php echo csrf_field(); ?>
+                            <input type="hidden" name="action" value="refund">
+                            <button type="submit" class="btn" style="background:#e53935; color:#fff; padding:8px 16px; border-radius:6px; font-size:0.85rem; border:none; cursor:pointer;"><i class="fas fa-undo"></i> Estornar Pedido</button>
                         </form>
                         <?php endif; ?>
                     </div>
