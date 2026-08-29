@@ -311,6 +311,16 @@ Funções relevantes:
 - `shippingGetMigrationChecklist()` — checklist MEI → frete comercial.
 - `shippingGetCostComparison()` — comparação CPF vs MEI.
 
+### Estimativa de Frete no Carrinho
+
+Em `pages/cart/cart.php` há um campo de CEP + botão **"Calcular frete"** que chama `pages/cart/shipping-estimate.php` via AJAX. O endpoint:
+
+- Lê o carrinho da sessão (convidado) ou do banco (logado) no arquivo `pages/cart/shipping-estimate.php`.
+- Chama `shippingCalculate($cep, $subtotal, $items)` (a mesma do checkout).
+- Retorna JSON com `provider`, `is_real`, `warning` e `options[]`.
+- Exibe cada opção (transportadora, prazo, custo) com o badge **ESTIMADO** quando `estimated=true` — sem sair da página do carrinho.
+- **Não persiste** o cálculo: é apenas prévia; o cálculo definitivo continua acontecendo no checkout.
+
 Comportamento:
 
 - Token configurado + MEI ativo → tabela comercial (descontos PJ).

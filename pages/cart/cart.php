@@ -74,6 +74,14 @@ include $base_path . 'components/header.php';
                     <span>Total</span>
                     <span>R$ <?php echo number_format($total, 2, ',', '.'); ?></span>
                 </div>
+                <div id="shipping-estimator" style="margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--ml-border);">
+                    <label for="cartCep" style="font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 6px;">Calcular frete</label>
+                    <div style="display: flex; gap: 6px;">
+                        <input type="text" id="cartCep" name="cep" inputmode="numeric" maxlength="9" placeholder="00000-000" value="<?php echo htmlspecialchars($cep ?? '', ENT_QUOTES, 'UTF-8'); ?>" style="flex:1; padding:8px; border:1px solid var(--ml-border); border-radius:6px;">
+                        <button type="button" id="btnCalcFrete" class="ml-btn" style="padding: 8px 12px;"><i class="fas fa-calculator"></i> Calcular</button>
+                    </div>
+                    <div id="shippingResult" style="margin-top: 10px; font-size: 0.85rem;"></div>
+                </div>
                 <div class="ml-summary-actions">
                     <a href="../cart/checkout.php" class="ml-btn ml-btn-primary ml-btn-block"><i class="fas fa-credit-card"></i> Finalizar Pedido</a>
                 </div>
@@ -128,5 +136,60 @@ document.querySelectorAll('.cart-remove').forEach(btn => {
         });
     });
 });
+
+const btnCalcFrete = document.getElementById('btnCalcFrete');
+const cartCep = document.getElementById('cartCep');
+const shippingResult = document.getElementById('shippingResult');
+
+function formatCepDigits(v) {
+    return v.replace(/\D/g, '').slice(0, 8);
+}
+
+if (btnCalcFrete && cartCep) {
+    cartCep.addEventListener('input', function() {
+        const d = formatCepDigits(this.value);
+        this.value = d ? d.replace(/^(\d{5})(\d{0,3}).*/, '$1-$2') : '';
+    });
+
+    btnCalcFrete.addEventListener('click', function() {
+        const cep = formatCepDigits(cartCep.value);
+        if (cep.length !== 8) {
+            shippingResult.innerHTML = '<span style="color:#c0392b;">Informe um CEP válido.</span>';
+            return;
+        }
+        btnCalcFrete.disabled = true;
+        shippingResult.innerHTML = '<span style="color:var(--ml-text-muted);">Calculando... <i class="fas fa-spinner fa-spin"></i></span>';
+        fetch('<?php echo $base_path; ?>pages/cart/shipping-estimate.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: 'cep=' + encodeURIComponent(cep)
+        }).then(r => r.json()).then(data => {
+            btnCalcFrete.disabled = false;
+            if (!data.success) {
+                shippingResult.innerHTML = '<span style="color:#c0392b;">' + (data.error || 'Não foi possível calcular o frete.') + '</span>';
+                return;
+            }
+            let html = '';
+            if (data.warning) {
+                html += '<div style="background:rgba(255,152,0,0.12); color:#e65100; padding:6px 8px; border-radius:4px; margin-bottom:8px;">' + data.warning + '</div>';
+            }
+            if (data.options && data.options.length) {
+                data.options.forEach(function(opt) {
+                    const est = opt.estimated ? ' <span style="background:rgba(255,152,0,0.2); color:#e65100; padding:1px 5px; border-radius:3px; font-size:0.65rem;">ESTIMADO</span>' : '';
+                    html += '<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px dashed var(--ml-border);">' +
+                        '<span><strong>' + opt.method + '</strong>' + est + '<br><small style="color:var(--ml-text-muted);">' + opt.days + '</small></span>' +
+                        '<strong>' + (opt.cost > 0 ? 'R$ ' + Number(opt.cost).toLocaleString('pt-BR', {minimumFractionDigits: 2}) : 'Grátis') + '</strong>' +
+                        '</div>';
+                });
+            } else {
+                html += '<span style="color:var(--ml-text-muted);">Nenhuma opção disponível para este CEP.</span>';
+            }
+            shippingResult.innerHTML = html;
+        }).catch(function() {
+            btnCalcFrete.disabled = false;
+            shippingResult.innerHTML = '<span style="color:#c0392b;">Falha ao calcular frete. Tente novamente.</span>';
+        });
+    });
+}
 </script>
 <?php include $base_path . 'components/footer.php'; ?>
