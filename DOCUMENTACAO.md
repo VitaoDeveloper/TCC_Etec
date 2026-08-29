@@ -741,3 +741,103 @@ O projeto possui template de Pull Request em `.github/PULL_REQUEST_TEMPLATE.md` 
 - Comprovante + E-mail: ✅ PDF GERADO + ANEXO ENVIADO (Mailpit confirmado).
 - Segurança: ⚠️ Chave criptografia hardcoded (revise), webhooks (validar specs).
 - Próximo passo crítico: **Criar conta Melhor Envio + gerar token + configurar no admin**.
+
+## Como Testar Pagamentos com Cartão (Sandbox Mercado Pago)
+
+> **Aviso:** Estas credenciais de teste são de uso exclusivo do desenvolvedor responsável pela integração e não devem ser commitadas no repositório nem compartilhadas publicamente.
+
+### Links oficiais
+
+- Painel do desenvolvedor: https://www.mercadopago.com.br/developers/panel/app
+- Documentação de contas de teste: https://www.mercadopago.com.br/developers/en/docs/checkout-transparente/additional-content/your-integrations/test/cards
+- Documentação de cartões de teste: https://www.mercadopago.com.br/developers/en/reference/card-tokens/_card_tokens_post
+
+### Passo a passo
+
+**1. Obter credenciais sandbox (TEST-xxx)**
+
+No painel do desenvolvedor, acessar **Credenciais > Produção/Teste** e alternar para a aba **Teste**. Copiar:
+
+- **Public Key** (formato `TEST-xxxx-xxxx-xxxx`)
+- **Access Token** (formato `TEST-xxxx-xxxx-xxxx`)
+
+> Nunca incluir Access Token, Public Key ou senhas de conta de teste no repositório. Salvar apenas no banco de dados criptografado (`e5_encrypted_settings`).
+
+**2. Salvar credenciais no sistema**
+
+Via painel admin (Configurações > Gateway de Pagamento) ou via código PHP:
+
+```php
+require_once 'includes/security.php';
+require_once 'includes/gateways.php';
+gatewaySaveCredentials($pdo, 'mercadopago', [
+    'access_token' => 'TEST-xxx',
+    'public_key'   => 'TEST-xxx',
+]);
+```
+
+**3. Verificar com health check**
+
+```php
+require_once 'includes/gateways.php';
+$token = paymentGatewayGetAccessToken('mercadopago');
+$result = gatewayHealthCheckMercadoPago($token);
+// Deve retornar success => true com o e-mail da conta de teste do vendedor
+```
+
+**4. Identificar conta de teste do comprador**
+
+No painel do Mercado Pago, em **Contas de teste**, criar ou localizar:
+
+- Conta de perfil **Vendedor** (usada para receber pagamentos — é a credencial acima)
+- Conta de perfil **Comprador** (usada para simular compras)
+
+O formato do e-mail da conta comprador de teste é `TESTUSERxxxxxxxxx@testuser.com`. Usar este e-mail no campo `payer.email` do payload de pagamento.
+
+**5. Testar pagamento no checkout**
+
+- **Cartão de teste**: `4444 4444 4444 0008`
+- **Nome do titular**: `APRO` (força aprovação) ou códigos alternativos:
+  - `CONT` — pagamento pendente
+  - `OTHE` — pagamento recusado
+  - Verificar lista atual na documentação oficial
+- **Validade**: data futura (ex: 12/30)
+- **CVV**: `123`
+- **E-mail do comprador**: `TESTUSERxxxxxxxxx@testuser.com` (obtido no passo 4)
+
+**6. Confirmar aprovação**
+
+Verificar no banco de dados:
+
+```sql
+SELECT id, payment_status, gateway_transaction_id 
+FROM e5_orders ORDER BY id DESC LIMIT 1;
+```
+
+Esperado: `payment_status = 'paid'` e `gateway_transaction_id` preenchido com o ID do pagamento no Mercado Pago.
+
+### Fluxo técnico do Checkout Transparente
+
+```
+Front-end (JS SDK)          Servidor (PHP)                    API Mercado Pago
+─────────────────          ──────────────                    ────────────────
+1. JS SDK tokeniza     →
+   o cartão com a           paymentProcessCreditCard()
+   public key TEST-xxx      → paymentMercadoPagoCreatePayment()
+                             → paymentGatewayGetAccessToken()
+                             → lê access token de e5_encrypted_settings
+                             → POST /v1/payments com Bearer token
+                                                  ──→  API valida token + cartão
+                                              ←──  Retorna JSON com status
+                         ←  Interpreta resposta
+   Exibe resultado     ←
+```
+
+### Erros comuns
+
+| Erro | Causa | Solução |
+|------|-------|---------|
+| `Unauthorized use of live credentials` | Usando credenciais `APP_USR-*` (produção) com cartão de teste | Trocar para credenciais `TEST-*` (sandbox) |
+| `Token do cartão ausente` | JS SDK não tokenizou (public key incorreta ou erro de rede) | Verificar public key no painel admin |
+| `Payment rejected` | Cartão recusado pelo gateway | Usar cartão `4444 4444 4444 0008` com nome `APRO` |
+| `Invalid card token` | Token expirado (>30 min) ou cartão inválido | Gerar novo token via JS SDK |
