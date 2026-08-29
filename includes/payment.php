@@ -206,18 +206,53 @@ function paymentGenerateBoleto(float $amount, string $orderId, array $customer):
 
 /**
  * Process credit card payment
- * TODO: Integrate with gateway API
+ * Dispatches to the active gateway (Mercado Pago or Asaas).
+ * Token must be generated client-side (Checkout Transparente) — card numbers NEVER touch the server.
+ *
+ * @param array $cardData  ['token' => string, 'installments' => int, ...]
+ * @param float $amount
+ * @param string $orderId
+ * @param array $customer ['name', 'email', 'cpf' => '000.000.000-00', ...]
  */
 function paymentProcessCreditCard(array $cardData, float $amount, string $orderId, array $customer): array
 {
-    // This should integrate with Mercado Pago or Asaas
-    // Tokenize card and process payment
-    
-    return [
-        'success' => false,
-        'message' => 'Processamento de cartão ainda não implementado. Use Pix ou Boleto.',
-        'data' => null,
-    ];
+    $gatewayName = store_config('payment_gateway') ?: 'mercadopago';
+    $token = $cardData['token'] ?? '';
+    $installments = max(1, (int) ($cardData['installments'] ?? 1));
+
+    if (empty($token)) {
+        return ['success' => false, 'message' => 'Token do cartão ausente. Verifique o formulário de pagamento.', 'data' => null];
+    }
+
+    $items = $cardData['items'] ?? [];
+
+    if ($gatewayName === 'mercadopago') {
+        return paymentMercadoPagoCreatePayment($amount, $orderId, $items, $customer, $token, $installments);
+    }
+    if ($gatewayName === 'asaas') {
+        return paymentAsaasCreatePayment($amount, $orderId, $items, $customer, $token, $installments);
+    }
+
+    return ['success' => false, 'message' => 'Gateway desconhecido: ' . $gatewayName, 'data' => null];
+}
+
+/**
+ * Process a refund (estorno) via the active gateway.
+ *
+ * @return array ['success' => bool, 'message' => string, 'data' => ?array]
+ */
+function paymentProcessRefund(string $transactionId, float $amount): array
+{
+    $gatewayName = store_config('payment_gateway') ?: 'mercadopago';
+
+    if ($gatewayName === 'mercadopago') {
+        return paymentRefundMercadoPago($transactionId, $amount);
+    }
+    if ($gatewayName === 'asaas') {
+        return paymentRefundAsaas($transactionId, $amount);
+    }
+
+    return ['success' => false, 'message' => 'Gateway desconhecido: ' . $gatewayName];
 }
 
 /**
@@ -276,25 +311,336 @@ function paymentGetMigrationChecklist(PDO $pdo): array
 }
 
 /**
- * Mercado Pago specific functions
- * Docs: https://www.mercadopago.com.br/developers/
+ * Mercado Pago — Checkout Transparente (pagamento com cartão)
+ *
+ * Docs: https://www.mercadopago.com.br/developers/en/docs/checkout-transparente/landing
+ *
+ * Fluxo:
+ *  1. Front-end usa JS SDK do MP para tokenizar o cartão (nunca envia número ao servidor).
+ *  2. Este servidor envia o token + dados para POST /v1/payments com o access_token.
+ *  3. Se aprovado, retorna status=approved; senão, status=rejected com detalhes.
+ *
+ * @param float  $amount        Valor total (R$)
+ * @param string $orderId       ID interno do pedido (external_reference)
+ * @param array  $items         Itens do pedido [['title', 'quantity', 'unit_price']]
+ * @param array  $customer      ['name', 'email', 'cpf' => '00000000000']
+ * @param string $cardToken     Token gerado pelo JS SDK do MP
+ * @param int    $installments  Parcelas
  */
-
-function paymentMercadoPagoCreatePayment(float $amount, string $orderId, array $items, array $customer): array
+function paymentMercadoPagoCreatePayment(float $amount, string $orderId, array $items, array $customer, string $cardToken = '', int $installments = 1): array
 {
-    // TODO: Implement MP SDK integration
-    return ['success' => false, 'message' => 'Mercado Pago não implementado ainda.', 'data' => null];
+    $accessToken = paymentGatewayGetAccessToken('mercadopago');
+    if (empty($accessToken)) {
+        return ['success' => false, 'message' => 'Access token do Mercado Pago não configurado.', 'data' => null];
+    }
+
+    $sandboxMode = (bool) store_config('mercadopago_sandbox') ?: true;
+    $baseUrl = $sandboxMode
+        ? 'https://api.mercadopago.com'
+        : 'https://api.mercadopago.com';
+
+    $payload = [
+        'transaction_amount' => round($amount, 2),
+        'token'              => $cardToken,
+        'description'        => 'Pedido #' . $orderId,
+        'installments'       => $installments,
+        'payment_method_id'  => 'visa', // Will be overwritten by MP from token
+        'external_reference' => $orderId,
+        'payer' => [
+            'email' => $customer['email'] ?? '',
+            'first_name' => $customer['name'] ?? '',
+            'identification' => [
+                'type'   => 'CPF',
+                'number' => preg_replace('/\D/', '', $customer['cpf'] ?? ''),
+            ],
+        ],
+    ];
+
+    // Item details
+    if (!empty($items)) {
+        $payload['additional_info'] = [
+            'items' => array_map(function ($item) {
+                return [
+                    'id'          => $item['id'] ?? '',
+                    'title'       => $item['title'] ?? '',
+                    'description' => $item['description'] ?? '',
+                    'quantity'    => (int) ($item['quantity'] ?? 1),
+                    'unit_price'  => (float) ($item['unit_price'] ?? 0),
+                ];
+            }, $items),
+        ];
+    }
+
+    $result = paymentGatewayCurl($baseUrl . '/v1/payments', $payload, $accessToken);
+
+    if ($result['success']) {
+        $data = $result['data'];
+        $status = $data['status'] ?? 'rejected';
+        return [
+            'success' => $status === 'approved',
+            'message' => $status === 'approved'
+                ? 'Pagamento aprovado pelo Mercado Pago!'
+                : 'Pagamento ' . $status . ': ' . ($data['status_detail'] ?? ''),
+            'data'    => [
+                'status'            => $status,
+                'status_detail'     => $data['status_detail'] ?? '',
+                'transaction_id'    => $data['id'] ?? null,
+                'external_reference'=> $data['external_reference'] ?? $orderId,
+                'payment_method_id' => $data['payment_method_id'] ?? null,
+                'installments'      => $data['installments'] ?? $installments,
+                'total_paid_amount' => $data['transaction_details']['total_paid_amount'] ?? $amount,
+            ],
+        ];
+    }
+
+    return ['success' => false, 'message' => $result['message'], 'data' => null];
 }
 
 /**
- * Asaas specific functions
- * Docs: https://docs.asaas.com/
+ * Mercado Pago — Refund (estorno)
+ *
+ * Docs: https://www.mercadopago.com.br/developers/en/reference/payments/_payments_id_refunds/post
  */
-
-function paymentAsaasCreatePayment(float $amount, string $orderId, array $items, array $customer): array
+function paymentRefundMercadoPago(string $transactionId, float $amount): array
 {
-    // TODO: Implement Asaas API integration
-    return ['success' => false, 'message' => 'Asaas não implementado ainda.', 'data' => null];
+    $accessToken = paymentGatewayGetAccessToken('mercadopago');
+    if (empty($accessToken)) {
+        return ['success' => false, 'message' => 'Access token do Mercado Pago não configurado.'];
+    }
+
+    $baseUrl = 'https://api.mercadopago.com';
+
+    $payload = [
+        'amount' => round($amount, 2),
+    ];
+
+    $result = paymentGatewayCurl($baseUrl . '/v1/payments/' . $transactionId . '/refunds', $payload, $accessToken);
+
+    if ($result['success']) {
+        $data = $result['data'];
+        return [
+            'success' => in_array($data['status'] ?? '', ['approved', 'pending']),
+            'message' => 'Estorno processado pelo Mercado Pago (status: ' . ($data['status'] ?? 'unknown') . ').',
+            'data'    => $data,
+        ];
+    }
+
+    return ['success' => false, 'message' => $result['message']];
+}
+
+/**
+ * Asaas — Criação de pagamento com cartão (Checkout transparente)
+ *
+ * Docs: https://docs.asaas.com/reference/criar-um-pagamento
+ *
+ * Fluxo:
+ *  1. Front-end gera token do cartão via JS do Asaas ou挾入自己/tokenização segura.
+ *  2. POST /v3/payments com Bearer access_token.
+ *  3. Retorna payment.status = CONFIRMED, PENDING, etc.
+ *
+ * @param float  $amount
+ * @param string $orderId
+ * @param array  $items
+ * @param array  $customer      ['name','email','cpf']
+ * @param string $cardToken     Tokenizado (ou billingType = CREDIT_CARD + creditCardToken)
+ * @param int    $installments
+ */
+function paymentAsaasCreatePayment(float $amount, string $orderId, array $items, array $customer, string $cardToken = '', int $installments = 1): array
+{
+    $accessToken = paymentGatewayGetAccessToken('asaas');
+    if (empty($accessToken)) {
+        return ['success' => false, 'message' => 'Access token do Asaas não configurado.', 'data' => null];
+    }
+
+    $sandboxMode = (bool) store_config('asaas_sandbox') ?: true;
+    $baseUrl = $sandboxMode
+        ? 'https://sandbox.asaas.com/api/v3'
+        : 'https://api.asaas.com/api/v3';
+
+    $customerCpf = preg_replace('/\D/', '', $customer['cpf'] ?? '');
+
+    // First ensure customer exists or create
+    $asaasCustomer = paymentAsaasEnsureCustomer($baseUrl, $accessToken, $customer, $customerCpf);
+    if (!$asaasCustomer['success']) {
+        return $asaasCustomer;
+    }
+    $asaasCustomerId = $asaasCustomer['customer_id'];
+
+    $payload = [
+        'customer'           => $asaasCustomerId,
+        'billingType'        => 'CREDIT_CARD',
+        'dueDate'            => date('Y-m-d'),
+        'value'              => round($amount, 2),
+        'externalReference'  => $orderId,
+        'installmentCount'   => $installments,
+        'creditCardToken'    => $cardToken,
+        'description'        => 'Pedido #' . $orderId,
+    ];
+
+    $result = paymentGatewayCurl($baseUrl . '/payments', $payload, $accessToken);
+
+    if ($result['success']) {
+        $data = $result['data'];
+        $status = $data['status'] ?? 'PENDING';
+        return [
+            'success' => in_array($status, ['CONFIRMED', 'RECEIVED']),
+            'message' => $status === 'CONFIRMED'
+                ? 'Pagamento confirmado pelo Asaas!'
+                : 'Pagamento ' . $status . ' pelo Asaas.',
+            'data'    => [
+                'status'         => $status,
+                'transaction_id' => $data['id'] ?? null,
+                'external_reference' => $data['externalReference'] ?? $orderId,
+                'installments'   => $installments,
+            ],
+        ];
+    }
+
+    return ['success' => false, 'message' => $result['message'], 'data' => null];
+}
+
+/**
+ * Asaas — Criar ou obter customer existente por CPF/CNPJ
+ */
+function paymentAsaasEnsureCustomer(string $baseUrl, string $accessToken, array $customer, string $cpf): array
+{
+    // Try to find existing customer by CPF
+    $searchResult = paymentGatewayCurl(
+        $baseUrl . '/customers?cpfCnpj=' . $cpf,
+        null,
+        $accessToken,
+        'GET'
+    );
+
+    if ($searchResult['success']) {
+        $list = $searchResult['data']['data'] ?? [];
+        if (!empty($list)) {
+            return ['success' => true, 'customer_id' => $list[0]['id']];
+        }
+    }
+
+    // Create new customer
+    $payload = [
+        'name'    => $customer['name'] ?? '',
+        'email'   => $customer['email'] ?? '',
+        'cpfCnpj' => $cpf,
+    ];
+
+    $createResult = paymentGatewayCurl($baseUrl . '/customers', $payload, $accessToken);
+
+    if ($createResult['success']) {
+        return ['success' => true, 'customer_id' => $createResult['data']['id'] ?? null];
+    }
+
+    return ['success' => false, 'message' => 'Falha ao criar customer no Asaas: ' . $createResult['message']];
+}
+
+/**
+ * Asaas — Refund (estorno)
+ *
+ * Docs: https://docs.asaas.com/reference/estornar-um-pagamento
+ */
+function paymentRefundAsaas(string $transactionId, float $amount): array
+{
+    $accessToken = paymentGatewayGetAccessToken('asaas');
+    if (empty($accessToken)) {
+        return ['success' => false, 'message' => 'Access token do Asaas não configurado.'];
+    }
+
+    $sandboxMode = (bool) store_config('asaas_sandbox') ?: true;
+    $baseUrl = $sandboxMode
+        ? 'https://sandbox.asaas.com/api/v3'
+        : 'https://api.asaas.com/api/v3';
+
+    $payload = [
+        'value' => round($amount, 2),
+    ];
+
+    $result = paymentGatewayCurl($baseUrl . '/payments/' . $transactionId . '/refund', $payload, $accessToken);
+
+    if ($result['success']) {
+        $data = $result['data'];
+        return [
+            'success' => in_array($data['status'] ?? '', ['REFUNDED', 'PENDING']),
+            'message' => 'Estorno processado pelo Asaas (status: ' . ($data['status'] ?? 'unknown') . ').',
+            'data'    => $data,
+        ];
+    }
+
+    return ['success' => false, 'message' => $result['message']];
+}
+
+/**
+ * Helper: Ler access_token de um gateway do cofre criptografado.
+ */
+function paymentGatewayGetAccessToken(string $gatewayName): string
+{
+    try {
+        if (!isset($GLOBALS['pdo'])) {
+            include_once dirname(__DIR__) . '/database/connection.php';
+        }
+        $token = (string) loadEncryptedSetting($GLOBALS['pdo'], $gatewayName . '_access_token');
+        if (!empty($token)) return $token;
+        // Try alternative key names
+        $token = (string) loadEncryptedSetting($GLOBALS['pdo'], $gatewayName . '_token');
+        return $token;
+    } catch (Throwable $e) {
+        error_log('paymentGatewayGetAccessToken failed: ' . $e->getMessage());
+        return '';
+    }
+}
+
+/**
+ * Helper: generic cURL POST/GET to gateway API.
+ *
+ * @param string       $url
+ * @param array|null   $payload  null = GET
+ * @param string       $accessToken
+ * @param string       $method   'POST' (default) or 'GET'
+ * @return array ['success' => bool, 'data' => ?array, 'message' => string, 'raw' => ?string]
+ */
+function paymentGatewayCurl(string $url, ?array $payload, string $accessToken, string $method = 'POST'): array
+{
+    $ch = curl_init();
+    $headers = [
+        'Content-Type: application/json',
+        'Authorization: Bearer ' . $accessToken,
+        'Accept: application/json',
+    ];
+
+    curl_setopt_array($ch, [
+        CURLOPT_URL            => $url,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER     => $headers,
+        CURLOPT_TIMEOUT        => 30,
+        CURLOPT_SSL_VERIFYPEER => true,
+    ]);
+
+    if ($method === 'POST') {
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+    } else {
+        curl_setopt($ch, CURLOPT_HTTPGET, true);
+    }
+
+    $raw = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
+    curl_close($ch);
+
+    if ($curlError) {
+        error_log('Gateway cURL error: ' . $curlError);
+        return ['success' => false, 'data' => null, 'message' => 'Erro de conexão com o gateway: ' . $curlError, 'raw' => null];
+    }
+
+    $data = json_decode($raw, true);
+
+    if ($httpCode >= 200 && $httpCode < 300) {
+        return ['success' => true, 'data' => $data, 'message' => 'OK', 'raw' => $raw];
+    }
+
+    $errorMsg = $data['message'] ?? $data['error_description'] ?? $data['detail'] ?? ('HTTP ' . $httpCode);
+    return ['success' => false, 'data' => $data, 'message' => $errorMsg, 'raw' => $raw];
 }
 
 /**

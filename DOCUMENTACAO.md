@@ -389,8 +389,9 @@ Fluxo atual:
 10. Cria pedido em `e5_orders` com: `shipping_method`, `shipping_carrier`, `shipping_cost`, `shipping_delivery_time`, `shipping_is_estimated`, `shipping_postal_code`, `shipping_neighborhood/city/state` (ViaCEP). Para convidados: `user_id = NULL`, `guest_name`/`guest_email` preenchidos.
 11. Cria itens em `e5_order_items`, decrementa estoque, limpa carrinho (sessão para convidado, banco para logado).
 12. **PIX real**: `pixGenerateForOrder()` → BR Code EMV + QR Code PNG + copia-e-cola; `payment_status = pending`.
-13. Boleto/Cartão/Entrega: placeholders (integração gateway TODO).
-14. Gera comprovante (`gerarComprovanteCompra`) + envia e-mail (`enviarComprovanteEmail`).
+13. **Cartão de Crédito (Checkout Transparente)**: `paymentMercadoPagoCreatePayment()` e `paymentAsaasCreatePayment()` chamam as APIs reais via cURL. Tokenização via JS SDK no front-end (cartão nunca toca o servidor). `payment_status = paid` quando aprovado, `pending` caso contrário.
+14. **Estorno**: `paymentProcessRefund()` despacha para `paymentRefundMercadoPago()` ou `paymentRefundAsaas()` (endpoint real de estorno de cada gateway).
+15. Gera comprovante (`gerarComprovanteCompra`) + envia e-mail (`enviarComprovanteEmail`).
 
 Campos de frete no pedido:
 

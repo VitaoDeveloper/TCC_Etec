@@ -46,6 +46,14 @@ if (!isset($_SESSION['checkout_gateway_locked'])) {
 }
 $gatewayUsed = $_SESSION['checkout_gateway_locked'];
 
+// Public key for Mercado Pago Checkout Transparente (JS SDK)
+$mpPublicKey = '';
+if ($gatewayUsed === 'mercadopago') {
+    try {
+        $mpPublicKey = (string) loadEncryptedSetting($GLOBALS['pdo'] ?? $pdo, 'mercadopago_public_key');
+    } catch (Throwable $e) { /* ignore */ }
+}
+
 $subtotal = 0;
 $subtotalCents = 0;
 foreach ($items as $item) {
@@ -232,14 +240,58 @@ if ($isConfirming) {
                     'expires' => date('d/m/Y', strtotime('+3 days')),
                 ];
             } elseif ($paymentMethod === 'credit') {
-                $installments = min(12, max(1, (int) floor($grandTotal / 50)));
-                $installmentValue = $grandTotal / $installments;
-                $orderPaymentInfo = [
-                    'method' => 'Cartão de Crédito',
-                    'instructions' => 'Pagamento será processado pelo gateway ativo (' . $gatewaySnapshot . ').',
-                    'installments' => $installments . 'x de R$ ' . number_format($installmentValue, 2, ',', '.'),
-                    'gateway' => $gatewaySnapshot,
-                ];
+                $ccToken = trim($_POST['cc_token'] ?? '');
+                $ccInstallments = max(1, (int) ($_POST['cc_installments'] ?? 1));
+                $ccCpf = trim($_POST['cc_cpf'] ?? '');
+                $customerName = $isGuest ? $guestName : ($user['name'] ?? '');
+                $customerEmail = $isGuest ? $guestEmail : ($user['email'] ?? '');
+
+                $itemsForGateway = [];
+                foreach ($items as $item) {
+                    $itemsForGateway[] = [
+                        'id'         => (string) $item['product_id'],
+                        'title'      => $item['name'] ?? 'Produto',
+                        'quantity'   => (int) $item['quantity'],
+                        'unit_price' => (float) $item['price'],
+                    ];
+                }
+
+                $cardResult = paymentProcessCreditCard([
+                    'token'        => $ccToken,
+                    'installments' => $ccInstallments,
+                    'items'        => $itemsForGateway,
+                ], $grandTotal, (string) $orderId, [
+                    'name'  => $customerName,
+                    'email' => $customerEmail,
+                    'cpf'   => $ccCpf,
+                ]);
+
+                if ($cardResult['success']) {
+                    $txId = $cardResult['data']['transaction_id'] ?? null;
+                    $stmtUpd = $pdo->prepare('UPDATE e5_orders SET payment_status = :ps, gateway_transaction_id = :tx WHERE id = :oid');
+                    $stmtUpd->execute([':ps' => 'paid', ':tx' => $txId, ':oid' => $orderId]);
+
+                    $installmentValue = $grandTotal / $ccInstallments;
+                    $orderPaymentInfo = [
+                        'method'      => 'Cartão de Crédito',
+                        'instructions'=> 'Pagamento aprovado! ' . $ccInstallments . 'x de R$ ' . number_format($installmentValue, 2, ',', '.') . ' no cartão.',
+                        'installments'=> $ccInstallments . 'x de R$ ' . number_format($installmentValue, 2, ',', '.'),
+                        'gateway'     => $gatewaySnapshot,
+                        'approved'    => true,
+                    ];
+                } else {
+                    $stmtUpd = $pdo->prepare('UPDATE e5_orders SET payment_status = :ps, gateway_transaction_id = :tx WHERE id = :oid');
+                    $stmtUpd->execute([':ps' => 'pending', ':tx' => null, ':oid' => $orderId]);
+
+                    $installmentValue = $grandTotal / $ccInstallments;
+                    $orderPaymentInfo = [
+                        'method'      => 'Cartão de Crédito',
+                        'instructions'=> 'Pagamento não aprovado: ' . ($cardResult['message'] ?? 'Erro desconhecido') . '. Verifique os dados do cartão ou tente outro método.',
+                        'installments'=> $ccInstallments . 'x de R$ ' . number_format($installmentValue, 2, ',', '.'),
+                        'gateway'     => $gatewaySnapshot,
+                        'approved'    => false,
+                    ];
+                }
             } else {
                 $orderPaymentInfo = [
                     'method' => 'Pagamento na Entrega',
@@ -493,11 +545,38 @@ include $base_path . 'components/header.php';
                     <form method="POST" id="checkoutForm">
                         <?php echo csrf_field(); ?>
                         <input type="hidden" name="shipping_cep" value="<?php echo htmlspecialchars($shippingCep, ENT_QUOTES, 'UTF-8'); ?>">
+
+                        <?php if ($paymentMethod === 'credit'): ?>
+                        <!-- Campos de Cartão de Crédito — Checkout Transparente -->
+                        <div id="creditCardFields" style="margin-bottom: 16px; padding: 16px; border: 1px solid var(--ml-border); border-radius: 8px; background: var(--ml-bg-secondary, #f8f9fa);">
+                            <p style="font-size: 0.85rem; font-weight: 600; margin-bottom: 12px;"><i class="fas fa-lock"></i> Dados do Cartão de Crédito (pagamento seguro via <?php echo htmlspecialchars(strtoupper($gatewayUsed ?? 'gateway'), ENT_QUOTES, 'UTF-8'); ?>)</p>
+                            <div class="auth-field"><label class="auth-label" for="cc_name">Nome no Cartão</label><div class="auth-input-wrap"><input type="text" id="cc_name" name="cc_name" required autocomplete="cc-name" placeholder="Como está impresso no cartão"></div></div>
+                            <div class="auth-field"><label class="auth-label" for="cc_number">Número do Cartão</label><div class="auth-input-wrap"><input type="text" id="cc_number" required autocomplete="cc-number" placeholder="0000 0000 0000 0000" maxlength="19" inputmode="numeric"></div></div>
+                            <div style="display: flex; gap: 10px;">
+                                <div class="auth-field" style="flex: 1;"><label class="auth-label" for="cc_exp">Validade</label><div class="auth-input-wrap"><input type="text" id="cc_exp" required placeholder="MM/AA" maxlength="5" inputmode="numeric"></div></div>
+                                <div class="auth-field" style="flex: 1;"><label class="auth-label" for="cc_cvv">CVV</label><div class="auth-input-wrap"><input type="text" id="cc_cvv" required autocomplete="cc-csc" placeholder="123" maxlength="4" inputmode="numeric"></div></div>
+                            </div>
+                            <div class="auth-field"><label class="auth-label" for="cc_cpf">CPF do Titular</label><div class="auth-input-wrap"><input type="text" id="cc_cpf" name="cc_cpf" required placeholder="000.000.000-00" maxlength="14" inputmode="numeric"></div></div>
+                            <div class="auth-field"><label class="auth-label" for="cc_installments">Parcelas</label><div class="auth-input-wrap"><select id="cc_installments" name="cc_installments" form="checkoutForm">
+                                <?php
+                                $maxInstallments = min(12, max(1, (int) floor($grandTotal / 50)));
+                                for ($i = 1; $i <= $maxInstallments; $i++):
+                                    $val = $grandTotal / $i;
+                                ?>
+                                <option value="<?php echo $i; ?>"><?php echo $i; ?>x de R$ <?php echo number_format($val, 2, ',', '.'); ?><?php echo $i === 1 ? ' (à vista)' : ''; ?></option>
+                                <?php endfor; ?>
+                            </select></div></div>
+                            <input type="hidden" id="cc_token" name="cc_token" value="">
+                            <p id="cc_error" style="color: #c0392b; font-size: 0.82rem; margin-top: 8px; display: none;"></p>
+                            <p id="cc_waiting" style="color: var(--ml-text-muted); font-size: 0.82rem; margin-top: 8px; display: none;"><i class="fas fa-spinner fa-spin"></i> Processando pagamento...</p>
+                        </div>
+                        <?php endif; ?>
+
                         <p style="margin-bottom: 15px; font-size: 0.85rem; color: var(--ml-text-muted);"><i class="fas fa-info-circle"></i> Ao finalizar, você concorda com nossos termos de compra.</p>
                         <?php if ($isGuest): ?>
                         <p style="margin-bottom: 12px; font-size: 0.85rem; color: var(--ml-text-muted);"><a href="../auth/login.php?next=<?php echo urlencode($_SERVER['REQUEST_URI']); ?>" style="color: var(--ml-accent);"><i class="fas fa-sign-in-alt"></i> Já tem conta? Faça login</a></p>
                         <?php endif; ?>
-                        <button type="submit" name="confirm_order" class="ml-btn ml-btn-primary ml-btn-block" style="padding: 14px; font-size: 1.05rem;" <?php echo !$selectedOption ? 'disabled' : ''; ?>><i class="fas fa-check"></i> Confirmar Pedido</button>
+                        <button type="submit" name="confirm_order" id="btnConfirmOrder" class="ml-btn ml-btn-primary ml-btn-block" style="padding: 14px; font-size: 1.05rem;" <?php echo !$selectedOption ? 'disabled' : ''; ?>><i class="fas fa-check"></i> Confirmar Pedido</button>
                         <a href="cart.php" class="ml-btn ml-btn-block" style="margin-top: 10px;"><i class="fas fa-arrow-left"></i> Voltar ao Carrinho</a>
                     </form>
                 </div>
@@ -518,6 +597,107 @@ include $base_path . 'components/header.php';
             });
         });
         </script>
+
+        <?php if ($paymentMethod === 'credit'): ?>
+        <!-- Mercado Pago SDK para Checkout Transparente (tokenização do cartão) -->
+        <script src="https://sdk.mercadopago.com/js/v2"></script>
+        <script>
+        (function() {
+            var form = document.getElementById('checkoutForm');
+            var btnConfirm = document.getElementById('btnConfirmOrder');
+            var ccTokenInput = document.getElementById('cc_token');
+            var ccError = document.getElementById('cc_error');
+            var ccWaiting = document.getElementById('cc_waiting');
+            var ccNumber = document.getElementById('cc_number');
+            var ccExp = document.getElementById('cc_exp');
+            var ccCvv = document.getElementById('cc_cvp');
+            var ccName = document.getElementById('cc_name');
+            var ccCpf = document.getElementById('cc_cpf');
+
+            // Format card number with spaces
+            if (ccNumber) {
+                ccNumber.addEventListener('input', function() {
+                    var v = this.value.replace(/\D/g, '').slice(0, 16);
+                    this.value = v.replace(/(.{4})/g, '$1 ').trim();
+                });
+            }
+            // Format expiry
+            if (ccExp) {
+                ccExp.addEventListener('input', function() {
+                    var v = this.value.replace(/\D/g, '').slice(0, 4);
+                    if (v.length >= 2) v = v.slice(0, 2) + '/' + v.slice(2);
+                    this.value = v;
+                });
+            }
+            // Format CPF
+            if (ccCpf) {
+                ccCpf.addEventListener('input', function() {
+                    var v = this.value.replace(/\D/g, '').slice(0, 11);
+                    v = v.replace(/(\d{3})(\d)/, '$1.$2');
+                    v = v.replace(/(\d{3})(\d)/, '$1.$2');
+                    v = v.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+                    this.value = v;
+                });
+            }
+
+            if (form && btnConfirm && ccTokenInput) {
+                form.addEventListener('submit', function(e) {
+                    // If already tokenized, allow normal submit
+                    if (ccTokenInput.value) return true;
+
+                    // Validate card fields before tokenizing
+                    if (!ccName || !ccName.value.trim()) { showError('Informe o nome no cartão.'); return false; }
+                    if (!ccNumber || ccNumber.value.replace(/\D/g,'').length < 13) { showError('Número do cartão inválido.'); return false; }
+                    if (!ccExp || ccExp.value.length < 5) { showError('Informe a validade (MM/AA).'); return false; }
+                    if (!ccCvv || ccCvv.value.length < 3) { showError('Informe o CVV.'); return false; }
+
+                    e.preventDefault();
+                    btnConfirm.disabled = true;
+                    ccWaiting.style.display = 'block';
+                    ccError.style.display = 'none';
+
+                    // Tokenize via Mercado Pago SDK
+                    try {
+                        var mp = new MercadoPagos("<?php echo htmlspecialchars($mpPublicKey ?? '', ENT_QUOTES, 'UTF-8'); ?>");
+                        var expParts = ccExp.value.split('/');
+                        var cardTokenParams = {
+                            cardholderName: ccName.value.trim(),
+                            identificationType: 'CPF',
+                            identificationNumber: (ccCpf ? ccCpf.value : '').replace(/\D/g, ''),
+                            installments: parseInt(document.getElementById('cc_installments').value) || 1
+                        };
+                        mp.createCardToken({
+                            cardNumber: ccNumber.value.replace(/\s/g, ''),
+                            cardExpirationMonth: expParts[0],
+                            cardExpirationYear: '20' + expParts[1],
+                            securityCode: ccCvv.value,
+                            cardholderName: ccName.value.trim(),
+                            identificationType: 'CPF',
+                            identificationNumber: (ccCpf ? ccCpf.value : '').replace(/\D/g, '')
+                        }).then(function(token) {
+                            ccTokenInput.value = token.id;
+                            ccWaiting.style.display = 'none';
+                            form.submit();
+                        }).catch(function(err) {
+                            ccWaiting.style.display = 'none';
+                            btnConfirm.disabled = false;
+                            showError('Erro ao tokenizar cartão: ' + (err.message || 'Verifique os dados.'));
+                        });
+                    } catch (err) {
+                        ccWaiting.style.display = 'none';
+                        btnConfirm.disabled = false;
+                        showError('SDK do gateway não disponível. Tente novamente.');
+                    }
+                    return false;
+                });
+            }
+
+            function showError(msg) {
+                if (ccError) { ccError.textContent = msg; ccError.style.display = 'block'; }
+            }
+        })();
+        </script>
+        <?php endif; ?>
     <?php endif; ?>
 </div></section>
 <?php include $base_path . 'components/footer.php'; ?>
