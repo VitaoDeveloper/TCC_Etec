@@ -2302,3 +2302,15 @@ body.royal-glow::after {
     background: rgba(255, 97, 97, 0.12);
     border-color: var(--ml-red);
 }
+
+/* ========================================
+   ACCESSIBILITY: Reduced Motion
+   ======================================== */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}

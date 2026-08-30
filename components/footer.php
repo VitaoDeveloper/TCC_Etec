@@ -73,7 +73,7 @@
     </a>
 
     <!-- Toast Container -->
-    <div class="toast-container" id="toastContainer"></div>
+    <div class="toast-container" id="toastContainer" role="status" aria-live="polite"></div>
 
     <!-- Scripts -->
     <script src="<?php echo $base_path ?? ''; ?>assets/js/script.js"></script>

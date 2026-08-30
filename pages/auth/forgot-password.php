@@ -19,6 +19,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $errorMessage = 'E-mail inválido.';
         } else {
         include '../../database/connection.php';
+        // Limpa tokens expirados e já utilizados (previne acúmulo)
+        try {
+            $pdo->exec("DELETE FROM e5_password_reset_tokens WHERE expires_at < NOW() OR used = 1");
+        } catch (Throwable $e) { /* ignore cleanup failure */ }
+
         $stmt = $pdo->prepare('SELECT id, name FROM e5_users WHERE email = :email LIMIT 1');
         $stmt->execute([':email' => $email]);
         $user = $stmt->fetch();
