@@ -11,6 +11,11 @@
 
 require_once __DIR__ . '/config.php';
 
+// Mercado Pago SDK (dx-php) — autoload for OrderClient, PaymentMethodClient, etc.
+if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
+    require_once __DIR__ . '/../vendor/autoload.php';
+}
+
 /**
  * Get active payment gateway configuration
  * 
@@ -181,27 +186,30 @@ function paymentGeneratePixCode(float $amount, string $orderId, string $customer
 }
 
 /**
- * Generate boleto barcode and PDF
- * TODO: Integrate with gateway API (Mercado Pago or Asaas)
+ * Generate boleto — despacha para o gateway ativo (Mercado Pago SDK ou Asaas).
+ * Mantém assinatura anterior. Para Mercado Pago, usa Orders API real via SDK.
  */
 function paymentGenerateBoleto(float $amount, string $orderId, array $customer): array
 {
-    $config = paymentGetConfig();
-    
-    $dueDate = date('Y-m-d', strtotime('+' . $config['boleto_days'] . ' days'));
-    
-    // Stub implementation — integrate with real gateway
-    return [
-        'success' => true,
-        'message' => 'Boleto gerado com sucesso.',
-        'data' => [
-            'barcode' => '00000.00000 00000.000000 00000.000000 0 00000000000000', // Fake barcode
-            'due_date' => $dueDate,
-            'amount' => $amount,
-            'order_id' => $orderId,
-            'pdf_url' => null, // TODO: Generate via API
-        ],
-    ];
+    $gatewayName = store_config('payment_gateway') ?: 'mercadopago';
+
+    if ($gatewayName === 'mercadopago') {
+        $items = [['title' => 'Pedido #' . $orderId, 'unit_price' => $amount, 'quantity' => 1]];
+        return paymentMercadoPagoCreateBoleto($amount, $orderId, $items, $customer);
+    }
+
+    if ($gatewayName === 'asaas') {
+        // Asaas boleto — mantém stub até integração futura
+        $config  = paymentGetConfig();
+        $dueDate = date('Y-m-d', strtotime('+' . $config['boleto_days'] . ' days'));
+        return [
+            'success' => true,
+            'message' => 'Boleto gerado (Asaas — stub).',
+            'data'    => ['barcode' => null, 'due_date' => $dueDate, 'amount' => $amount, 'order_id' => $orderId, 'pdf_url' => null],
+        ];
+    }
+
+    return ['success' => false, 'message' => 'Gateway desconhecido: ' . $gatewayName, 'data' => null];
 }
 
 /**
@@ -311,24 +319,149 @@ function paymentGetMigrationChecklist(PDO $pdo): array
     return $checklist;
 }
 
+// ============================================================
+// Mercado Pago — SDK oficial (dx-php) + API de Orders
+// ============================================================
+// Migração: curl manual → mercadopago/dx-php 3.16.0
+// Docs: https://www.mercadopago.com.br/developers/pt/docs/checkout-api-orders/overview
+
+use MercadoPago\MercadoPagoConfig;
+use MercadoPago\Client\Order\OrderClient;
+use MercadoPago\Client\PaymentMethod\PaymentMethodClient;
+use MercadoPago\Client\Common\RequestOptions;
+use MercadoPago\Exceptions\MPApiException;
+
 /**
- * Mercado Pago — Checkout Transparente via API de Orders
+ * Configura o SDK do Mercado Pago com o access_token do banco.
+ */
+function paymentMercadoPagoSdkConfigure(): void
+{
+    static $configured = false;
+    if ($configured) return;
+    $accessToken = paymentGatewayGetAccessToken('mercadopago');
+    if (!empty($accessToken)) {
+        MercadoPagoConfig::setAccessToken($accessToken);
+        $configured = true;
+    }
+}
+
+/**
+ * RequestOptions com X-Idempotency-Key para chamadas de criação.
+ */
+function paymentMercadoPagoSdkOptions(string $orderId): RequestOptions
+{
+    $options = new RequestOptions();
+    $options->setCustomHeaders([
+        'x-idempotency-key' => 'order_' . $orderId,
+    ]);
+    return $options;
+}
+
+/**
+ * Normaliza exceções do SDK para o formato padronizado do sistema.
+ */
+function paymentMercadoPagoSdkException(\Throwable $e): array
+{
+    if ($e instanceof MPApiException) {
+        $statusCode = $e->getStatusCode();
+        $body = $e->getApiResponse()->getContent();
+        $errorMsg = $body['message'] ?? $body['error'] ?? null;
+        if (!$errorMsg && !empty($body['errors'])) {
+            $first = $body['errors'][0];
+            $errorMsg = ($first['code'] ?? '') . ': ' . ($first['message'] ?? '');
+            if (!empty($first['details'])) {
+                $errorMsg .= ' (' . implode('; ', (array) $first['details']) . ')';
+            }
+        }
+        return [
+            'success' => false,
+            'message' => 'Mercado Pago (HTTP ' . $statusCode . '): ' . ($errorMsg ?? 'Erro desconhecido'),
+            'data'    => $body,
+        ];
+    }
+    return [
+        'success' => false,
+        'message' => 'Erro inesperado: ' . $e->getMessage(),
+        'data'    => null,
+    ];
+}
+
+/**
+ * Monta o objeto payer para o payload da Order API.
  *
+ * Boleto (ticket) exige address — usamos dados do customer quando disponíveis,
+ * com fallback para um endereço padrão válido.
+ */
+function paymentMercadoPagoSdkPayer(array $customer): array
+{
+    $cpf = preg_replace('/\D/', '', $customer['cpf'] ?? '');
+    $nameParts = explode(' ', trim($customer['name'] ?? ''), 2);
+    $firstName = $nameParts[0] ?? 'Comprador';
+    $lastName = !empty($nameParts[1]) ? $nameParts[1] : ' Cliente';
+
+    $payer = [
+        'email'      => $customer['email'] ?? '',
+        'first_name' => $firstName,
+        'last_name'  => $lastName,
+    ];
+    if (!empty($cpf) && strlen($cpf) >= 11) {
+        $payer['identification'] = ['type' => 'CPF', 'number' => substr($cpf, 0, 11)];
+    }
+
+    // Endereço do comprador (billing) — apenas números/dígitos válidos
+    $zip = preg_replace('/\D/', '', $customer['postal_code'] ?? $customer['zip_code'] ?? '');
+    $street   = trim($customer['street'] ?? $customer['street_name'] ?? 'Av. Paulista');
+    $number   = trim($customer['number'] ?? $customer['street_number'] ?? '1000');
+    $district = trim($customer['district'] ?? $customer['neighborhood'] ?? 'Bela Vista');
+    $city     = trim($customer['city'] ?? 'Sao Paulo');
+    $state    = strtoupper(trim($customer['state'] ?? 'SP'));
+
+    $address = [
+        'zip_code'      => !empty($zip) ? substr($zip, 0, 8) : '01310100',
+        'street_name'   => $street,
+        'street_number' => $number,
+        'neighborhood'  => $district,
+        'city'          => $city,
+        'state'         => substr($state, 0, 2),
+    ];
+    if (!empty($customer['complement'])) {
+        $address['apartment'] = trim($customer['complement']);
+    }
+    $payer['address'] = $address;
+
+    return $payer;
+}
+
+/**
+ * Monta o array de itens para o payload da Order API.
+ */
+function paymentMercadoPagoSdkItems(array $items): array
+{
+    return array_map(function ($item) {
+        return [
+            'title'       => $item['title'] ?? $item['name'] ?? 'Produto',
+            'description' => $item['description'] ?? ($item['title'] ?? $item['name'] ?? ''),
+            'unit_price'  => (string) round((float) ($item['unit_price'] ?? $item['price'] ?? 0), 2),
+            'quantity'    => (int) ($item['quantity'] ?? 1),
+            'category_id' => 'electronic',
+        ];
+    }, $items);
+}
+
+// ------------------------------------------------------------
+// Cartão de Crédito (Checkout Transparente)
+// ------------------------------------------------------------
+
+/**
+ * Mercado Pago — Checkout Transparente via SDK (API de Orders).
+ *
+ * Mantém a mesma assinatura anterior. Inclui processing_mode: automatic.
  * Docs: https://www.mercadopago.com.br/developers/pt/docs/checkout-api-orders/overview
- * Ref:  https://www.mercadopago.com.br/developers/pt/reference/orders/_orders/post
- *
- * Fluxo:
- *  1. Front-end usa JS SDK do MP para tokenizar o cartão (nunca envia número ao servidor).
- *  2. Este servidor envia o token + dados para POST /v1/orders com o access_token.
- *  3. A API de Orders retorna status=processed/status_detail=accredited quando aprovado.
- *
- * Observação: A API de Orders exige X-Idempotency-Key e estrutura diferente da API legada
- * de pagamentos (/v1/payments). transactions é um objeto com sub-array payments[].
  *
  * @param float  $amount        Valor total (R$)
  * @param string $orderId       ID interno do pedido (external_reference)
  * @param array  $items         Itens do pedido [['title', 'quantity', 'unit_price', ...]]
- * @param array  $customer      ['name', 'email', 'cpf' => '00000000000']
+ * @param array  $customer      ['name', 'email', 'cpf', 'card_brand']
  * @param string $cardToken     Token gerado pelo JS SDK do MP
  * @param int    $installments  Parcelas
  */
@@ -342,98 +475,239 @@ function paymentMercadoPagoCreatePayment(float $amount, string $orderId, array $
         return ['success' => false, 'message' => 'Token do cartão ausente. Verifique o formulário de pagamento.', 'data' => null];
     }
 
-    $baseUrl = 'https://api.mercadopago.com';
-    $cpf = preg_replace('/\D/', '', $customer['cpf'] ?? '');
-    $nameParts = explode(' ', trim($customer['name'] ?? ''), 2);
-    $firstName = $nameParts[0] ?? 'Comprador';
-    $lastName = !empty($nameParts[1]) ? $nameParts[1] : ' Cliente';
+    try {
+        paymentMercadoPagoSdkConfigure();
+    } catch (\Throwable $e) {
+        return ['success' => false, 'message' => 'Falha ao configurar SDK: ' . $e->getMessage(), 'data' => null];
+    }
 
-    // Card brand from checkout JS (passed via $customer) or default to 'visa'
     $cardBrand = $customer['card_brand'] ?? 'visa';
 
     $payload = [
         'type'               => 'online',
+        'processing_mode'    => 'automatic',
         'external_reference' => $orderId,
         'total_amount'       => (string) round($amount, 2),
         'transactions'       => [
             'payments' => [
                 [
-                    'payment_method' => [
-                        'id'                     => $cardBrand,
-                        'type'                   => 'credit_card',
-                        'token'                  => $cardToken,
-                        'installments'           => $installments,
-                        'statement_descriptor'   => 'ROYALTECH',
-                    ],
                     'amount' => (string) round($amount, 2),
+                    'payment_method' => [
+                        'id'                    => $cardBrand,
+                        'type'                  => 'credit_card',
+                        'token'                 => $cardToken,
+                        'installments'          => $installments,
+                        'statement_descriptor'  => 'ROYALTECH',
+                    ],
                 ],
             ],
         ],
-        'payer' => [
-            'email'      => $customer['email'] ?? '',
-            'first_name' => $firstName,
-            'last_name'  => $lastName,
-            'identification' => [
-                'type'   => 'CPF',
-                'number' => $cpf,
-            ],
-            'address' => [
-                'zip_code'      => '01310100',
-                'street_name'   => 'Av. Paulista',
-                'street_number' => '1000',
-                'neighborhood'  => 'Bela Vista',
-                'city'          => 'Sao Paulo',
-                'state'         => 'SP',
-            ],
-        ],
-        'items' => array_map(function ($item) {
-            return [
-                'title'       => $item['title'] ?? 'Produto',
-                'description' => $item['description'] ?? ($item['title'] ?? ''),
-                'unit_price'  => (string) round((float) ($item['unit_price'] ?? 0), 2),
-                'quantity'    => (int) ($item['quantity'] ?? 1),
-                'category_id' => 'electronic',
-            ];
-        }, $items),
+        'payer'  => paymentMercadoPagoSdkPayer($customer),
+        'items'  => paymentMercadoPagoSdkItems($items),
     ];
 
-    $result = paymentGatewayCurl($baseUrl . '/v1/orders', $payload, $accessToken, 'POST', [
-        'X-Idempotency-Key: ' . 'order_' . $orderId,
-    ]);
+    try {
+        $client = new OrderClient();
+        $order  = $client->create($payload, paymentMercadoPagoSdkOptions($orderId));
 
-    if ($result['success']) {
-        $data = $result['data'];
-        $orderStatus = $data['status'] ?? 'rejected';
-        $pmt = $data['transactions']['payments'][0] ?? [];
-        $pmtStatus = $pmt['status'] ?? 'rejected';
-        $pmtDetail = $pmt['status_detail'] ?? '';
-        $approved = $orderStatus === 'processed' && in_array($pmtStatus, ['processed', 'approved']);
+        $orderStatus = $order->status ?? 'rejected';
+        $pmt         = $order->transactions->payments[0] ?? null;
+        $pmtStatus   = $pmt->status ?? 'rejected';
+        $pmtDetail   = $pmt->status_detail ?? '';
+        $approved    = $orderStatus === 'processed' && in_array($pmtStatus, ['processed', 'approved']);
 
         return [
             'success' => $approved,
             'message' => $approved
                 ? 'Pagamento aprovado pelo Mercado Pago!'
                 : 'Pagamento ' . $orderStatus . '/' . $pmtStatus . ': ' . $pmtDetail,
-            'data'    => [
-                'status'            => $pmtStatus,
-                'status_detail'     => $pmtDetail,
-                'transaction_id'    => $data['id'] ?? null,
-                'payment_id'        => $pmt['id'] ?? null,
-                'external_reference'=> $data['external_reference'] ?? $orderId,
-                'payment_method_id' => $pmt['payment_method']['id'] ?? null,
-                'installments'      => $installments,
-                'total_paid_amount' => (float) ($data['total_paid_amount'] ?? $amount),
+            'data' => [
+                'status'             => $pmtStatus,
+                'status_detail'      => $pmtDetail,
+                'transaction_id'     => $order->id,
+                'payment_id'         => $pmt->id ?? null,
+                'external_reference' => $order->external_reference ?? $orderId,
+                'payment_method_id'  => $pmt->payment_method->id ?? null,
+                'installments'       => $installments,
+                'total_paid_amount'  => (float) ($order->total_paid_amount ?? $amount),
             ],
         ];
+    } catch (\Throwable $e) {
+        return paymentMercadoPagoSdkException($e);
     }
-
-    return ['success' => false, 'message' => $result['message'] ?? 'Erro desconhecido.', 'data' => null];
 }
 
+// ------------------------------------------------------------
+// Pix Nativo (via API de Orders)
+// ------------------------------------------------------------
+
 /**
- * Mercado Pago — Refund (estorno)
+ * Mercado Pago — Gera Pix nativo via Orders API (SDK).
  *
- * Docs: https://www.mercadopago.com.br/developers/en/reference/payments/_payments_id_refunds/post
+ * Retorna QR code (imagem base64) e código copia-e-cola para pagamento.
+ * Mantém includes/pix.php como fallback documentado para uso offline.
+ *
+ * @param float  $amount    Valor total (R$)
+ * @param string $orderId   ID interno do pedido
+ * @param array  $items     Itens do pedido
+ * @param array  $customer  ['name', 'email', 'cpf']
+ * @return array ['success'=>bool, 'message'=>string, 'data'=>array|null]
+ */
+function paymentMercadoPagoCreatePix(float $amount, string $orderId, array $items, array $customer): array
+{
+    $accessToken = paymentGatewayGetAccessToken('mercadopago');
+    if (empty($accessToken)) {
+        return ['success' => false, 'message' => 'Access token do Mercado Pago não configurado.', 'data' => null];
+    }
+
+    try {
+        paymentMercadoPagoSdkConfigure();
+    } catch (\Throwable $e) {
+        return ['success' => false, 'message' => 'Falha ao configurar SDK: ' . $e->getMessage(), 'data' => null];
+    }
+
+    $payload = [
+        'type'               => 'online',
+        'external_reference' => $orderId,
+        'total_amount'       => (string) round($amount, 2),
+        'expiration_time'    => 'PT30M',
+        'transactions'       => [
+            'payments' => [
+                [
+                    'amount' => (string) round($amount, 2),
+                    'payment_method' => [
+                        'id'   => 'pix',
+                        'type' => 'bank_transfer',
+                    ],
+                ],
+            ],
+        ],
+        'payer' => paymentMercadoPagoSdkPayer($customer),
+        'items' => paymentMercadoPagoSdkItems($items),
+    ];
+
+    try {
+        $client = new OrderClient();
+        $order  = $client->create($payload, paymentMercadoPagoSdkOptions($orderId));
+
+        $pmt = $order->transactions->payments[0] ?? null;
+
+        $qrCodeB64 = $pmt->payment_method->qr_code_base64 ?? null;
+        $qrDataUri  = null;
+        if (!empty($qrCodeB64)) {
+            $qrDataUri = str_starts_with($qrCodeB64, 'data:')
+                ? $qrCodeB64
+                : 'data:image/png;base64,' . $qrCodeB64;
+        }
+
+        return [
+            'success' => true,
+            'message' => 'Pix gerado com sucesso via Mercado Pago.',
+            'data'    => [
+                'order_id'           => $order->id,
+                'payment_id'         => $pmt->id ?? null,
+                'status'             => $order->status,
+                'qr_code'            => $pmt->payment_method->qr_code ?? null,
+                'qr_data_uri'        => $qrDataUri,
+                'reference'          => $pmt->payment_method->reference ?? null,
+                'expires_at'         => date('Y-m-d H:i:s', strtotime('+30 minutes')),
+                'external_reference' => $order->external_reference ?? $orderId,
+            ],
+        ];
+    } catch (\Throwable $e) {
+        return paymentMercadoPagoSdkException($e);
+    }
+}
+
+// ------------------------------------------------------------
+// Boleto (via API de Orders)
+// ------------------------------------------------------------
+
+/**
+ * Mercado Pago — Gera boleto real via Orders API (SDK).
+ *
+ * Retorna URL do PDF e linha digitável. Substitui o stub anterior.
+ *
+ * @param float  $amount   Valor total (R$)
+ * @param string $orderId  ID interno do pedido
+ * @param array  $items    Itens do pedido
+ * @param array  $customer ['name', 'email', 'cpf']
+ * @return array ['success'=>bool, 'message'=>string, 'data'=>array|null]
+ */
+function paymentMercadoPagoCreateBoleto(float $amount, string $orderId, array $items, array $customer): array
+{
+    $accessToken = paymentGatewayGetAccessToken('mercadopago');
+    if (empty($accessToken)) {
+        return ['success' => false, 'message' => 'Access token do Mercado Pago não configurado.', 'data' => null];
+    }
+
+    try {
+        paymentMercadoPagoSdkConfigure();
+    } catch (\Throwable $e) {
+        return ['success' => false, 'message' => 'Falha ao configurar SDK: ' . $e->getMessage(), 'data' => null];
+    }
+
+    $config    = paymentGetConfig();
+    $dueDate   = date('Y-m-d', strtotime('+' . $config['boleto_days'] . ' days'));
+
+    $payload = [
+        'type'               => 'online',
+        'external_reference' => $orderId,
+        'total_amount'       => (string) round($amount, 2),
+        'expiration_time'    => 'P' . max(1, (int) $config['boleto_days']) . 'D',
+        'transactions'       => [
+            'payments' => [
+                [
+                    'amount' => (string) round($amount, 2),
+                    'payment_method' => [
+                        'id'   => 'bolbradesco',
+                        'type' => 'ticket',
+                    ],
+                ],
+            ],
+        ],
+        'payer' => paymentMercadoPagoSdkPayer($customer),
+        'items' => paymentMercadoPagoSdkItems($items),
+    ];
+
+    try {
+        $client = new OrderClient();
+        $order  = $client->create($payload, paymentMercadoPagoSdkOptions($orderId));
+
+        $pmt = $order->transactions->payments[0] ?? null;
+
+        return [
+            'success' => true,
+            'message' => 'Boleto gerado com sucesso via Mercado Pago.',
+            'data'    => [
+                'order_id'           => $order->id,
+                'payment_id'         => $pmt->id ?? null,
+                'status'             => $order->status,
+                'barcode'            => $pmt->payment_method->barcode_content ?? null,
+                'digitable_line'     => $pmt->payment_method->digitable_line ?? null,
+                'ticket_url'         => $pmt->payment_method->ticket_url ?? null,
+                'reference'          => $pmt->payment_method->reference ?? null,
+                'due_date'           => $dueDate,
+                'external_reference' => $order->external_reference ?? $orderId,
+            ],
+        ];
+    } catch (\Throwable $e) {
+        return paymentMercadoPagoSdkException($e);
+    }
+}
+
+// ------------------------------------------------------------
+// Refund (Estorno) via Orders API + SDK
+// ------------------------------------------------------------
+
+/**
+ * Mercado Pago — Estorno via Orders API (SDK).
+ *
+ * Substitui a chamada cURL à API legada /v1/payments/{id}/refunds.
+ * Usa OrderClient::refund() → POST /v1/orders/{id}/refund.
+ *
+ * @param string $transactionId  gateway_transaction_id (Order ID)
+ * @param float  $amount         Valor a estornar
  */
 function paymentRefundMercadoPago(string $transactionId, float $amount): array
 {
@@ -442,24 +716,108 @@ function paymentRefundMercadoPago(string $transactionId, float $amount): array
         return ['success' => false, 'message' => 'Access token do Mercado Pago não configurado.'];
     }
 
-    $baseUrl = 'https://api.mercadopago.com';
-
-    $payload = [
-        'amount' => round($amount, 2),
-    ];
-
-    $result = paymentGatewayCurl($baseUrl . '/v1/payments/' . $transactionId . '/refunds', $payload, $accessToken);
-
-    if ($result['success']) {
-        $data = $result['data'];
-        return [
-            'success' => in_array($data['status'] ?? '', ['approved', 'pending']),
-            'message' => 'Estorno processado pelo Mercado Pago (status: ' . ($data['status'] ?? 'unknown') . ').',
-            'data'    => $data,
-        ];
+    try {
+        paymentMercadoPagoSdkConfigure();
+    } catch (\Throwable $e) {
+        return ['success' => false, 'message' => 'Falha ao configurar SDK: ' . $e->getMessage()];
     }
 
-    return ['success' => false, 'message' => $result['message']];
+    try {
+        $client = new OrderClient();
+        $order  = $client->refund($transactionId, null, paymentMercadoPagoSdkOptions($transactionId));
+
+        return [
+            'success' => in_array($order->status ?? '', ['processed', 'refunded']),
+            'message' => 'Estorno processado pelo Mercado Pago (status: ' . ($order->status ?? 'unknown') . ').',
+            'data'    => [
+                'order_id'        => $order->id,
+                'status'          => $order->status,
+                'status_detail'   => $order->status_detail,
+                'refunded_amount' => $order->transactions->refunds[0]->amount ?? null,
+            ],
+        ];
+    } catch (\Throwable $e) {
+        return paymentMercadoPagoSdkException($e);
+    }
+}
+
+// ------------------------------------------------------------
+// Webhook helper — busca de Order por ID (para processamento de notificação)
+// ------------------------------------------------------------
+
+/**
+ * Mercado Pago — Consulta order por ID (usado no processamento de webhook).
+ *
+ * Quando o webhook não traz external_reference diretamente (Orders API),
+ * buscamos o pedido pelo ID retornado em data.id do payload.
+ *
+ * @param string $orderId  Order ID do Mercado Pago (ex.: "1234567890")
+ * @return array ['success'=>bool, 'data'=>array|null]
+ */
+function paymentMercadoPagoGetOrder(string $orderId): array
+{
+    $accessToken = paymentGatewayGetAccessToken('mercadopago');
+    if (empty($accessToken)) {
+        return ['success' => false, 'message' => 'Access token não configurado.', 'data' => null];
+    }
+
+    try {
+        paymentMercadoPagoSdkConfigure();
+        $client = new OrderClient();
+        $order  = $client->get($orderId);
+
+        return [
+            'success' => true,
+            'data'    => [
+                'id'                 => $order->id,
+                'status'             => $order->status,
+                'status_detail'      => $order->status_detail,
+                'external_reference' => $order->external_reference,
+                'total_paid_amount'  => $order->total_paid_amount,
+                'payments'           => $order->transactions->payments ?? [],
+            ],
+        ];
+    } catch (\Throwable $e) {
+        return paymentMercadoPagoSdkException($e);
+    }
+}
+
+// ------------------------------------------------------------
+// Diagnostics — listar payment methods da conta
+// ------------------------------------------------------------
+
+/**
+ * Mercado Pago — Lista meios de pagamento disponíveis (diagnostics).
+ *
+ * @return array ['success'=>bool, 'data'=>array|null]
+ */
+function paymentMercadoPagoListPaymentMethods(): array
+{
+    $accessToken = paymentGatewayGetAccessToken('mercadopago');
+    if (empty($accessToken)) {
+        return ['success' => false, 'message' => 'Access token não configurado.', 'data' => null];
+    }
+
+    try {
+        paymentMercadoPagoSdkConfigure();
+        $client = new PaymentMethodClient();
+        $resultObj = $client->list();
+
+        $list = [];
+        $methods = $resultObj->data ?? [];
+        foreach ($methods as $m) {
+            $list[] = [
+                'id'              => $m->id ?? null,
+                'name'            => $m->name ?? null,
+                'payment_type_id' => $m->payment_type_id ?? null,
+                'status'          => $m->status ?? null,
+            ];
+        }
+
+        return ['success' => true, 'data' => $list];
+    } catch (\Throwable $e) {
+        return paymentMercadoPagoSdkException($e);
+    }
 }
 
 /**

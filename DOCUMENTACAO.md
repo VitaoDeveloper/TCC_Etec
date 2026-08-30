@@ -1,6 +1,6 @@
 # DOCUMENTAÇÃO — Royal Tech
 
-Última atualização: 29 de agosto de 2026 (após verificação SDK Mercado Pago + correções carrinho)
+Última atualização: 30 de agosto de 2026 (migração Mercado Pago para SDK oficial dx-php 3.16.0)
 
 ## Visão Geral
 
@@ -611,8 +611,9 @@ Status: PENDENTE verificar impacto no frete, pagamento e migração MEI.
 ## Problemas Conhecidos (atualizados)
 
 - **Token SuperFrete configurado em sandbox** — frete real ativo para testes; migrar para token de produção ao lançar em ambiente real.
-- **PIX estático (manual)** — BR Code + QR Code funcionais, mas sem webhook de gateway; admin deve confirmar pagamento manualmente via "Marcar como Pago" em `order-detail.php`.
-- **Boleto/Cartão** — placeholders; integração real com Mercado Pago/Asaas pendente.
+- **PIX agora nativo via SDK** — QR Code real gerado pela API de Orders com webhook de confirmação automática. `includes/pix.php` mantido como fallback documentado.
+- **Boleto agora real via SDK** — PDF real gerado pela API de Orders com linha digitável e barcode. Vencimento configurável (3 dias padrão).
+- **Cartão com SDK + processing_mode:automatic** — migração completa de cURL manual para `OrderClient::create()`.
 - **Produtos sem peso/dimensões** — envelope padrão 0,5kg/item no frete.
 - **CEP 40020-000** não existe no ViaCEP; usar 40070-100 para Salvador.
 - **Chave de criptografia hardcoded** em `includes/security.php` — revise antes de produção.
@@ -628,14 +629,29 @@ Frete:
 - ✅ Fallback exibido como "Frete estimado — configure o token...".
 - ✅ Testes CEPs `01310-100`, `20040-020`, `40070-100` executados (fallback).
 - ✅ Token SuperFrete configurado → frete real ativo via `shippingCalculateSuperFrete()`.
+- ⏳ Migrar SuperFrete de sandbox para produção.
 
 Pix:
-- ✅ BR Code EMV válido (CRC16-CCITT) com chave `royaltech.original@gmail.com`.
-- ✅ QR Code PNG gerado via `chillerlan/php-qrcode` (composer).
-- ✅ Copia-e-cola exibido no checkout + admin.
-- ✅ `payment_status = pending` + botão "Marcar como Pago" no admin.
-- ⏳ **Validar BR Code com leitor real** (app banco: Nubank, Itaú, etc.).
-- ⏳ Integrar webhook PIX real via Mercado Pago/Asaas para automação.
+- ✅ **PIX nativo via SDK oficial (Orders API)** — QR Code real (EMV + imagem base64) + copia-e-cola.
+- ✅ Webhook de confirmação automática via `paymentMercadoPagoGetOrder()`.
+- ✅ Fallback para PIX estático local (`includes/pix.php`) mantido documentado.
+- ✅ Campo CPF adicionado ao checkout para PIX/Boleto.
+
+Boleto:
+- ✅ **Boleto real via SDK oficial (Orders API)** — barcode 44 dígitos, linha digitável 47 dígitos, PDF real.
+- ✅ Exibição no checkout: link de download + linha digitável com botão copiar.
+- ✅ Campo CPF adicionado ao checkout para Boleto.
+
+Cartão:
+- ✅ **Cartão via SDK oficial (Orders API)** — `processing_mode: automatic` incluído.
+- ✅ Refund via `OrderClient::refund()` (migrou de cURL à API legada).
+- ✅ Salvar cartão, cartão salvo no checkout, tokenização client-side.
+
+Webhook:
+- ✅ **Webhook com lookup via SDK** — quando Orders API não traz `external_reference`, busca via `paymentMercadoPagoGetOrder(data.id)`.
+
+Pagamento na entrega:
+- ✅ Fluxo completo sem integração de gateway.
 
 Segurança:
 - ✅ CSRF em todos formulários POST.
@@ -773,95 +789,102 @@ O projeto possui template de Pull Request em `.github/PULL_REQUEST_TEMPLATE.md` 
 - Validação de CEP: ✅ RIGOROSA (8 dígitos + ViaCEP).
 - Frete real (SuperFrete): ✅ **ATIVO EM SANDBOX** — PAC e SEDEX com preços reais em 3 rotas testadas.
 - Pix real: ✅ **BR CODE EMV VÁLIDO + QR CODE PNG** (estático/manual; `payment_status=pending`).
-- **Cartão de crédito (API de Orders):** ✅ **PAGAMENTO APROVADO EM SANDBOX** — Pedido #27, `payment_status=paid`, `gateway_transaction_id=ORDTST...`. Integração usa a API de Orders do Mercado Pago (não a API legada `/v1/payments`). Documentação oficial: https://www.mercadopago.com.br/developers/pt/docs/checkout-api-orders/overview
+- **Cartão de crédito (SDK oficial dx-php + Orders API):** ✅ **PAGAMENTO APROVADO EM SANDBOX** — `processing_mode=automatic` incluso no payload. `OrderClient::create()` via SDK 3.16.0 (migração de curl manual). Token gerado via `CardTokenClient` (sandbox card `4235647728025682`, nome `APRO`, CPF `12345678909`).
+  - transaction_id: `ORDTST01M19NB2417QDCAQBK8RSFB7BS`
+  - payment_id: `PAY01M19NB24TEAEENKWB85PFBFM5`
+  - status: `processed` / status_detail: `accredited`
+- **Pix nativo (SDK oficial + Orders API):** ✅ **QR CODE GERADO E VALIDADO** — `OrderClient::create()` com `payment_method.type=bank_transfer`. Retorno inclui `qr_code` (BR Code EMV, 177 chars), `qr_data_uri` (PNG base64, 3778 chars), `expires_at` (30 min).
+  - transaction_id: `ORDTST01M19N4K5NTS34RJZZM0TPDJ2G`
+  - payment_id: `PAY01M19N4K5...`
+  - status: `action_required` (aguarda pagamento)
+- **Boleto real (SDK oficial + Orders API):** ✅ **BOLETO GERADO E VALIDADO** — `OrderClient::create()` com `payment_method.type=ticket, id=bolbradesco`. Retorno: barcode (44 dígitos), digitable_line (47 dígitos), ticket_url (PDF real), due_date (3 dias).
+  - transaction_id: `ORDTST01M19N1CJ4TNS3PQG2YA0TDBX9`
+  - payment_id: `PAY01M19N1CJHH7ZYMM2HJPS4WG0H`
+  - barcode: `23796155700000199903380260600996703000633330`
+  - status: `action_required`
+- **Reembolso (SDK oficial + Orders API):** ✅ **ESTORNO PROCESSADO** — `OrderClient::refund()` via `POST /v1/orders/{id}/refund`. Substituiu a chamada cURL à API legada `/v1/payments/{id}/refunds`.
+  - refunded_amount: `149.90`
+  - status: `refunded` / status_detail: `refunded`
+- **Webhook com lookup via SDK:** ✅ **END-TO-END VALIDADO** — Quando o webhook da Orders API não traz `external_reference` no payload, `paymentMercadoPagoGetOrder()` busca a order por `data.id` e resolve o `external_reference` para atualizar `e5_orders.payment_status` de `pending` para `paid`.
+- **Payment Methods via SDK:** ✅ 10 métodos listados (visa, master, elo, amex, bolbradesco, debelo, etc.)
 - **SDK JS v2 Mercado Pago:** ✅ **VERIFICADO** — SDK `https://sdk.mercadopago.com/js/v2` carregado condicionalmente. Public Key vinda dinamicamente do banco (`loadEncryptedSetting`). Tokenização client-side via `new MercadoPagos()`. Dados sensíveis (cc_number, cc_cvv, cc_exp) NÃO têm `name=` e nunca passam pelo servidor.
 - Comprovante + E-mail: ✅ PDF GERADO + ANEXO ENVIADO (Mailpit confirmado).
 - Segurança: ⚠️ Chave criptografia hardcoded (revise), webhooks (validar specs).
 - Próximo passo crítico: **Migrar SuperFrete de sandbox para produção**.
 
-## Como Testar Pagamentos com Cartão (Sandbox Mercado Pago)
+## Como Testar Pagamentos (Sandbox Mercado Pago — SDK Oficial)
 
-> **Aviso:** Estas credenciais de teste são de uso exclusivo do desenvolvedor responsável pela integração e não devem ser commitadas no repositório nem compartilhadas publicamente.
+> **Nota:** As credenciais desta aplicação são `APP_USR-*` (formato único, sem alternativa `TEST-*`). O Mercado Pago associa usuários de teste a essas credenciais automaticamente para simulação.
 
 ### Links oficiais
 
 - Painel do desenvolvedor: https://www.mercadopago.com.br/developers/panel/app
 - Documentação de contas de teste: https://www.mercadopago.com.br/developers/en/docs/checkout-transparente/additional-content/your-integrations/test/cards
 - Documentação de cartões de teste: https://www.mercadopago.com.br/developers/en/reference/card-tokens/_card_tokens_post
+- SDK PHP oficial (dx-php): https://github.com/mercadopago/sdk-php
 
-### Passo a passo
+### Como funciona agora (SDK oficial)
 
-**1. Obter credenciais sandbox (TEST-xxx)**
+A migração substituiu o cURL manual pelo SDK oficial `mercadopago/dx-php` (v3.16.0):
 
-No painel do desenvolvedor, acessar **Credenciais > Produção/Teste** e alternar para a aba **Teste**. Copiar:
+| Antes (curl manual) | Depois (SDK dx-php) |
+|---|---|
+| `paymentGatewayCurl('/v1/orders', ...)` | `OrderClient::create($payload, $options)` |
+| `paymentGatewayCurl('/v1/payments/{id}/refunds', ...)` | `OrderClient::refund($orderId, null)` |
+| Sem `processing_mode` no payload | `processing_mode: "automatic"` incluído |
+| PIX via BR Code estático local (`pix.php`) | PIX nativo via Orders API (QR dinâmico + copia-e-cola real) |
+| Boleto via stub (`pdf_url: null`) | Boleto real via Orders API (barcode + PDF real) |
+| Webhook sem lookup de ordem | Webhook com fallback `paymentMercadoPagoGetOrder()` |
 
-- **Public Key** (formato `TEST-xxxx-xxxx-xxxx`)
-- **Access Token** (formato `TEST-xxxx-xxxx-xxxx`)
+### Cartões de teste
 
-> Nunca incluir Access Token, Public Key ou senhas de conta de teste no repositório. Salvar apenas no banco de dados criptografado (`e5_encrypted_settings`).
-
-**2. Salvar credenciais no sistema**
-
-Via painel admin (Configurações > Gateway de Pagamento) ou via código PHP:
-
-```php
-require_once 'includes/security.php';
-require_once 'includes/gateways.php';
-gatewaySaveCredentials($pdo, 'mercadopago', [
-    'access_token' => 'TEST-xxx',
-    'public_key'   => 'TEST-xxx',
-]);
-```
-
-**3. Verificar com health check**
-
-```php
-require_once 'includes/gateways.php';
-$token = paymentGatewayGetAccessToken('mercadopago');
-$result = gatewayHealthCheckMercadoPago($token);
-// Deve retornar success => true com o e-mail da conta de teste do vendedor
-```
-
-**4. Identificar conta de teste do comprador**
-
-No painel do Mercado Pago, em **Contas de teste**, criar ou localizar:
-
-- Conta de perfil **Vendedor** (usada para receber pagamentos — é a credencial acima)
-- Conta de perfil **Comprador** (usada para simular compras)
-
-O formato do e-mail da conta comprador de teste é `TESTUSERxxxxxxxxx@testuser.com`. Usar este e-mail no campo `payer.email` do payload de pagamento.
-
-**5. Testar pagamento no checkout**
-
-- **Cartão de teste**: `4444 4444 4444 0008`
+- **Cartão**: `4235 6477 2802 5682` (Visa) ou `5031 4332 1540 6351` (Mastercard)
 - **Nome do titular**: `APRO` (força aprovação) ou códigos alternativos:
   - `CONT` — pagamento pendente
   - `OTHE` — pagamento recusado
-  - Verificar lista atual na documentação oficial
-- **Validade**: data futura (ex: 12/30)
+- **Validade**: data futura (ex: 12/2030)
 - **CVV**: `123`
-- **E-mail do comprador**: `TESTUSERxxxxxxxxx@testuser.com` (obtido no passo 4)
+- **CPF**: `12345678909`
+- **E-mail do comprador**: `TESTUSERxxxxxxxxx@testuser.com` (obtido no painel > Contas de teste)
 
-**6. Confirmar aprovação**
+### Evidência dos testes realizados (2026-08-30)
 
-Verificar no banco de dados:
+| Item | Status | transaction_id | payment_id | Detalhe |
+|------|--------|---------------|------------|---------|
+| Cartão Visa (APRO) | ✅ APROVADO | `ORDTST01M19NB2417QDCAQBK8RSFB7BS` | `PAY01M19NB24TEAEENKWB85PFBFM5` | `processed/accredited`, processing_mode=automatic |
+| Pix nativo | ✅ GERADO | `ORDTST01M19N4K5NTS34RJZZM0TPDJ2G` | `PAY01M19N4K5...` | qr_code (177 chars EMV), qr_data_uri (PNG 3778 chars) |
+| Boleto real | ✅ GERADO | `ORDTST01M19N1CJ4TNS3PQG2YA0TDBX9` | `PAY01M19N1CJHH7ZYMM2HJPS4WG0H` | barcode 44 dígitos, digitable 47, ticket_url (PDF) |
+| Reembolso (cartão) | ✅ PROCESSADO | `ORDTST01M19MY9SNXMK35CRXCEFHX91Z` | — | refunded 149.90 |
+| Webhook E2E | ✅ PROCESSADO | — | — | SDK lookup → external_reference → payment_status=paid |
+| Payment Methods | ✅ | — | — | 10 métodos listados (visa, master, elo, amex, bolbradesco, debelo...) |
+
+> Nunca incluir Access Token, Public Key ou senhas de conta de teste no repositório. Salvar apenas no banco de dados criptografado (`e5_encrypted_settings`).
+
+**2. Verificar com health check (script de teste)**
+
+```php
+require_once 'includes/security.php';
+require_once 'includes/payment.php';
+$r = paymentMercadoPagoListPaymentMethods();
+// success => true com 10+ métodos listados
+```
+
+**3. Confirmar no banco**
 
 ```sql
 SELECT id, payment_status, gateway_transaction_id 
-FROM e5_orders ORDER BY id DESC LIMIT 1;
+FROM e5_orders ORDER BY id DESC LIMIT 5;
 ```
 
-Esperado: `payment_status = 'paid'` e `gateway_transaction_id` preenchido com o ID do pagamento no Mercado Pago.
-
-### Fluxo técnico do Checkout Transparente (API de Orders)
+### Fluxo técnico do Checkout Transparente (SDK dx-php)
 
 ```
-Front-end (JS SDK)          Servidor (PHP)                    API Mercado Pago
-─────────────────          ──────────────                    ────────────────
-1. SDK v2 carregado        paymentGetConfig()               api.mercadopago.com
-   https://sdk.mercadopago  → loadEncryptedSetting()
-   .com/js/v2               → lê public key do banco
-                            → lê access token do banco
+Front-end (JS SDK)          Servidor (PHP + SDK dx-php)       API Mercado Pago
+─────────────────          ─────────────────────────────      ────────────────
+1. SDK v2 carregado        paymentGetConfig()                 api.mercadopago.com
+   sdk.mercadopago         → loadEncryptedSetting()
+   .com/js/v2              → lê public key do banco
+                           → lê access token do banco
 
 2. new MercadoPagos(PK)
    mp.createCardToken()
@@ -872,20 +895,25 @@ Front-end (JS SDK)          Servidor (PHP)                    API Mercado Pago
 
 3. Form submit com:        paymentProcessCreditCard()
    cc_token (hidden)         → paymentMercadoPagoCreatePayment()
-   cc_brand (hidden)         → POST /v1/orders com Bearer token
-   cc_name                   + header X-Idempotency-Key
-   cc_cpf                    + payload: type, transactions.payments[],
-   cc_installments             payer, items, payer.address
-                                                  ──→  API valida token + cartão
-                                              ←──  Retorna JSON com status
-                           ←  Interpreta resposta
+   cc_brand (hidden)           → MercadoPagoConfig::setAccessToken()
+   cc_name                     → OrderClient::create($payload, $options)
+   cc_cpf                       + processing_mode: "automatic"
+   cc_installments              + x-idempotency-key: order_{id}
+                                 + transactions.payments[].payment_method
+                                                   ──→  SDK valida + processa
+                                               ←──  Order objeto com status
+                            ←  Interpreta Order.response
    Exibe resultado    ←
 ```
 
-**Verificação realizada (2026-08-29):**
+**Verificação realizada (2026-08-30 — migração SDK oficial):**
 
 | Item | Status | Detalhe |
 |------|--------|---------|
+| SDK dx-php 3.16.0 instalado | ✅ | `composer require mercadopago/dx-php` |
+| OrderClient suporta /v1/orders | ✅ | `create`, `get`, `capture`, `cancel`, `process`, `refund`, `search` |
+| `processing_mode: automatic` | ✅ | Incluído no payload do cartão — corrige erro anterior |
+| PaymentMethodClient (diagnostics) | ✅ | `list()` → 10 métodos ativos |
 | SDK JS v2 incluído | ✅ | `https://sdk.mercadopago.com/js/v2` |
 | Public Key dinâmica | ✅ | Vinda do banco via `loadEncryptedSetting('mercadopago_public_key')` |
 | Tokenização client-side | ✅ | `new MercadoPagos(PK) → mp.createCardToken() → token.id` |
@@ -893,17 +921,22 @@ Front-end (JS SDK)          Servidor (PHP)                    API Mercado Pago
 | Backend recebe APENAS | ✅ | `cc_token`, `cc_brand`, `cc_name`, `cc_cpf`, `cc_installments` |
 | Salvar cartão | ✅ | Token (não dados) salvo em `e5_saved_cards` |
 | Cartão salvo no checkout | ✅ | Seleção de cartão existente pula tokenização |
+| PIX nativo via SDK | ✅ | QR Code EMV + imagem base64 + copia-e-cola real |
+| Boleto real via SDK | ✅ | Barcode 44 dígitos + linha digitável + PDF URL |
+| Reembolso via SDK | ✅ | `OrderClient::refund()` substituiu cURL à API legada |
+| Webhook com SDK lookup | ✅ | `paymentMercadoPagoGetOrder()` resolve external_reference de data.id |
 
 ### Erros comuns
 
 | Erro | Causa | Solução |
 |------|-------|---------|
-| `Unauthorized use of live credentials` | Usando credenciais `APP_USR-*` (produção) com cartão de teste em sandbox | Verificar se as credenciais são sandbox (`TEST-*`) ou usar a API de Orders corretamente |
 | `Token do cartão ausente` | JS SDK não tokenizou (public key incorreta ou erro de rede) | Verificar public key no painel admin |
 | `Payment rejected` | Cartão recusado pelo gateway | Usar cartão de teste com nome `APRO` (força aprovação) |
 | `Invalid card token` | Token expirado (>30 min) ou já utilizado (single-use) | Gerar novo token via JS SDK |
 | `payment_method.id invalid` | `id` com valor `credit_card` em vez da bandeira | Usar `visa`, `master`, `elo`, etc. |
 | `payer.last_name vazio` | Nome do titular com uma palavra só | Usar nome completo (ex: `APRO Teste`) |
+| `expiration_time is not valid duration` | Valor no formato datetime em vez de duração ISO 8601 | Usar formato `PT30M` (minutos) ou `P3D` (dias) |
+| `missing properties: address` | Payer sem endereço (obrigatório para boleto) | Incluir address no payload do payer |
 
 ### Nota sobre cartões de teste
 
@@ -911,13 +944,18 @@ Front-end (JS SDK)          Servidor (PHP)                    API Mercado Pago
 
 ### Nota sobre API de Orders
 
-A integração usa a **API de Orders** do Mercado Pago (`POST /v1/orders`), não a API legada de Pagamentos (`/v1/payments`). Principais diferenças:
+A integração usa a **API de Orders** do Mercado Pago via SDK oficial (`mercadopago/dx-php`), não mais cURL manual e não a API legada de Pagamentos (`/v1/payments`). Principais detalhes:
 
-- Endpoint: `/v1/orders` em vez de `/v1/payments`
-- Header obrigatório: `X-Idempotency-Key` (chave de idempotência)
-- Estrutura: `transactions.payments[]` (objeto com array), em vez de campos flat
-- `payment_method.id`: deve conter a **bandeira** do cartão (`visa`, `master`, etc.)
-- `payer`: precisa incluir `address` com `neighborhood`, `city`, `state`
+- Endpoint: `POST /v1/orders` via `OrderClient::create()`
+- Idempotência: `X-Idempotency-Key` via `RequestOptions::setCustomHeaders()`
+- Estrutura: `transactions.payments[]` (objeto com array)
+- `payment_method.id`: bandeira do cartão (`visa`, `master`) ou método (`pix`, `bolbradesco`)
+- `payment_method.type`: `credit_card`, `bank_transfer` (pix), `ticket` (boleto)
+- `processing_mode`: `"automatic"` (cartão) — incluído explicitamente
+- `expiration_time`: formato ISO 8601 duration (`PT30M`, `P3D`)
+- `payer`: precisa incluir `address` (obrigatório para boleto)
 - Resposta: `status: processed` + `status_detail: accredited` quando aprovado
+- PIX: `qr_code` (BR Code EMV), `qr_code_base64` (PNG)
+- Boleto: `ticket_url` (PDF), `digitable_line`, `barcode_content`
 
 Documentação oficial: https://www.mercadopago.com.br/developers/pt/docs/checkout-api-orders/overview

@@ -2,6 +2,7 @@
     "require": {
         "dompdf/dompdf": "^3.1",
         "phpmailer/phpmailer": "^7.1",
-        "chillerlan/php-qrcode": "^5.0"
+        "chillerlan/php-qrcode": "^5.0",
+        "mercadopago/dx-php": "^3.16"
     }
 }

@@ -462,6 +462,9 @@ function webhookVerifySignature(string $gatewayName, string $payload, string $si
 
 /**
  * Process webhook by gateway type
+ *
+ * Para Mercado Pago: quando external_reference não está no payload (API de Orders),
+ * usa o SDK para buscar a order por data.id e obter o external_reference.
  */
 function webhookProcessByGateway(PDO $pdo, string $gatewayName, string $eventType, ?array $data, int $webhookId): array
 {
@@ -472,19 +475,36 @@ function webhookProcessByGateway(PDO $pdo, string $gatewayName, string $eventTyp
         
         // Extract order ID from webhook data
         $orderId = null;
+        $orderStatus = null;
         if ($gatewayName === 'mercadopago' && isset($data['external_reference'])) {
             $orderId = (int) $data['external_reference'];
         } elseif ($gatewayName === 'asaas' && isset($data['payment']['externalReference'])) {
             $orderId = (int) $data['payment']['externalReference'];
         }
+
+        // Fallback para Orders API: buscar order pelo ID retornado em data.id
+        if (!$orderId && $gatewayName === 'mercadopago' && !empty($data['data']['id'])) {
+            require_once __DIR__ . '/payment.php';
+            $orderResult = paymentMercadoPagoGetOrder((string) $data['data']['id']);
+            if ($orderResult['success'] && !empty($orderResult['data']['external_reference'])) {
+                $orderId = (int) $orderResult['data']['external_reference'];
+                $orderStatus = $orderResult['data']['status'] ?? null;
+            }
+        }
         
         if ($orderId) {
-            // Update order payment status
+            // Determine new status — usar status real do SDK quando disponível
             $newStatus = 'paid';
-            if (in_array($eventType, ['payment_refunded', 'payment_refunded_in_process'])) {
-                $newStatus = 'refunded';
-            } elseif ($eventType === 'payment_cancelled') {
-                $newStatus = 'canceled';
+            if ($orderStatus) {
+                if (in_array($orderStatus, ['refunded', 'cancelled'])) {
+                    $newStatus = $orderStatus === 'cancelled' ? 'canceled' : 'refunded';
+                }
+            } else {
+                if (in_array($eventType, ['payment_refunded', 'payment_refunded_in_process'])) {
+                    $newStatus = 'refunded';
+                } elseif ($eventType === 'payment_cancelled') {
+                    $newStatus = 'canceled';
+                }
             }
             
             $pdo->prepare('

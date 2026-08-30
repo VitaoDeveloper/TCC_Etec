@@ -242,39 +242,88 @@ if ($isConfirming) {
                 }
             }
 
+            // Dados comuns para todos os meios de pagamento (SDK Mercado Pago)
+            $customerData = [
+                'name'  => $isGuest ? ($guestName ?? '') : ($user['name'] ?? ''),
+                'email' => $isGuest ? ($guestEmail ?? '') : ($user['email'] ?? ''),
+                'cpf'   => trim($_POST['payment_cpf'] ?? $_POST['cc_cpf'] ?? ''),
+            ];
+            $itemsForGateway = [];
+            foreach ($items as $item) {
+                $itemsForGateway[] = [
+                    'id'         => (string) $item['product_id'],
+                    'title'      => $item['name'] ?? 'Produto',
+                    'quantity'   => (int) $item['quantity'],
+                    'unit_price' => (float) $item['price'],
+                ];
+            }
+
             // Gera informações de pagamento por método
             if ($paymentMethod === 'pix') {
-                $pix = pixGenerateForOrder($grandTotal, (string) $orderId, ['name' => $user['name'] ?? ($guestName ?? '')]);
-                if ($pix['success']) {
+                $pixResult = null;
+                if ($gatewayUsed === 'mercadopago') {
+                    $pixResult = paymentMercadoPagoCreatePix($grandTotal, (string) $orderId, $itemsForGateway, $customerData);
+                }
+                if ($pixResult && $pixResult['success']) {
+                    $stmtUpd = $pdo->prepare('UPDATE e5_orders SET gateway_transaction_id = :tx WHERE id = :oid');
+                    $stmtUpd->execute([':tx' => $pixResult['data']['order_id'], ':oid' => $orderId]);
                     $orderPaymentInfo = [
-                        'method' => 'Pix',
-                        'instructions' => 'Escaneie o QR Code abaixo ou copie o código Pix (copia-e-cola) no app do seu banco.',
-                        'br_code' => $pix['data']['br_code'],
-                        'qr_data_uri' => $pix['data']['qr_data_uri'],
-                        'expires' => date('d/m/Y H:i', strtotime($pix['data']['expires_at'])),
-                        'txid' => $pix['data']['txid'],
+                        'method'       => 'Pix',
+                        'instructions'=> 'Escaneie o QR Code abaixo ou copie o código Pix no app do seu banco.',
+                        'br_code'     => $pixResult['data']['qr_code'],
+                        'qr_data_uri' => $pixResult['data']['qr_data_uri'],
+                        'expires'     => date('d/m/Y H:i', strtotime($pixResult['data']['expires_at'])),
                     ];
                 } else {
-                    $orderPaymentInfo = [
-                        'method' => 'Pix',
-                        'instructions' => 'Erro ao gerar código Pix. Tente novamente ou use outro método.',
-                        'br_code' => null,
-                        'qr_data_uri' => null,
-                        'expires' => date('d/m/Y H:i', strtotime('+30 minutes')),
-                    ];
+                    // Fallback: PIX estático local (includes/pix.php)
+                    $pix = pixGenerateForOrder($grandTotal, (string) $orderId, ['name' => $customerData['name']]);
+                    if ($pix['success']) {
+                        $orderPaymentInfo = [
+                            'method'       => 'Pix',
+                            'instructions'=> 'Escaneie o QR Code abaixo ou copie o código Pix (copia-e-cola) no app do seu banco.',
+                            'br_code'     => $pix['data']['br_code'],
+                            'qr_data_uri' => $pix['data']['qr_data_uri'],
+                            'expires'     => date('d/m/Y H:i', strtotime($pix['data']['expires_at'])),
+                            'txid'        => $pix['data']['txid'],
+                        ];
+                    } else {
+                        $orderPaymentInfo = [
+                            'method'       => 'Pix',
+                            'instructions'=> 'Erro ao gerar código Pix. Tente novamente ou use outro método.',
+                            'br_code'     => null,
+                            'qr_data_uri' => null,
+                            'expires'     => date('d/m/Y H:i', strtotime('+30 minutes')),
+                        ];
+                    }
                 }
             } elseif ($paymentMethod === 'boleto') {
-                $orderPaymentInfo = [
-                    'method' => 'Boleto',
-                    'instructions' => 'Boleto será gerado via gateway. Aguarde o e-mail ou acesse "Meus Pedidos".',
-                    'boleto_number' => null,
-                    'expires' => date('d/m/Y', strtotime('+3 days')),
-                ];
+                $boletoResult = null;
+                if ($gatewayUsed === 'mercadopago') {
+                    $boletoResult = paymentMercadoPagoCreateBoleto($grandTotal, (string) $orderId, $itemsForGateway, $customerData);
+                }
+                if ($boletoResult && $boletoResult['success']) {
+                    $stmtUpd = $pdo->prepare('UPDATE e5_orders SET gateway_transaction_id = :tx WHERE id = :oid');
+                    $stmtUpd->execute([':tx' => $boletoResult['data']['order_id'], ':oid' => $orderId]);
+                    $orderPaymentInfo = [
+                        'method'       => 'Boleto',
+                        'instructions'=> 'Boleto gerado com sucesso. Clique no link para imprimir.',
+                        'ticket_url'  => $boletoResult['data']['ticket_url'],
+                        'barcode'     => $boletoResult['data']['barcode'],
+                        'digitable'   => $boletoResult['data']['digitable_line'],
+                        'expires'     => date('d/m/Y', strtotime($boletoResult['data']['due_date'])),
+                    ];
+                } else {
+                    $configBoleto = paymentGetConfig();
+                    $orderPaymentInfo = [
+                        'method'       => 'Boleto',
+                        'instructions'=> 'Boleto será gerado via gateway. Aguarde o e-mail ou acesse "Meus Pedidos".',
+                        'boleto_number'=> null,
+                        'expires'      => date('d/m/Y', strtotime('+' . $configBoleto['boleto_days'] . ' days')),
+                    ];
+                }
             } elseif ($paymentMethod === 'credit') {
                 $ccInstallments = min(12, max(1, (int) ($_POST['cc_installments'] ?? 1)));
-                $ccCpf = trim($_POST['cc_cpf'] ?? '');
-                $customerName = $isGuest ? $guestName : ($user['name'] ?? '');
-                $customerEmail = $isGuest ? $guestEmail : ($user['email'] ?? '');
+                $ccCpf = $customerData['cpf']; // já extraído do POST acima
 
                 // Verificar se usou cartão salvo
                 $savedCardId = (int) ($_POST['saved_card_id'] ?? 0);
@@ -284,24 +333,14 @@ if ($isConfirming) {
                     $ccToken = trim($_POST['cc_token'] ?? '');
                 }
 
-                $itemsForGateway = [];
-                foreach ($items as $item) {
-                    $itemsForGateway[] = [
-                        'id'         => (string) $item['product_id'],
-                        'title'      => $item['name'] ?? 'Produto',
-                        'quantity'   => (int) $item['quantity'],
-                        'unit_price' => (float) $item['price'],
-                    ];
-                }
-
                 $cardResult = paymentProcessCreditCard([
                     'token'        => $ccToken,
                     'installments' => $ccInstallments,
                     'items'        => $itemsForGateway,
                     'card_brand'   => trim($_POST['cc_brand'] ?? 'visa'),
                 ], $grandTotal, (string) $orderId, [
-                    'name'  => $customerName,
-                    'email' => $customerEmail,
+                    'name'  => $customerData['name'],
+                    'email' => $customerData['email'],
                     'cpf'   => $ccCpf,
                 ]);
 
@@ -311,7 +350,7 @@ if ($isConfirming) {
                         try {
                             $lastFour = substr(preg_replace('/\D/', '', $_POST['cc_number'] ?? ''), -4);
                             $brand = trim($_POST['cc_brand'] ?? 'visa');
-                            $name = $customerName;
+                            $name = $customerData['name'];
                             $hasCards = !empty(savedCardGetAll($pdo, $userId));
                             savedCardSave($pdo, $userId, $ccToken, $brand, $lastFour, $name, !$hasCards);
                         } catch (Throwable $e) {
@@ -410,7 +449,19 @@ include $base_path . 'components/header.php';
                     </div>
                 <?php endif; ?>
 
-                <?php if (isset($orderPaymentInfo['boleto_number'])): ?>
+                <?php if (!empty($orderPaymentInfo['ticket_url'])): ?>
+                    <div style="margin-top: 14px; text-align: center;">
+                        <a href="<?php echo htmlspecialchars($orderPaymentInfo['ticket_url'], ENT_QUOTES, 'UTF-8'); ?>" target="_blank" class="ml-btn ml-btn-primary" style="display: inline-block;"><i class="fas fa-file-pdf"></i> Baixar Boleto (PDF)</a>
+                        <?php if (!empty($orderPaymentInfo['digitable'])): ?>
+                        <div style="margin-top: 10px;">
+                            <small style="color: var(--ml-text-muted); display: block; margin-bottom: 4px;">Linha Digitável:</small>
+                            <code id="boletoDigitable" style="font-size: 0.72rem; word-break: break-all; display: block; padding: 8px; background: var(--ml-bg-secondary); border-radius: 4px;"><?php echo htmlspecialchars($orderPaymentInfo['digitable'], ENT_QUOTES, 'UTF-8'); ?></code>
+                            <button type="button" class="ml-btn" onclick="navigator.clipboard.writeText(document.getElementById('boletoDigitable').textContent);this.innerHTML='<i class=\'fas fa-check\'></i> Copiado!';setTimeout(()=>this.innerHTML='<i class=\'fas fa-copy\'></i> Copiar Linha Digitável',2000);" style="margin-top:8px;"><i class="fas fa-copy"></i> Copiar Linha Digitável</button>
+                        </div>
+                        <?php endif; ?>
+                        <small style="color: var(--ml-text-muted); display: block; margin-top: 8px;">Vencimento: <?php echo htmlspecialchars($orderPaymentInfo['expires'], ENT_QUOTES, 'UTF-8'); ?></small>
+                    </div>
+                <?php elseif (isset($orderPaymentInfo['boleto_number'])): ?>
                     <div class="payment-code-box">
                         <code><?php echo htmlspecialchars($orderPaymentInfo['boleto_number'], ENT_QUOTES, 'UTF-8'); ?></code>
                     </div>
@@ -621,6 +672,18 @@ include $base_path . 'components/header.php';
                             <?php endif; ?>
                         </div>
 
+                        <?php if ($paymentMethod === 'pix' || $paymentMethod === 'boleto'): ?>
+                        <div id="paymentCpfField" style="margin-bottom: 16px; padding: 16px; border: 1px solid var(--ml-border); border-radius: 8px;">
+                            <div class="auth-field">
+                                <label class="auth-label" for="payment_cpf">CPF do Pagador</label>
+                                <div class="auth-input-wrap">
+                                    <input type="text" id="payment_cpf" name="payment_cpf" required placeholder="000.000.000-00" maxlength="14" inputmode="numeric" value="<?php echo htmlspecialchars($_POST['payment_cpf'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+                                </div>
+                                <small style="color: var(--ml-text-muted); display: block; margin-top: 4px;">Necessário para <?php echo $paymentMethod === 'pix' ? 'gerar o QR Code Pix' : 'emissão do boleto'; ?>.</small>
+                            </div>
+                        </div>
+                        <?php endif; ?>
+
                         <?php if ($paymentMethod === 'credit'): ?>
                         <!-- Campos de Cartão de Crédito — Checkout Transparente -->
                         <div id="creditCardFields" style="margin-bottom: 16px; padding: 16px; border: 1px solid var(--ml-border); border-radius: 8px; background: var(--ml-bg-secondary, #f8f9fa);">
@@ -712,6 +775,17 @@ include $base_path . 'components/header.php';
                 if (ccNew) ccNew.style.display = this.value === 'new' ? '' : 'none';
             });
         });
+        // Format CPF (PIX/Boleto shared field)
+        var paymentCpf = document.getElementById('payment_cpf');
+        if (paymentCpf) {
+            paymentCpf.addEventListener('input', function() {
+                var v = this.value.replace(/\D/g, '').slice(0, 11);
+                v = v.replace(/(\d{3})(\d)/, '$1.$2');
+                v = v.replace(/(\d{3})(\d)/, '$1.$2');
+                v = v.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+                this.value = v;
+            });
+        }
         </script>
 
         <?php if ($paymentMethod === 'credit'): ?>
