@@ -3,6 +3,7 @@ $page_title = 'Configurações - Royal Tech';
 include 'auth_check.php';
 require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../includes/config.php';
+require_once __DIR__ . '/../../includes/security.php';
 
 $settings = store_config();
 $defaults = [
@@ -12,7 +13,6 @@ $defaults = [
     'pix_key'=>'','boleto_days'=>'3',
     'free_shipping_threshold'=>'500',
     'store_postal_code'=>'01310-100',
-    'melhor_envio_table'=>'public',
 ];
 
 $tab = (string) ($_GET['tab'] ?? 'store');
@@ -47,6 +47,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     foreach ($defaults as $k => $_) {
         if (in_array($k, ['store_logo','store_favicon'], true)) continue;
         $values[$k] = trim((string) ($_POST[$k] ?? ''));
+    }
+    $values['superfrete_sandbox'] = isset($_POST['superfrete_sandbox']) ? '1' : '0';
+
+    // SuperFrete token é salvo criptografado (nunca em texto puro)
+    if (isset($_POST['superfrete_token']) && trim($_POST['superfrete_token']) !== '') {
+        try {
+            require_once __DIR__ . '/../../includes/security.php';
+            $saved = saveEncryptedSetting($pdo, 'superfrete_token', trim($_POST['superfrete_token']));
+            $values['superfrete_token'] = trim($_POST['superfrete_token']);
+            if ($saved) {
+                $values['superfrete_token_saved_at'] = date('Y-m-d H:i:s');
+            }
+        } catch (Throwable $e) {
+            error_log('settings: falha ao salvar token SuperFrete: ' . $e->getMessage());
+        }
+    }
+    if (isset($_POST['remove_superfrete_token'])) {
+        try {
+            $pdo->prepare('DELETE FROM e5_encrypted_settings WHERE setting_key = :k')->execute([':k' => 'superfrete_token']);
+            $pdo->prepare('DELETE FROM e5_settings WHERE setting_key = :k')->execute([':k' => 'superfrete_token']);
+        } catch (Throwable $e) {
+            error_log('settings: falha ao remover token SuperFrete: ' . $e->getMessage());
+        }
     }
 
     try {
@@ -394,11 +417,31 @@ function sel($key, $val) { global $settings; return ($settings[$key] ?? '') === 
                     <div class="admin-table-container" style="padding:30px;<?php echo $tab!=='frete'?' display:none;':''; ?>">
                         <h4 style="margin-bottom:25px;">Configurações de Frete</h4>
                         <div class="admin-form-group"><label for="store_postal_code">CEP de Origem da Loja</label><input type="text" id="store_postal_code" name="store_postal_code" value="<?php echo val('store_postal_code'); ?>" placeholder="00000-000" maxlength="9" oninput="this.value=this.value.replace(/\D/g,'').replace(/(\d{5})(\d)/,'$1-$2')"></div>
-                        <p style="color:var(--color-gray); font-size:0.85rem; margin-top:-10px;">CEP de onde os produtos são enviados. Usado para cálculo de frete no Melhor Envio.</p>
+                        <p style="color:var(--color-gray); font-size:0.85rem; margin-top:-10px;">CEP de onde os produtos são enviados. Usado para cálculo de frete na SuperFrete.</p>
                         <div class="admin-form-group"><label for="free_shipping_threshold">Frete Grátis a partir de (R$)</label><input type="number" id="free_shipping_threshold" name="free_shipping_threshold" value="<?php echo val('free_shipping_threshold'); ?>" min="0" step="0.01"></div>
                         <p style="color:var(--color-gray); font-size:0.85rem; margin-top:-10px;">Valor mínimo do pedido para frete grátis. Deixe 0 para desabilitar.</p>
-                        <div class="admin-form-group"><label for="melhor_envio_table">Tabela Melhor Envio</label><select id="melhor_envio_table" name="melhor_envio_table"><option value="public" <?php echo sel('melhor_envio_table','public'); ?>>Pública (CPF)</option><option value="commercial" <?php echo sel('melhor_envio_table','commercial'); ?>>Comercial (MEI/PJ)</option></select></div>
-                        <p style="color:var(--color-gray); font-size:0.85rem; margin-top:-10px;">Mudança automática quando MEI ativo + token configurado.</p>
+                        <div class="admin-form-group">
+                            <label for="superfrete_token">Token SuperFrete</label>
+                            <input type="password" id="superfrete_token" name="superfrete_token" placeholder="eyJhbGciOiJIUzI1NiIs... (opcional)" autocomplete="off">
+                            <p style="color:var(--color-gray); font-size:0.85rem; margin-top:-10px;">Gerado em <code>sandbox.superfrete.com/#/integrations</code> → "Site próprio" → "Gerar Token". Fica criptografado no banco.</p>
+                        </div>
+                        <?php
+                        try {
+                            $sfToken = (string) (loadEncryptedSetting($pdo, 'superfrete_token') ?: '');
+                        } catch (Throwable $e) { $sfToken = ''; }
+                        ?>
+                        <div style="padding:10px 14px; border-radius:8px; margin-bottom:15px; background:<?php echo $sfToken ? '#e8f5e9' : '#fff3e0'; ?>; border:1px solid <?php echo $sfToken ? '#4caf50' : '#ff9800'; ?>; font-size:0.85rem;">
+                            <?php echo $sfToken
+                                ? '<strong>Token SuperFrete configurado</strong> — frete real (SuperFrete) ativo no checkout. Para substituir, cole o novo token acima e salve.'
+                                : '<strong>Token SuperFrete não configurado</strong> — o checkout usará frete estimado. Cole o token acima e salve.'; ?>
+                        </div>
+                        <?php if ($sfToken): ?>
+                        <div class="admin-form-group"><label><input type="checkbox" name="remove_superfrete_token" value="1"> Remover token SuperFrete</label></div>
+                        <?php endif; ?>
+                        <div class="admin-form-group">
+                            <label><input type="checkbox" name="superfrete_sandbox" value="1" <?php echo ($settings['superfrete_sandbox'] ?? '1') === '1' ? 'checked' : ''; ?>> Usar ambiente Sandbox da SuperFrete</label>
+                            <p style="color:var(--color-gray); font-size:0.85rem; margin-top:-10px;">Desmarque ao migrar para produção (<code>api.superfrete.com</code>).</p>
+                        </div>
                     </div>
 
                     <!-- Segurança -->

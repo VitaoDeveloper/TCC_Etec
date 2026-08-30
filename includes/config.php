@@ -35,7 +35,6 @@ function store_defaults(): array
         'boleto_days' => '3',
         'free_shipping_threshold' => '500',
         'store_postal_code' => '01310-100',
-        'melhor_envio_table' => 'public',
     ];
 }
 

@@ -537,7 +537,7 @@ include $base_path . 'components/header.php';
                     </div>
                     <div style="font-size: 0.8rem; color: var(--ml-text-muted); text-align: right; padding: 2px 0 6px;">Previsão: <?php echo htmlspecialchars($selectedOption['days'] ?? '—', ENT_QUOTES, 'UTF-8'); ?></div>
                     <?php if (!$isRealFrete): ?>
-                    <div style="font-size: 0.75rem; color: #e65100; text-align: right; padding: 2px 0 8px;"><i class="fas fa-exclamation-circle"></i> Valor estimado — configure o token do Melhor Envio para preços reais.</div>
+                    <div style="font-size: 0.75rem; color: #e65100; text-align: right; padding: 2px 0 8px;"><i class="fas fa-exclamation-circle"></i> Valor estimado — configure o token da SuperFrete para preços reais.</div>
                     <?php endif; ?>
                     <?php endif; ?>
                     <?php if ($pixDiscount > 0): ?>

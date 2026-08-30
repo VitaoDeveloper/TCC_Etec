@@ -124,7 +124,7 @@ Configuração opcional/recomendada:
 
 - Provedor de NF-e: Focus NFe ou NFe.io.
 - Chave API do provedor fiscal.
-- Token Melhor Envio.
+- Token SuperFrete.
 
 Mudanças esperadas com MEI:
 
@@ -132,7 +132,7 @@ Mudanças esperadas com MEI:
 |------|-----|-----|
 | Nota Fiscal | Não emitida | Emitida automaticamente se provedor estiver configurado |
 | Gateway | Taxas estimadas de CPF | Taxas estimadas/negociadas para CNPJ |
-| Frete | Tabela pública/fallback | Tabela comercial quando houver token real |
+| Frete | Tabela pública/fallback | Frete real via SuperFrete (tabela única) |
 | Documento | CPF | CNPJ |
 | Limite | Sem formalização | R$ 81.000/ano |
 
@@ -143,8 +143,8 @@ Pré-requisitos externos:
 - Razão Social e Nome Fantasia.
 - Inscrição Estadual, se aplicável.
 - Conta em provedor de NF-e, se emissão fiscal for usada.
-- Conta PJ no Melhor Envio, se frete comercial for usado.
-- Token de API do Melhor Envio.
+- Conta no SuperFrete, se frete real for usado.
+- Token de API do SuperFrete.
 
 Checklist do sistema originalmente documentado:
 
@@ -176,7 +176,6 @@ WHERE is_active = 1;
 
 UPDATE e5_settings SET setting_value = 'CPF' WHERE setting_key = 'tax_regime';
 UPDATE e5_settings SET setting_value = 'disabled' WHERE setting_key = 'nfe_provider';
-UPDATE e5_settings SET setting_value = 'public' WHERE setting_key = 'melhor_envio_table';
 ```
 
 Atenção: pedidos com NF-e já emitida não podem ter nota cancelada automaticamente. Cancelamento fiscal deve ser feito manualmente no provedor dentro do prazo aplicável (24h).
@@ -192,9 +191,9 @@ Use este checklist no painel `mei-migration.php`:
 | 3 | Razão Social e Nome Fantasia | ☐ |
 | 4 | Inscrição Estadual (ou ISENTO) | ☐ |
 | 5 | Conta provedor NF-e (Focus NFe / NFe.io) | ☐ |
-| 6 | Conta PJ Melhor Envio | ☐ |
+| 6 | Conta SuperFrete (sandbox) | ☐ |
 | 7 | Token API NF-e inserido no painel | ☐ |
-| 8 | Token Melhor Envio inserido no painel | ☐ |
+| 8 | Token SuperFrete inserido no painel | ☐ |
 | 9 | Gateway pagamento: CPF → CNPJ atualizado | ☐ |
 | 10 | Testes: pedido teste + NF-e + frete + taxa | ☐ |
 
@@ -205,7 +204,7 @@ Use este checklist no painel `mei-migration.php`:
 | "CNPJ inválido" ao ativar | Formato incorreto | Use `00.000.000/0000-00` (pontos, barra, hífen) |
 | NF-e não emitida | Provedor disabled / token inválido / CNPJ não cadastrado | Configurações > NF-e > testar conexão; cadastrar CNPJ no provedor |
 | Taxas não reduzidas | Gateway não reconhece CNPJ | Painel Mercado Pago/Asaas > atualizar documento; aguardar 24-48h |
-| Frete comercial inativo | Token Melhor Envio ausente | Criar conta PJ > Configurações > API > Gerar Token > inserir no painel |
+| Frete real inativo | Token SuperFrete ausente | Criar conta em sandbox.superfrete.com > Integrações > Site próprio > Gerar Token > inserir no painel |
 | Focus NFe sandbox: token válido mas erro | Sandbox não suporta `/v2/empresas` | Health check usa `POST /v2/nfe` no sandbox (retorna 422 = token válido); produção usa `GET /v2/empresas` |
 
 ### Rollback (Voltar para CPF)
@@ -225,7 +224,6 @@ WHERE is_active = 1;
 
 UPDATE e5_settings SET setting_value = 'CPF' WHERE setting_key = 'tax_regime';
 UPDATE e5_settings SET setting_value = 'disabled' WHERE setting_key = 'nfe_provider';
-UPDATE e5_settings SET setting_value = 'public' WHERE setting_key = 'melhor_envio_table';
 ```
 
 > ⚠️ Pedidos com NF-e já emitida **não podem** ter nota cancelada automaticamente. Cancelamento fiscal manual no provedor dentro de 24h.
@@ -252,7 +250,7 @@ UPDATE e5_settings SET setting_value = 'public' WHERE setting_key = 'melhor_envi
 
 - **Focus NFe:** https://focusnfe.com.br/doc/
 - **NFe.io:** https://nfe.io/docs/
-- **Melhor Envio API:** https://docs.melhorenvio.com.br/
+- **SuperFrete API:** https://docs.superfrete.com/
 - **Mercado Pago Developers:** https://www.mercadopago.com.br/developers/
 - **Asaas Docs:** https://docs.asaas.com/
 - Limite de faturamento: R$ 81.000/ano.
@@ -303,8 +301,8 @@ Funções relevantes:
 - `shippingGetConfig()` — lê token do cofre criptografado (`e5_encrypted_settings`), CEP de origem configurável, regime tributário.
 - `shippingValidateCep()` — valida CEP 8 dígitos (NNNNNNNN ou NNNNN-NNN).
 - `shippingLookupCep()` — consulta ViaCEP para validar CEP e obter bairro/cidade/UF.
-- `shippingCalculate()` — retorna envelope estruturado: `provider` (`melhor_envio`|`estimated`), `is_real`, `warning`, `address`, `options[]`.
-- `shippingCalculateMelhorEnvio()` — chamada real à API Melhor Envio `/api/v2/me/shipment/calculate`.
+- `shippingCalculate()` — retorna envelope estruturado: `provider` (`superfrete`|`estimated`), `is_real`, `warning`, `address`, `options[]`.
+- `shippingCalculateSuperFrete()` — chamada real à API SuperFrete `POST /api/v0/calculator`.
 - `shippingEstimatedOptions()` — fallback transparente por UF (tabela regional honesta).
 - `shippingPreparePackage()` — envelope padrão 0,5kg/item (produtos sem dimensões no banco).
 - `shippingTestDiagnostic()` — diagnóstico multi-CEP com resposta bruta da API.
@@ -332,11 +330,11 @@ Comportamento:
 
 **Correções aplicadas:**
 
-1. **`includes/shipping.php` reescrito** — token lido do cofre criptografado (`loadEncryptedSetting('melhor_envio_token')`), validação CEP rigorosa, ViaCEP para endereço completo, envelope de retorno com `is_real`/`warning`.
+1. **`includes/shipping.php` reescrito** — token lido do cofre criptografado (`loadEncryptedSetting('superfrete_token')`), validação CEP rigorosa, ViaCEP para endereço completo, envelope de retorno com `is_real`/`warning`.
 
 2. **`pages/cart/checkout.php`** — removido `calcShipping()` hardcoded; integrado `shippingCalculate()`; validação server-side do CEP; exibe transportadora + prazo; badge "ESTIMADO" no fallback; persiste `shipping_carrier`, `shipping_delivery_time`, `shipping_is_estimated`, endereço ViaCEP.
 
-3. **`pages/admin/settings.php` (aba Frete)** — campos `store_postal_code` (CEP origem) e `melhor_envio_table` (pública/comercial).
+3. **`pages/admin/settings.php` (aba Frete)** — campos `store_postal_code` (CEP origem), `superfrete_token` (criptografado), `superfrete_sandbox`.
 
 4. **Tabela `e5_orders`** — adicionadas colunas `shipping_carrier`, `shipping_delivery_time`, `shipping_is_estimated`.
 
@@ -348,28 +346,61 @@ Comportamento:
 | 20040-020 | Praça Pio X, Centro, Rio de Janeiro/RJ | R$ 24,90 (3-7d) | R$ 39,90 (3-7d) | estimated |
 | 40070-100 | R. General Labatut, Barris, Salvador/BA | R$ 35,90 (6-12d) | R$ 54,90 (6-12d) | estimated |
 
-**Evidência de bloqueio — API Melhor Envio sem token:**
+**Decisão de migração: Melhor Envio → SuperFrete:**
+
+O Melhor Envio exige autenticação OAuth2 com callback HTTP público, o que impediu testes em ambiente local (XAMPP + Cloudflare Tunnel). A SuperFrete oferece autenticação simples via token Bearer, sem necessidade de OAuth. A migração manteve toda a arquitetura existente (validação CEP, ViaCEP, envelope de retorno, fallback estimado) e os endpoints da SuperFrete foram testados com sucesso.
+
+**API SuperFrete (sandbox):**
 
 ```
-GET https://melhorenvio.com.br/api/v2/me → HTTP 401 {"message":"Unauthenticated."}
-POST https://melhorenvio.com.br/api/v2/me/shipment/calculate → HTTP 401 {"message":"Unauthenticated."}
+POST https://sandbox.superfrete.com/api/v0/calculator
+Authorization: Bearer <token>
+User-Agent: Royal Tech (royaltech.original@gmail.com)
+Content-Type: application/json
+
+{
+  "from": {"postal_code": "01310100"},
+  "to": {"postal_code": "20040020"},
+  "services": "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19",
+  "package": {"height": 10, "width": 20, "length": 30, "weight": 1.5},
+  "options": {"insurance_value": 1000}
+}
 ```
 
-> **BLOQUEADOR**: Token Melhor Envio não configurado. O banco só tem `melhor_envio_client_id/secret/redirect_uri` (OAuth app). Falta `melhor_envio_token` (access token). 
+Resposta (array de serviços; serviços indisponíveis vêm com `has_error: true`):
 
-**Solution**: Rota de callback OAuth criada em `pages/admin/melhor-envio-callback.php`. Fluxo:
-1. Configurar no painel do Melhor Envio a URL de callback: `https://SUA-URL-TUNEL.trycloudflare.com/pages/admin/melhor-envio-callback.php`
-2. Redirecionar o usuário para a URL de autorização do Melhor Envio (com os parâmetros `client_id`, `redirect_uri`, `response_type=code`, `scope`, `state`)
-3. O callback recebe o `code`, troca por `access_token` via POST para `https://melhorenvio.com.br/oauth/token` e salva o token criptografado em `melhor_envio_token` no `e5_encrypted_settings`
-4. A rota exige sessão admin autenticada e registra o resultado no log de auditoria (`e5_system_change_log` com `change_type='melhor_envio_oauth_callback'`)
+```json
+[
+  {"id": 1, "name": "PAC", "price": 22.29, "delivery_time": 2, "company": {"name": "Correios"}, "has_error": false},
+  {"id": 2, "name": "SEDEX", "price": 17.23, "delivery_time": 1, "company": {"name": "Correios"}, "has_error": false}
+]
+```
+
+Erro (CEP inválido):
+
+```json
+{"errors": {"correios.destination_postcode": ["(correios.destination_postcode) é inválido."]}, "message": "Ocorreu um ou mais erros."}
+```
+
+**Testes reais realizados (token sandbox SuperFrete):**
+
+| Rota | PAC | SEDEX | Dias PAC | Dias SEDEX |
+|------|-----|-------|----------|------------|
+| SP Capital (01310-100) → SP | R$ 22,29 | R$ 17,23 | 2 | 1 |
+| SP → RJ Capital (20040-020) | indisponível | R$ 43,34 | — | 1 |
+| SP → Salvador BA (40070-100) | R$ 37,05 | R$ 68,33 | 2 | 1 |
+
+Fallback: CEP inválido `99999999` → `estimated` com tabela regional ✓
+Token ausente → `estimated` com warning ✓
 
 **Limitações conhecidas:**
 
 - Produtos sem peso/dimensões no banco → envelope padrão 0,5kg/item.
 - Fallback por UF não substitui cálculo real — configure token para frete real.
+- SuperFrete sandbox: PAC pode estar indisponível para algumas rotas (SP→RJ).
 - CEP 40020-000 não existe no ViaCEP; use 40070-100 para Salvador.
 
-**Status:** Checkout conectado à implementação oficial ✓ | Token Melhor Envio: **PENDENTE configuração** | Fallback transparente com warning ✓
+**Status:** Checkout conectado à SuperFrete ✓ | Token SuperFrete: **configurado (sandbox)** | Frete real ativo ✓
 
 ## Checkout
 
@@ -448,7 +479,7 @@ Pontos sensíveis:
 - `includes/security.php`: chave derivada de string hardcoded — **revise antes de produção** (use variável de ambiente para master key).
 - Webhooks: verificação de assinatura implementada, mas **validar contra specs reais** dos gateways.
 - Checkout recalcula subtotal/frete/total no servidor (centavos) — não confia no cliente.
-- Token Melhor Envio: lido do cofre criptografado, nunca hardcoded.
+- Token SuperFrete: lido do cofre criptografado, nunca hardcoded.
 - PIX: BR Code gerado server-side; `payment_status = pending` até confirmação manual.
 
 Status: CSRF ✓ | Rate limit ✓ | Prepared statements ✓ | Crypto vault ✓ | Chave hardcoded: **REVISAR** | Webhooks: **VALIDAR SPECS** | Checkout server-side ✓
@@ -513,7 +544,7 @@ Migration 001:
 - Prepara configurações de regime tributário.
 - Adiciona campos de NF-e em `e5_orders`.
 - Cria perfil inicial CPF.
-- Insere settings iniciais: `tax_regime`, `nfe_provider`, `nfe_environment`, `payment_gateway`, `payment_fee_cpf`, `payment_fee_mei`, `melhor_envio_table`.
+- Insere settings iniciais: `tax_regime`, `nfe_provider`, `nfe_environment`, `payment_gateway`, `payment_fee_cpf`, `payment_fee_mei`, `superfrete_sandbox`.
 
 Migration 002:
 
@@ -573,13 +604,13 @@ Configurações padrão em `includes/config.php`:
 - `boleto_days`.
 - `free_shipping_threshold`.
 
-Observação importante: `store_config()` atualmente só aplica overrides para chaves existentes em `store_defaults()`. Chaves de migrations como `tax_regime`, `nfe_provider`, `melhor_envio_token`, `melhor_envio_table` e `payment_gateway` podem não ser retornadas por `store_config()` se não forem adicionadas aos defaults ou tratadas separadamente.
+Observação importante: `store_config()` atualmente só aplica overrides para chaves existentes em `store_defaults()`. Chaves de migrations como `tax_regime`, `nfe_provider`, `superfrete_token`, `superfrete_sandbox` e `payment_gateway` podem não ser retornadas por `store_config()` se não forem adicionadas aos defaults ou tratadas separadamente.
 
 Status: PENDENTE verificar impacto no frete, pagamento e migração MEI.
 
 ## Problemas Conhecidos (atualizados)
 
-- **Token Melhor Envio não configurado** — frete real bloqueado; fallback estimado ativo com warning.
+- **Token SuperFrete configurado em sandbox** — frete real ativo para testes; migrar para token de produção ao lançar em ambiente real.
 - **PIX estático (manual)** — BR Code + QR Code funcionais, mas sem webhook de gateway; admin deve confirmar pagamento manualmente via "Marcar como Pago" em `order-detail.php`.
 - **Boleto/Cartão** — placeholders; integração real com Mercado Pago/Asaas pendente.
 - **Produtos sem peso/dimensões** — envelope padrão 0,5kg/item no frete.
@@ -596,7 +627,7 @@ Frete:
 - ✅ Validação de CEP rigorosa (8 dígitos + ViaCEP).
 - ✅ Fallback exibido como "Frete estimado — configure o token...".
 - ✅ Testes CEPs `01310-100`, `20040-020`, `40070-100` executados (fallback).
-- ⏳ **Configurar token Melhor Envio** no admin → MEI Migration → validar frete real multi-transportadora.
+- ✅ Token SuperFrete configurado → frete real ativo via `shippingCalculateSuperFrete()`.
 
 Pix:
 - ✅ BR Code EMV válido (CRC16-CCITT) com chave `royaltech.original@gmail.com`.
@@ -643,7 +674,7 @@ Documentação:
 ### ⚠️ Itens Pendentes (3)
 
 1. 🔄 **Teste de timeout NF-e** — testar retry com backoff quando Focus NFe retorna timeout.
-2. 🔄 **Teste token inválido Melhor Envio** — rejeição na ativação + fallback silencioso pós-ativação.
+2. ✅ **Teste token inválido SuperFrete** — rejeição 401 + fallback estimado ativo.
 3. 🔄 **Race condition** — dois admins ativando MEI simultaneamente (transação atômica).
 
 ### Garantias de Produção
@@ -675,10 +706,14 @@ Documentação:
 }
 ```
 
-**Evidência bloqueio API Melhor Envio:**
+**Evidência frete real SuperFrete (sandbox):**
 ```
-GET /api/v2/me → HTTP 401 {"message":"Unauthenticated."}
-POST /api/v2/me/shipment/calculate → HTTP 401 {"message":"Unauthenticated."}
+shippingCalculateSuperFrete → HTTP 200
+Rota: SP (01310-100) → SP (01310-100): PAC R$22.29 (2 dias), SEDEX R$17.23 (1 dia)
+Rota: SP (01310-100) → RJ (20040-020): SEDEX R$43.34 (1 dia)
+Rota: SP (01310-100) → BA (40070-100): PAC R$37.05 (2 dias), SEDEX R$68.33 (1 dia)
+CEP inválido 99999999 → fallback estimado com warning ✓
+Token ausente → fallback estimado com warning "configure o token da SuperFrete" ✓
 ```
 
 ### Pix Real — BR Code + QR Code
@@ -734,14 +769,14 @@ O projeto possui template de Pull Request em `.github/PULL_REQUEST_TEMPLATE.md` 
 - Arquivos `.md` antigos: MANTIDOS, aguardando confirmação antes de remoção.
 - Migrations: MANTIDAS, ainda não reorganizadas.
 - Schema atual: ✅ `database/database.sql` atualizado via `mysqldump`.
-- Frete real via Melhor Envio: ⚠️ **BLOQUEADO — token não configurado** (fallback estimado ativo + warning).
-- Checkout usando frete oficial: ✅ CONECTADO (`shippingCalculate`).
+- Checkout usando frete oficial: ✅ CONECTADO (`shippingCalculate` via SuperFrete).
 - Validação de CEP: ✅ RIGOROSA (8 dígitos + ViaCEP).
+- Frete real (SuperFrete): ✅ **ATIVO EM SANDBOX** — PAC e SEDEX com preços reais em 3 rotas testadas.
 - Pix real: ✅ **BR CODE EMV VÁLIDO + QR CODE PNG** (estático/manual; `payment_status=pending`).
 - **Cartão de crédito (API de Orders):** ✅ **PAGAMENTO APROVADO EM SANDBOX** — Pedido #27, `payment_status=paid`, `gateway_transaction_id=ORDTST...`. Integração usa a API de Orders do Mercado Pago (não a API legada `/v1/payments`). Documentação oficial: https://www.mercadopago.com.br/developers/pt/docs/checkout-api-orders/overview
 - Comprovante + E-mail: ✅ PDF GERADO + ANEXO ENVIADO (Mailpit confirmado).
 - Segurança: ⚠️ Chave criptografia hardcoded (revise), webhooks (validar specs).
-- Próximo passo crítico: **Criar conta Melhor Envio + gerar token + configurar no admin**.
+- Próximo passo crítico: **Migrar SuperFrete de sandbox para produção**.
 
 ## Como Testar Pagamentos com Cartão (Sandbox Mercado Pago)
 

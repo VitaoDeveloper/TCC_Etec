@@ -47,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['activate_mei'])) {
     $nfeProvider = trim($_POST['nfe_provider'] ?? 'disabled');
     $nfeApiKey = trim($_POST['nfe_api_key'] ?? '');
     $nfeEnvironment = trim($_POST['nfe_environment'] ?? 'homologacao');
-    $melhorEnvioToken = trim($_POST['melhor_envio_token'] ?? '');
+    $superfreteToken = trim($_POST['superfrete_token'] ?? '');
     
     // Activate MEI with transactional validation
     $result = activateMEITransactional($pdo, (int)$_SESSION['user_id'], [
@@ -58,7 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['activate_mei'])) {
         'nfe_provider' => $nfeProvider,
         'nfe_api_key' => $nfeApiKey,
         'nfe_environment' => $nfeEnvironment,
-        'melhor_envio_token' => $melhorEnvioToken,
+        'superfrete_token' => $superfreteToken,
     ]);
     
     if ($result['success']) {
@@ -303,7 +303,7 @@ try {
                 <ul style="color: var(--color-gray); margin-bottom: 30px; padding-left: 20px;">
                     <li>Validação do CNPJ com algoritmo oficial</li>
                     <li>Teste de conexão com provedor de NF-e (se configurado)</li>
-                    <li>Teste de token do Melhor Envio (se fornecido)</li>
+                    <li>Teste de token da SuperFrete (se fornecido)</li>
                     <li>Persistência atomicamente no banco (evita race conditions)</li>
                     <li>Registro completo no log de auditoria</li>
                 </ul>
@@ -367,8 +367,8 @@ try {
                     <h4>Configuração de Frete (Opcional)</h4>
 
                     <div style="margin-bottom: 20px;">
-                        <label for="melhor_envio_token">Token Melhor Envio <span class="encrypted-indicator" title="Este token será criptografado no banco"></span></label>
-                        <input type="password" id="melhor_envio_token" name="melhor_envio_token" placeholder="Token de acesso da API (opcional)">
+                        <label for="superfrete_token">Token SuperFrete <span class="encrypted-indicator" title="Este token será criptografado no banco"></span></label>
+                        <input type="password" id="superfrete_token" name="superfrete_token" placeholder="Token de acesso da SuperFrete (opcional)">
                         <small style="color: var(--color-gray); font-size: 0.8rem;">
                             O token será criptografado. Sem token, o sistema usará tabela pública de frete.
                         </small>
@@ -488,25 +488,22 @@ if ($nfeProvider === 'disabled'):
                         </p>
                     </div>
 
-                    <!-- Melhor Envio -->
+                    <!-- SuperFrete -->
                     <?php 
-                    $melhorEnvioToken = loadEncryptedSetting($pdo, 'melhor_envio_token');
-                    $melhorEnvioStatus = empty($melhorEnvioToken) ? 'manual' : 
-                                        ((isset($warnings) && in_array('Token válido. CNPJ cadastrado:', implode(' ', $warnings))) ? 'completed' : 'pending');
+                    $superfreteToken = loadEncryptedSetting($pdo, 'superfrete_token');
+                    $superfreteStatus = empty($superfreteToken) ? 'manual' : 'completed';
                     ?>
-                    <div class="checklist-item <?php echo $melhorEnvioStatus; ?>">
+                    <div class="checklist-item <?php echo $superfreteStatus; ?>">
                         <div class="checklist-header">
-                            <h5>Melhor Envio</h5>
-                            <span class="checklist-status <?php echo $melhorEnvioStatus; ?>"><?php echo ucfirst($melhorEnvioStatus); ?></span>
+                            <h5>SuperFrete</h5>
+                            <span class="checklist-status <?php echo $superfreteStatus; ?>"><?php echo ucfirst($superfreteStatus); ?></span>
                         </div>
                         <p style="color: var(--color-gray); margin: 0;">
                             <?php 
-if (empty($melhorEnvioToken)): 
-                                echo 'Token não configurado - usando tabela pública de frete';
-                            elseif (isset($warnings) && in_array('Token válido. CNPJ cadastrado:', implode(' ', $warnings))): 
-                                echo 'Token válido com CNPJ cadastrado - tabela comercial ativada';
+if (empty($superfreteToken)): 
+                                echo 'Token não configurado - usando tabela estimada de frete';
                             else: 
-                                echo 'Token configurado - validando...';
+                                echo 'Token configurado - frete real ativo via SuperFrete';
                             endif;
                             ?>
                         </p>

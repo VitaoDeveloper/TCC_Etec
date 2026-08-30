@@ -1,17 +1,21 @@
 <?php
 /**
- * Shipping Integration — Melhor Envio (frete real) with transparent fallback
+ * Shipping Integration — SuperFrete (frete real) with transparent fallback
  *
  * Fluxo:
- *  1. Se existir token do Melhor Envio (criptografado em e5_encrypted_settings),
- *     chama a API real /api/v2/me/shipment/calculate.
+ *  1. Se existir token da SuperFrete (criptografado em e5_encrypted_settings),
+ *     chama a API real POST /api/v0/calculator.
  *  2. Se o token não existir OU a API falhar, cai para "frete estimado"
  *     (tabela regional) e sinaliza isso claramente na UI (warning).
  *
  * O token NUNCA é hardcoded: é carregado do cofre criptografado e/ou do
  * store_config(). O CEP de origem é configurável (store_postal_code).
  *
- * Docs: https://docs.melhorenvio.com.br/
+ * Motivo da troca do Melhor Envio para SuperFrete: autenticação simples
+ * via token Bearer (sem OAuth2), eliminando necessidade de URL pública
+ * de callback durante desenvolvimento.
+ *
+ * Docs: https://docs.superfrete.com/
  */
 
 require_once __DIR__ . '/config.php';
@@ -20,7 +24,7 @@ require_once __DIR__ . '/security.php';
 /**
  * Zonas de frete estimado (fallback transparente quando a API real não está
  * disponível). Valores são APENAS estimativas e devem ser substituídos pelos
- * preços reais do Melhor Envio assim que o token for configurado.
+ * preços reais da SuperFrete assim que o token for configurado.
  */
 function shippingEstimatedZones(): array
 {
@@ -41,32 +45,24 @@ function shippingEstimatedZones(): array
 function shippingGetConfig(): array
 {
     $taxRegime = store_config('tax_regime') ?: 'CPF';
-    $priceTable = store_config('melhor_envio_table') ?: 'public';
 
-    $token = (string) store_config('melhor_envio_token');
+    $token = (string) store_config('superfrete_token');
     if (empty($token)) {
-        // Token costuma ser salvo criptografado (e5_encrypted_settings).
         try {
             if (!isset($GLOBALS['pdo'])) {
                 include_once dirname(__DIR__) . '/database/connection.php';
             }
-            $token = (string) (loadEncryptedSetting($GLOBALS['pdo'], 'melhor_envio_token')
-                ?: loadEncryptedSetting($GLOBALS['pdo'], 'melhor_envio_access_token'));
+            $token = (string) (loadEncryptedSetting($GLOBALS['pdo'], 'superfrete_token')
+                ?: loadEncryptedSetting($GLOBALS['pdo'], 'superfrete_access_token'));
         } catch (Throwable $e) {
-            error_log('shippingGetConfig: falha ao ler token criptografado: ' . $e->getMessage());
+            error_log('shippingGetConfig: falha ao ler token SuperFrete: ' . $e->getMessage());
         }
-    }
-
-    // Auto-switch to commercial table when MEI is active
-    if ($taxRegime === 'MEI' && !empty($token)) {
-        $priceTable = 'commercial';
     }
 
     return [
         'tax_regime' => $taxRegime,
-        'provider' => !empty($token) ? 'melhor_envio' : 'simple',
-        'melhor_envio_token' => $token,
-        'price_table' => $priceTable,
+        'provider' => !empty($token) ? 'superfrete' : 'simple',
+        'superfrete_token' => $token,
         'has_token' => !empty($token),
         'origin_postal_code' => store_config('store_postal_code') ?: '01310-100',
         'free_shipping_threshold' => (float) (store_config('free_shipping_threshold') ?: 500),
@@ -128,7 +124,7 @@ function shippingLookupCep(string $cep): ?array
  * @return array envelope:
  *  [
  *    'success' => bool,
- *    'provider' => 'melhor_envio'|'estimated'|'error',
+ *    'provider' => 'superfrete'|'estimated'|'error',
  *    'is_real' => bool,
  *    'warning' => string|null,
  *    'error' => string|null,
@@ -161,8 +157,8 @@ function shippingCalculate(string $toPostalCode, float $totalValue, array $items
 
     $useFreeShipping = $config['free_shipping_threshold'] > 0 && $totalValue >= $config['free_shipping_threshold'];
 
-    if ($config['provider'] === 'melhor_envio') {
-        $result = shippingCalculateMelhorEnvio($cep, $items, $config);
+    if ($config['provider'] === 'superfrete') {
+        $result = shippingCalculateSuperFrete($cep, $items, $config);
         if ($result['success']) {
             if ($useFreeShipping) {
                 foreach ($result['options'] as &$opt) {
@@ -172,7 +168,7 @@ function shippingCalculate(string $toPostalCode, float $totalValue, array $items
             }
             return [
                 'success' => true,
-                'provider' => 'melhor_envio',
+                'provider' => 'superfrete',
                 'is_real' => true,
                 'warning' => $useFreeShipping ? 'Frete grátis aplicado no valor do pedido.' : null,
                 'error' => null,
@@ -198,7 +194,7 @@ function shippingCalculate(string $toPostalCode, float $totalValue, array $items
         'success' => true,
         'provider' => 'estimated',
         'is_real' => false,
-        'warning' => 'Frete <strong>estimado</strong>: configure o token do Melhor Envio no painel admin para obter preços e prazos reais das transportadoras.',
+        'warning' => 'Frete <strong>estimado</strong>: configure o token da SuperFrete no painel admin para obter preços e prazos reais das transportadoras.',
         'error' => null,
         'address' => $address,
         'options' => shippingEstimatedOptions($cep, $totalValue, $config, $address),
@@ -206,34 +202,53 @@ function shippingCalculate(string $toPostalCode, float $totalValue, array $items
 }
 
 /**
- * Chama a API real do Melhor Envio.
+ * Chama a API real da SuperFrete.
+ *
+ * Docs: https://docs.superfrete.com/
+ * Endpoint: POST https://sandbox.superfrete.com/api/v0/calculator (sandbox)
+ *           POST https://api.superfrete.com/api/v0/calculator (produção)
  *
  * @return array ['success' => bool, 'options' => array, 'error' => ?string, 'raw' => ?string]
  */
-function shippingCalculateMelhorEnvio(string $cep, array $items, array $config): array
+function shippingCalculateSuperFrete(string $cep, array $items, array $config): array
 {
-    $token = $config['melhor_envio_token'];
+    $token = $config['superfrete_token'];
     if (empty($token)) {
-        return ['success' => false, 'options' => [], 'error' => 'Token do Melhor Envio ausente.', 'raw' => null];
+        return ['success' => false, 'options' => [], 'error' => 'Token da SuperFrete ausente.', 'raw' => null];
     }
 
     $fromPostalCode = shippingValidateCep($config['origin_postal_code']) ?: '01310100';
+    $package = shippingPreparePackage($items);
 
     $payload = [
-        'from' => ['postal_code' => $fromPostalCode],
-        'to' => ['postal_code' => $cep],
-        'package' => shippingPreparePackage($items),
-        'options' => [
-            'receipt' => false,
-            'own_hand' => false,
+        'from'     => ['postal_code' => $fromPostalCode],
+        'to'       => ['postal_code' => $cep],
+        'services' => '1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19',
+        'package'  => [
+            'height' => $package['height'],
+            'width'  => $package['width'],
+            'length' => $package['length'],
+            'weight' => $package['weight'],
+        ],
+        'options'  => [
+            'insurance_value' => 1000,
+            'own_hand'        => false,
+            'receipt'         => false,
         ],
     ];
 
-    $ch = curl_init('https://melhorenvio.com.br/api/v2/me/shipment/calculate');
+    // URL: sandbox vs produção
+    $isSandbox = (bool) store_config('superfrete_sandbox') ?: true;
+    $baseUrl = $isSandbox
+        ? 'https://sandbox.superfrete.com'
+        : 'https://api.superfrete.com';
+
+    $ch = curl_init($baseUrl . '/api/v0/calculator');
     curl_setopt_array($ch, [
         CURLOPT_HTTPHEADER => [
             'Content-Type: application/json',
             'Authorization: Bearer ' . $token,
+            'User-Agent: Royal Tech (royaltech.original@gmail.com)',
             'Accept: application/json',
         ],
         CURLOPT_POST => true,
@@ -252,58 +267,75 @@ function shippingCalculateMelhorEnvio(string $cep, array $items, array $config):
         return ['success' => false, 'options' => [], 'error' => 'Erro de conexão: ' . $curlError, 'raw' => $raw];
     }
 
-    if ($httpCode !== 200) {
+    // A API retorna array de serviços OU objeto de erro
+    $data = json_decode($raw, true);
+
+    if ($httpCode < 200 || $httpCode >= 300) {
         $detail = '';
-        if (is_string($raw) && $raw !== '') {
-            $j = json_decode($raw, true);
-            if (is_array($j)) {
-                $detail = ' ' . (is_string($j['message'] ?? null) ? $j['message'] : json_encode($j));
+        if (is_array($data) && isset($data['errors'])) {
+            $errorMessages = [];
+            foreach ($data['errors'] as $field => $msgs) {
+                foreach ((array) $msgs as $m) {
+                    $errorMessages[] = $m;
+                }
             }
+            $detail = ' ' . implode('; ', $errorMessages);
+        } elseif (is_array($data) && isset($data['message'])) {
+            $detail = ' ' . $data['message'];
         }
         return [
             'success' => false,
             'options' => [],
-            'error' => sprintf('API do Melhor Envio retornou HTTP %d.%s', $httpCode, $detail),
+            'error' => 'API SuperFrete retornou HTTP ' . $httpCode . '.' . $detail,
             'raw' => $raw,
         ];
     }
 
-    $data = json_decode($raw, true);
-    if (!is_array($data) || empty($data)) {
-        return ['success' => false, 'options' => [], 'error' => 'Resposta vazia da API do Melhor Envio.', 'raw' => $raw];
+    if (!is_array($data)) {
+        return ['success' => false, 'options' => [], 'error' => 'Resposta inválida da SuperFrete.', 'raw' => $raw];
     }
 
+    // Parse: array de serviços (cada um pode ter erro)
     $options = [];
     foreach ($data as $option) {
         $error = (string) ($option['error'] ?? '');
-        if ($error !== '') {
-            continue; // transportadora sem preço para esta rota
+        if ($error !== '' || !empty($option['has_error'])) {
+            continue; // serviço indisponível para esta rota
         }
-        $name = (string) ($option['name'] ?? 'PAC');
-        $company = (string) ($option['company']['name'] ?? $option['company']['name'] ?? 'Correios');
+
+        $name = (string) ($option['name'] ?? 'Frete');
+        $company = (string) ($option['company']['name'] ?? 'Transportadora');
 
         $deliveryTime = max(1, (int) ($option['delivery_time'] ?? 5));
-        $deliveryCalendarDays = (int) ($option['delivery_time_days'] ?? $deliveryTime + 2);
+        $deliveryRange = $option['delivery_range'] ?? [];
+        $minDays = (int) ($deliveryRange['min'] ?? $deliveryTime);
+        $maxDays = (int) ($deliveryRange['max'] ?? $deliveryTime + 1);
 
-        $cost = (float) ($option['price'] ?? $option['custom_price'] ?? 0);
+        $cost = (float) ($option['price'] ?? 0);
 
         $key = shippingOptionKey($company . '-' . $name);
 
         $options[$key] = [
-            'method' => $name,
-            'carrier' => $company,
-            'cost' => $cost,
-            'days' => sprintf('%d-%d dias úteis', $deliveryTime, $deliveryTime + 1),
-            'delivery_time' => $deliveryTime,
-            'delivery_max_days' => $deliveryCalendarDays,
-            'price_table' => $config['price_table'],
-            'service_id' => (int) ($option['service'] ?? 0),
-            'option_id' => (int) ($option['id'] ?? 0),
+            'method'          => $name,
+            'carrier'         => $company,
+            'cost'            => $cost,
+            'days'            => $minDays . '-' . $maxDays . ' dias úteis',
+            'delivery_time'   => $minDays,
+            'delivery_max_days' => $maxDays,
+            'estimated'       => false,
+            'discount'        => (float) ($option['discount'] ?? 0),
+            'currency'        => $option['currency'] ?? 'R$',
+            'service_id'      => (int) ($option['id'] ?? 0),
         ];
     }
 
     if (empty($options)) {
-        return ['success' => false, 'options' => [], 'error' => 'Nenhuma transportadora retornou preço para este CEP.', 'raw' => $raw];
+        return [
+            'success' => false,
+            'options' => [],
+            'error' => 'Nenhuma transportadora retornou preço para este CEP.',
+            'raw' => $raw,
+        ];
     }
 
     return ['success' => true, 'options' => $options, 'error' => null, 'raw' => $raw];
@@ -394,13 +426,11 @@ function shippingPreparePackage(array $items): array
 function shippingTestDiagnostic(array $ceps, array $items = [], float $total = 0.0): array
 {
     $config = shippingGetConfig();
-    $config['melhor_envio_token'] = $config['has_token'] ? $config['melhor_envio_token'] : '';
 
     $result = [
         'config' => [
             'provider' => $config['provider'],
             'has_token' => $config['has_token'],
-            'price_table' => $config['price_table'],
             'origin_postal_code' => $config['origin_postal_code'],
             'tax_regime' => $config['tax_regime'],
         ],
@@ -418,8 +448,8 @@ function shippingTestDiagnostic(array $ceps, array $items = [], float $total = 0
 
         $case['address'] = shippingLookupCep($digits);
 
-        if ($config['provider'] === 'melhor_envio') {
-            $api = shippingCalculateMelhorEnvio($digits, $items, $config);
+        if ($config['provider'] === 'superfrete') {
+            $api = shippingCalculateSuperFrete($digits, $items, $config);
             $case['api_raw_response'] = $api['raw'];
             $case['api_error'] = $api['error'];
             $case['api_success'] = $api['success'];
@@ -449,36 +479,32 @@ function shippingGetMigrationChecklist(PDO $pdo): array
 
     return [
         [
-            'task' => 'Cadastrar no Melhor Envio',
-            'description' => $isMEI
-                ? 'Criar conta PJ no Melhor Envio com CNPJ: ' . ($seller['document_number'] ?? 'N/A')
-                : 'Aguardando abertura do MEI. Conta CPF pode ser criada, mas sem desconto comercial.',
+            'task' => 'Gerar token na SuperFrete',
+            'description' => 'Acessar sandbox.superfrete.com → Integrações → Site próprio → Gerar Token.',
             'status' => $hasToken ? 'completed' : 'pending',
             'completed' => $hasToken,
             'priority' => 'high',
         ],
         [
-            'task' => 'Gerar token de API',
-            'description' => 'Acessar painel Melhor Envio > Configurações > API e gerar token de acesso.',
+            'task' => 'Salvar token no sistema',
+            'description' => 'Salvar token via painel admin (Configurações > Frete) ou gatewaySaveCredentials($pdo, "superfrete", ["token" => "..."]).',
             'status' => $hasToken ? 'completed' : 'pending',
             'completed' => $hasToken,
             'priority' => 'high',
-        ],
-        [
-            'task' => 'Ativar tabela comercial (MEI)',
-            'description' => $isMEI && $hasToken
-                ? 'Tabela comercial ativa automaticamente. Descontos PJ já aplicados.'
-                : 'Aguardando MEI + token para ativar descontos comerciais.',
-            'status' => $isMEI && $hasToken ? 'completed' : 'pending',
-            'completed' => $isMEI && $hasToken,
-            'priority' => 'medium',
         ],
         [
             'task' => 'Testar cálculo de frete com CEPs reais',
-            'description' => 'Configurar token e testar rotas (ex.: SP, RJ, BA).',
+            'description' => 'Configurar token e testar rotas (ex.: SP→SP, SP→RJ, SP→BA).',
             'status' => 'manual',
             'completed' => false,
             'priority' => 'high',
+        ],
+        [
+            'task' => 'Migrar para produção',
+            'description' => 'Trocar superfrete_sandbox para 0, usar token de produção em vez do sandbox.',
+            'status' => 'manual',
+            'completed' => false,
+            'priority' => 'medium',
         ],
     ];
 }
@@ -516,6 +542,6 @@ function shippingGetCostComparison(string $sampleDestination = '20040-020'): arr
         'provider' => $calcs['cpf']['provider'],
         'is_real' => $calcs['cpf']['is_real'],
         'comparison' => $savings,
-        'note' => 'Comparação só é válida quando o token Melhor Envio está configurado e o MEI ativo. Sem token, ambos usam a mesma tabela estimada.',
+        'note' => 'Comparação só é válida quando o token SuperFrete está configurado. Sem token, ambos usam a mesma tabela estimada.',
     ];
 }

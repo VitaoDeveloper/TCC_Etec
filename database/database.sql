@@ -223,7 +223,7 @@ CREATE TABLE `e5_encrypted_settings` (
 
 LOCK TABLES `e5_encrypted_settings` WRITE;
 /*!40000 ALTER TABLE `e5_encrypted_settings` DISABLE KEYS */;
-INSERT INTO `e5_encrypted_settings` VALUES ('melhor_envio_client_id','sVMPwe0LGHSaevOW2zRYn77eEoaVN3Ja+dX4iZ/MCAUT6vGdTA==','v1','2026-08-28 16:55:40','2026-08-28 16:55:40'),('melhor_envio_client_secret','HYm1SraAV+MboJieBLbOUqtqz3sNYqhSU+En0WAQNvvXy+NUpG7zhxDMGju97SrvBXDtKAmQDDx8ZffKIucD1iTK4LleT4rC','v1','2026-08-28 16:55:40','2026-08-28 16:55:40'),('melhor_envio_redirect_uri','YtqzWEjsHkaAcfyKFE3d6DCITFIstzijSM5bkR/xDEJ5ow3y8CSyMpZIr+ybVivHk/dhR52+ixOB3KN8Wvvxcz+rIfB1icIE6Tv/QQ13w8Kq','v1','2026-08-28 16:55:40','2026-08-28 16:55:40'),('mercadopago_access_token','WU8msaRDke380HnomjsLYV8OEGwHfEVo683Ez9lZYPWoY5hpFDk8fudubr6FDAVpL1q+jaDHePE4qnGMJIA=','v1','2026-08-27 15:30:22','2026-08-27 15:30:22'),('nfe_api_key','x7/Med+9n3GOXsm699v0h/2WzBJ3kWs9pEppzZ1OqyZ0fIGuqvtgY0Efcq00PSTOtHNKy7I/gZ0=','v1','2026-08-27 15:26:36','2026-08-27 15:26:36'),('test_key_1787838852','PLWZf6U2RiXLAFqulJV4wnKVRnF+O3cZzVGlxVFxGQNqMlYvOqr0qUmqxZNFc123gKV7vBs=','v1','2026-08-27 13:54:12','2026-08-27 13:54:12'),('test_key_1787844253','+Qo8uBfFIYPe7bWBRNklOhELBWfOBwhYCQajviTRkrlO5I0MwxfovvFXHL3s28jKdWDf954=','v1','2026-08-27 15:24:13','2026-08-27 15:24:13');
+INSERT INTO `e5_encrypted_settings` VALUES ('mercadopago_access_token','WU8msaRDke380HnomjsLYV8OEGwHfEVo683Ez9lZYPWoY5hpFDk8fudubr6FDAVpL1q+jaDHePE4qnGMJIA=','v1','2026-08-27 15:30:22','2026-08-27 15:30:22'),('nfe_api_key','x7/Med+9n3GOXsm699v0h/2WzBJ3kWs9pEppzZ1OqyZ0fIGuqvtgY0Efcq00PSTOtHNKy7I/gZ0=','v1','2026-08-27 15:26:36','2026-08-27 15:26:36'),('test_key_1787838852','PLWZf6U2RiXLAFqulJV4wnKVRnF+O3cZzVGlxVFxGQNqMlYvOqr0qUmqxZNFc123gKV7vBs=','v1','2026-08-27 13:54:12','2026-08-27 13:54:12'),('test_key_1787844253','+Qo8uBfFIYPe7bWBRNklOhELBWfOBwhYCQajviTRkrlO5I0MwxfovvFXHL3s28jKdWDf954=','v1','2026-08-27 15:24:13','2026-08-27 15:24:13');
 /*!40000 ALTER TABLE `e5_encrypted_settings` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -583,7 +583,7 @@ DROP TABLE IF EXISTS `e5_settings`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `e5_settings` (
   `setting_key` varchar(64) NOT NULL,
-  `setting_value` mediumtext DEFAULT NULL COMMENT 'Encrypted for sensitive keys (nfe_api_key, melhor_envio_token)',
+  `setting_value` mediumtext DEFAULT NULL COMMENT 'Encrypted for sensitive keys (nfe_api_key, superfrete_token)',
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   PRIMARY KEY (`setting_key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -595,7 +595,7 @@ CREATE TABLE `e5_settings` (
 
 LOCK TABLES `e5_settings` WRITE;
 /*!40000 ALTER TABLE `e5_settings` DISABLE KEYS */;
-INSERT INTO `e5_settings` VALUES ('comprovante_counter','24','2026-08-28 20:51:19'),('fee_disclaimer','Taxas são estimativas. Confirme com seu gateway de pagamento.','2026-08-27 01:48:27'),('melhor_envio_table','public','2026-08-27 16:16:43'),('nfe_environment','homologacao','2026-08-27 01:27:46'),('nfe_provider','disabled','2026-08-27 16:16:43'),('payment_fee_cpf_ESTIMATE','3.99','2026-08-27 01:48:27'),('payment_fee_mei_ESTIMATE','2.99','2026-08-27 01:48:27'),('payment_gateway','mercadopago','2026-08-27 01:27:46'),('tax_regime','CPF','2026-08-27 16:16:43');
+INSERT INTO `e5_settings` VALUES ('comprovante_counter','24','2026-08-28 20:51:19'),('fee_disclaimer','Taxas são estimativas. Confirme com seu gateway de pagamento.','2026-08-27 01:48:27'),('nfe_environment','homologacao','2026-08-27 01:27:46'),('nfe_provider','disabled','2026-08-27 16:16:43'),('payment_fee_cpf_ESTIMATE','3.99','2026-08-27 01:48:27'),('payment_fee_mei_ESTIMATE','2.99','2026-08-27 01:48:27'),('payment_gateway','mercadopago','2026-08-27 01:27:46'),('superfrete_sandbox','1','2026-08-29 00:00:00'),('tax_regime','CPF','2026-08-27 16:16:43');
 /*!40000 ALTER TABLE `e5_settings` ENABLE KEYS */;
 UNLOCK TABLES;
 

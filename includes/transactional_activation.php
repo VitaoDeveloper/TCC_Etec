@@ -179,12 +179,12 @@ function healthCheckNFeIO(string $apiKey, string $environment): array
 }
 
 /**
- * Health check: Test Melhor Envio API connectivity
+ * Health check: Test SuperFrete API connectivity
  * 
  * @param string $token API token to test
  * @return array ['success' => bool, 'message' => string]
  */
-function healthCheckMelhorEnvio(string $token): array
+function healthCheckSuperFrete(string $token): array
 {
     if (empty($token)) {
         return [
@@ -193,13 +193,24 @@ function healthCheckMelhorEnvio(string $token): array
         ];
     }
     
-    // Test endpoint: Get user info
-    $ch = curl_init('https://melhorenvio.com.br/api/v2/me');
+    // Test endpoint: shipping calculator (SP→SP, pacote padrão)
+    $payload = [
+        'from' => ['postal_code' => '01310100'],
+        'to' => ['postal_code' => '01310100'],
+        'services' => '1,2',
+        'package' => ['height' => 10, 'width' => 20, 'length' => 30, 'weight' => 1],
+        'options' => ['insurance_value' => 100],
+    ];
+    $ch = curl_init('https://sandbox.superfrete.com/api/v0/calculator');
     curl_setopt_array($ch, [
         CURLOPT_HTTPHEADER => [
             'Authorization: Bearer ' . $token,
+            'User-Agent: Royal Tech (royaltech.original@gmail.com)',
             'Accept: application/json',
+            'Content-Type: application/json',
         ],
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => json_encode($payload),
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT => 10,
         CURLOPT_SSL_VERIFYPEER => true,
@@ -224,21 +235,21 @@ function healthCheckMelhorEnvio(string $token): array
         ];
     }
     
-    if ($httpCode === 200) {
+    if ($httpCode >= 200 && $httpCode < 300) {
         $data = json_decode($response, true);
         
-        // Check if account has CNPJ registered
-        if (isset($data['taxpayer_id']) && !empty($data['taxpayer_id'])) {
-            return [
-                'success' => true,
-                'message' => 'Token válido. CNPJ cadastrado: ' . $data['taxpayer_id'],
-            ];
+        $count = 0;
+        if (is_array($data)) {
+            foreach ($data as $srv) {
+                if (!empty($srv['price']) && empty($srv['error'])) {
+                    $count++;
+                }
+            }
         }
         
         return [
             'success' => true,
-            'message' => 'Token válido, mas CNPJ ainda não cadastrado no Melhor Envio.',
-            'warning' => 'Cadastre seu CNPJ no painel do Melhor Envio para ativar tabela comercial.',
+            'message' => 'Token válido. SuperFrete retornou ' . $count . ' opção(ões) de frete.',
         ];
     }
     
@@ -284,7 +295,7 @@ function activateMEITransactional(PDO $pdo, int $userId, array $data): array
     $nfeProvider = $data['nfe_provider'] ?? 'disabled';
     $nfeApiKey = $data['nfe_api_key'] ?? '';
     $nfeEnvironment = $data['nfe_environment'] ?? 'homologacao';
-    $melhorEnvioToken = $data['melhor_envio_token'] ?? '';
+    $superfreteToken = $data['superfrete_token'] ?? '';
     
     // Test NF-e provider if not disabled
     if ($nfeProvider !== 'disabled' && !empty($nfeApiKey)) {
@@ -296,15 +307,15 @@ function activateMEITransactional(PDO $pdo, int $userId, array $data): array
         }
     }
     
-    // Test Melhor Envio if token provided
-    if (!empty($melhorEnvioToken)) {
-        $melhorEnvioCheck = healthCheckMelhorEnvio($melhorEnvioToken);
-        if (!$melhorEnvioCheck['success']) {
-            $errors[] = 'Melhor Envio: ' . $melhorEnvioCheck['message'];
+    // Test SuperFrete if token provided
+    if (!empty($superfreteToken)) {
+        $superfreteCheck = healthCheckSuperFrete($superfreteToken);
+        if (!$superfreteCheck['success']) {
+            $errors[] = 'SuperFrete: ' . $superfreteCheck['message'];
         } else {
-            $warnings[] = $melhorEnvioCheck['message'];
-            if (isset($melhorEnvioCheck['warning'])) {
-                $warnings[] = $melhorEnvioCheck['warning'];
+            $warnings[] = $superfreteCheck['message'];
+            if (isset($superfreteCheck['warning'])) {
+                $warnings[] = $superfreteCheck['warning'];
             }
         }
     }
@@ -357,7 +368,6 @@ function activateMEITransactional(PDO $pdo, int $userId, array $data): array
             'tax_regime' => 'MEI',
             'nfe_provider' => $nfeProvider,
             'nfe_environment' => $nfeEnvironment,
-            'melhor_envio_table' => 'commercial',
         ];
         
         $stmt = $pdo->prepare('
@@ -375,8 +385,8 @@ function activateMEITransactional(PDO $pdo, int $userId, array $data): array
             saveEncryptedSetting($pdo, 'nfe_api_key', $nfeApiKey);
         }
         
-        if (!empty($melhorEnvioToken)) {
-            saveEncryptedSetting($pdo, 'melhor_envio_token', $melhorEnvioToken);
+        if (!empty($superfreteToken)) {
+            saveEncryptedSetting($pdo, 'superfrete_token', $superfreteToken);
         }
         
         // Log successful activation
@@ -444,7 +454,6 @@ function deactivateMEITransactional(PDO $pdo, int $userId): array
         $settings = [
             'tax_regime' => 'CPF',
             'nfe_provider' => 'disabled',
-            'melhor_envio_table' => 'public',
         ];
         
         foreach ($settings as $key => $value) {
