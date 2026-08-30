@@ -13,8 +13,7 @@ function loadEnv(string $path): void
     }
 }
 
-// Defaults estáticos da loja. Servem como fonte de verdade quando não há
-// override salvo na tabela e5_settings (painel admin > Configurações).
+// Defaults estáticos da loja. Servem como fallback quando não há override no banco.
 function store_defaults(): array
 {
     return [
@@ -38,13 +37,20 @@ function store_defaults(): array
     ];
 }
 
-// Lê a configuração mesclada: override do banco cai por cima do default estático.
-// Sem chave: retorna o array completo. Resultado é cacheado por requisição.
+/**
+ * Lê a configuração mesclada: defaults + TODAS as overrides do banco.
+ * Chaves novas no banco (tax_regime, payment_gateway, superfrete_sandbox etc.)
+ * são retornadas mesmo que não existam em store_defaults().
+ * Cacheado por requisição. Use store_config_clear() após save.
+ */
 function store_config(?string $key = null)
 {
     static $settings = null;
+    static $cacheGeneration = 0;
 
-    if ($settings === null) {
+    $currentGen = $GLOBALS['_store_config_gen'] ?? 0;
+    if ($settings === null || $cacheGeneration !== $currentGen) {
+        $cacheGeneration = $currentGen;
         $settings = store_defaults();
         try {
             if (!isset($GLOBALS['pdo'])) {
@@ -54,9 +60,7 @@ function store_config(?string $key = null)
                 'SELECT setting_key, setting_value FROM e5_settings'
             )->fetchAll(PDO::FETCH_KEY_PAIR);
             foreach ($rows as $k => $v) {
-                if (array_key_exists($k, $settings)) {
-                    $settings[$k] = (string) $v;
-                }
+                $settings[$k] = (string) $v;
             }
         } catch (Throwable $e) {
             // Sem banco ou tabela ausente: mantém os defaults estáticos.
@@ -69,21 +73,24 @@ function store_config(?string $key = null)
     return $settings[$key] ?? null;
 }
 
-// Persiste overrides no banco. Chaves desconhecidas são ignoradas.
+/** Invalida o cache estático do store_config(). Chamar após store_config_save(). */
+function store_config_clear(): void
+{
+    $GLOBALS['_store_config_gen'] = ($GLOBALS['_store_config_gen'] ?? 0) + 1;
+}
+
+// Persiste overrides no banco. Aceita QUALQUER chave (inclusive fora de defaults).
 function store_config_save(array $values): void
 {
     if (!isset($GLOBALS['pdo'])) {
         include_once dirname(__DIR__) . '/database/connection.php';
     }
-    $known = store_defaults();
     $stmt = $GLOBALS['pdo']->prepare(
         'INSERT INTO e5_settings (setting_key, setting_value) VALUES (:k, :v)
          ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)'
     );
     foreach ($values as $k => $v) {
-        if (!array_key_exists($k, $known)) {
-            continue;
-        }
         $stmt->execute([':k' => $k, ':v' => (string) $v]);
     }
+    store_config_clear();
 }

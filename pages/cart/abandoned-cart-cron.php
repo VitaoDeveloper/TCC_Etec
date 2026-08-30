@@ -15,7 +15,7 @@ require_once __DIR__ . '/../../includes/mail.php';
 require_once __DIR__ . '/../../includes/config.php';
 
 $HOURS_THRESHOLD = 24;
-$base_url = 'http://localhost:8080';
+$base_url = store_config('store_url') ?: 'http://localhost:8080';
 
 echo date('Y-m-d H:i:s') . " — Iniciando verificação de carrinhos abandonados (>{$HOURS_THRESHOLD}h)...\n";
 

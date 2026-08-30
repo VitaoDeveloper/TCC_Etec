@@ -4,4 +4,7 @@ test
 vendor
 assets/img/*/*
 storage/comprovantes/*
-storage/logs/*
+storage/logs/*.encryption_key
+
+# Encryption key (chave de criptografia)
+.encryption_key

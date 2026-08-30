@@ -1,85 +1,151 @@
 <?php
 /**
  * Security and Encryption Utilities
- * 
- * NOTE: Uses OpenSSL AES-256-GCM encryption due to unavailable Sodium extension.
- * All cryptographic operations use 32-byte keys and authenticated encryption.
+ *
+ * Criptografia: AES-256-GCM com chave de arquivo (melhor prática).
+ * Dados antigos criptografados com chave derivada (legacy) são lidos
+ * automaticamente via fallback em loadEncryptedSetting().
  */
 
-// Generate a 32-byte key from password using SHA256 (compatible with OpenSSL)
-function generateMasterKey(string $password, string $salt): string
+/**
+ * Obtém ou gera chave de criptografia persistente (32 bytes aleatórios).
+ * Armazenada em arquivo oculto .encryption_key na raiz do projeto.
+ * Protegido via .htaccess (acesso HTTP bloqueado).
+ */
+function getEncryptionKey(): string
 {
-    $key = hash('sha256', $password . $salt, true);
-    if (strlen($key) !== 32) {
-        throw new RuntimeException('Failed to generate key');
+    $keyFile = __DIR__ . '/../.encryption_key';
+
+    if (file_exists($keyFile)) {
+        $key = file_get_contents($keyFile);
+        if ($key !== false && strlen($key) === 32) {
+            return $key;
+        }
+    }
+
+    $key = random_bytes(32);
+    file_put_contents($keyFile, $key);
+    if (function_exists('chmod')) {
+        @chmod($keyFile, 0600);
     }
     return $key;
 }
 
 /**
- * Save encrypted setting to e5_encrypted_settings
+ * Deriva chave legacy (compatibilidade com dados existentes no banco).
+ * SHA-256 de senha hardcoded + setting_key + salt — mantido SOMENTE para
+ * ler registros antigos. Novos dados usam getEncryptionKey().
+ */
+function generateLegacyKey(string $password, string $salt): string
+{
+    return hash('sha256', $password . $salt, true);
+}
+
+/**
+ * Criptografa com chave do arquivo.
+ */
+function secureEncrypt(string $plaintext, string $key): string
+{
+    if (strlen($key) !== 32) {
+        throw new RuntimeException('Encryption key must be 32 bytes');
+    }
+    $iv = random_bytes(16);
+    $tag = '';
+    $ciphertext = openssl_encrypt($plaintext, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag);
+    if ($ciphertext === false) {
+        throw new RuntimeException('Encryption failed');
+    }
+    return base64_encode($iv . $tag . $ciphertext);
+}
+
+/**
+ * Descriptografa com chave do arquivo.
+ */
+function secureDecrypt(string $encrypted, string $key): ?string
+{
+    if (strlen($key) !== 32) return null;
+    $decoded = base64_decode($encrypted);
+    if ($decoded === false || strlen($decoded) < 32) return null;
+    $iv = substr($decoded, 0, 16);
+    $tag = substr($decoded, 16, 16);
+    $data = substr($decoded, 32);
+    $result = openssl_decrypt($data, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag);
+    return $result !== false ? $result : null;
+}
+
+/**
+ * Salva setting criptografado (chave do arquivo = novo padrão).
  */
 function saveEncryptedSetting(PDO $pdo, $setting_key, $value): bool
 {
     try {
-        $key = generateMasterKey('!@#SDF$%lkjhgfd' . $setting_key . '&*()', 'royaltech_salt');
-        $iv = random_bytes(16);
-        $tag = '';
-        
-        $encrypted = openssl_encrypt($value, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag);
-        if ($encrypted === false) return false;
-        
-        $iv_tag_data = $iv . $tag . $encrypted;
-        $encrypted_value = base64_encode($iv_tag_data);
-        
-        // First try to insert
-        $stmt_insert = $pdo->prepare('INSERT INTO e5_encrypted_settings (setting_key, encrypted_value) VALUES (:key, :encrypt)');
-        $stmt_insert->execute([
-            ':key' => $setting_key,
-            ':encrypt' => $encrypted_value
-        ]);
-        
+        $key = getEncryptionKey();
+        $encrypted = secureEncrypt($value, $key);
+
+        $stmt_insert = $pdo->prepare(
+            'INSERT INTO e5_encrypted_settings (setting_key, encrypted_value, encryption_version)
+             VALUES (:key, :encrypt, :ver)'
+        );
+        $stmt_insert->execute([':key' => $setting_key, ':encrypt' => $encrypted, ':ver' => 'v2']);
+
         return true;
     } catch (Throwable $e) {
-        // If insert failed, try update instead
-        $stmt_update = $pdo->prepare('UPDATE e5_encrypted_settings SET encrypted_value = :encrypt WHERE setting_key = :key');
-        return $stmt_update->execute([
-            ':key' => $setting_key,
-            ':encrypt' => $encrypted_value
-        ]);
+        try {
+            $key = getEncryptionKey();
+            $encrypted = secureEncrypt($value, $key);
+            $stmt_update = $pdo->prepare(
+                'UPDATE e5_encrypted_settings SET encrypted_value = :encrypt, encryption_version = :ver
+                 WHERE setting_key = :key'
+            );
+            return $stmt_update->execute([':key' => $setting_key, ':encrypt' => $encrypted, ':ver' => 'v2']);
+        } catch (Throwable $e2) {
+            error_log('saveEncryptedSetting failed: ' . $e2->getMessage());
+            return false;
+        }
     }
 }
 
 /**
- * Load and decrypt encrypted setting
+ * Lê e descriptografa setting.
+ * Tenta: 1) chave do arquivo (v2) → 2) chave legacy derivada (v1) → null.
  */
 function loadEncryptedSetting(PDO $pdo, $setting_key)
 {
-    $stmt = $pdo->prepare('SELECT encrypted_value FROM e5_encrypted_settings WHERE setting_key = :key');
+    $stmt = $pdo->prepare('SELECT encrypted_value, encryption_version FROM e5_encrypted_settings WHERE setting_key = :key');
     $stmt->execute([':key' => $setting_key]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
-    
+
     if (!$row) return null;
-    
-    try {
-        $decoded = base64_decode($row['encrypted_value']);
-        if ($decoded === false) return null;
-        
-        $iv_len = 16;
-        if (strlen($decoded) < $iv_len * 2) return null;
-        
-        $iv = substr($decoded, 0, $iv_len);
-        $tag = substr($decoded, $iv_len, 16);
-        $data = substr($decoded, $iv_len + 16);
-        
-        $key = generateMasterKey('!@#SDF$%lkjhgfd' . $setting_key . '&*()', 'royaltech_salt');
-        $plaintext = openssl_decrypt($data, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag);
-        
-        return $plaintext !== false ? $plaintext : null;
-    } catch (Throwable $e) {
-        error_log('loadEncryptedSetting failed: ' . $e->getMessage());
-        return null;
+
+    $version = $row['encryption_version'] ?? 'v1';
+    $encrypted = $row['encrypted_value'];
+
+    // 1) Tenta com chave do arquivo (padrão v2)
+    if ($version === 'v2') {
+        try {
+            $result = secureDecrypt($encrypted, getEncryptionKey());
+            if ($result !== null) return $result;
+        } catch (Throwable $e) {
+            error_log('loadEncryptedSetting v2 failed: ' . $e->getMessage());
+        }
     }
+
+    // 2) Fallback: chave legacy derivada (v1) — compatibilidade com dados existentes
+    try {
+        $legacyKey = generateLegacyKey('!@#SDF$%lkjhgfd' . $setting_key . '&*()', 'royaltech_salt');
+        $decoded = base64_decode($encrypted);
+        if ($decoded !== false && strlen($decoded) >= 32) {
+            $iv = substr($decoded, 0, 16);
+            $tag = substr($decoded, 16, 16);
+            $data = substr($decoded, 32);
+            $result = openssl_decrypt($data, 'aes-256-gcm', $legacyKey, OPENSSL_RAW_DATA, $iv, $tag);
+            if ($result !== false) return $result;
+        }
+    } catch (Throwable $e) {
+        error_log('loadEncryptedSetting legacy failed: ' . $e->getMessage());
+    }
+
+    return null;
 }
 
 /**

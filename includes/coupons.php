@@ -62,7 +62,27 @@ function couponCalculateDiscount(array $coupon, float $subtotal): float
 }
 
 /**
- * Incrementar o contador de usos do cupom (após pedido confirmado).
+ * Reserva um uso do cupom de forma atômica (dentro de transação).
+ * Incrementa uses_current apenas se < max_uses e não expirado.
+ * Retorna true se reservou, false se não há capacidade.
+ *
+ * @return bool true se o incremento atômico foi bem-sucedido
+ */
+function couponReserveUsage(PDO $pdo, int $couponId): bool
+{
+    $stmt = $pdo->prepare('
+        UPDATE e5_coupons
+        SET uses_current = uses_current + 1
+        WHERE id = :id
+          AND (max_uses IS NULL OR uses_current < max_uses)
+          AND (expires_at IS NULL OR expires_at > NOW())
+    ');
+    $stmt->execute([':id' => $couponId]);
+    return $stmt->rowCount() > 0;
+}
+
+/**
+ * Incrementar o contador de usos do cupom (usado apenas fora de transação).
  */
 function couponIncrementUsage(PDO $pdo, int $couponId): bool
 {

@@ -108,6 +108,10 @@ $shippingCost = $selectedOption ? (float) $selectedOption['cost'] : 0.00;
 
 // === PAGAMENTO ===
 $paymentMethod = $_POST['payment_method'] ?? 'pix';
+$validPaymentMethods = ['pix', 'boleto', 'credit', 'delivery'];
+if (!in_array($paymentMethod, $validPaymentMethods, true)) {
+    $paymentMethod = 'pix';
+}
 $paymentMethods = paymentGetMethods(); // do payment.php
 
 $pixDiscount = 0;
@@ -139,9 +143,15 @@ $orderPaymentInfo = null;
 $errorMessage = null;
 
 $isConfirming = $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['confirm_order']);
+$isApplyingCoupon = $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['apply_coupon']);
+$isCalcShipping = $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['calc_shipping']);
+
+// Valida CSRF em qualquer POST (confirm_order, apply_coupon, calc_shipping)
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_require_valid();
+}
 
 if ($isConfirming) {
-    csrf_require_valid();
 
     $guestName = trim($_POST['guest_name'] ?? '');
     $guestEmail = trim($_POST['guest_email'] ?? '');
@@ -225,6 +235,13 @@ if ($isConfirming) {
                 cartClear($pdo, $userId);
             }
 
+            // Reserva uso do cupom de forma atômica (dentro da transação)
+            if ($couponApplied) {
+                if (!couponReserveUsage($pdo, (int) $couponApplied['id'])) {
+                    throw new RuntimeException('Cupom não disponível (uso máximo atingido).');
+                }
+            }
+
             // Gera informações de pagamento por método
             if ($paymentMethod === 'pix') {
                 $pix = pixGenerateForOrder($grandTotal, (string) $orderId, ['name' => $user['name'] ?? ($guestName ?? '')]);
@@ -255,7 +272,7 @@ if ($isConfirming) {
                 ];
             } elseif ($paymentMethod === 'credit') {
                 $ccToken = trim($_POST['cc_token'] ?? '');
-                $ccInstallments = max(1, (int) ($_POST['cc_installments'] ?? 1));
+                $ccInstallments = min(12, max(1, (int) ($_POST['cc_installments'] ?? 1)));
                 $ccCpf = trim($_POST['cc_cpf'] ?? '');
                 $customerName = $isGuest ? $guestName : ($user['name'] ?? '');
                 $customerEmail = $isGuest ? $guestEmail : ($user['email'] ?? '');
@@ -316,11 +333,6 @@ if ($isConfirming) {
 
             $pdo->commit();
             $orderCreated = true;
-
-            // Incrementa uso do cupom após commit
-            if ($couponApplied) {
-                couponIncrementUsage($pdo, (int) $couponApplied['id']);
-            }
 
             // Comprovante + e-mail
             try {
@@ -429,7 +441,7 @@ include $base_path . 'components/header.php';
 
                     <?php if ($freteWarning): ?>
                     <div style="margin: 10px 0; padding: 10px 12px; background: rgba(255,152,0,0.1); border: 1px solid rgba(255,152,0,0.3); border-radius: 6px; font-size: 0.85rem;">
-                        <i class="fas fa-info-circle"></i> <?php echo $freteWarning; ?>
+                        <i class="fas fa-info-circle"></i> <?php echo strip_tags($freteWarning, '<strong><em><b><i>'); ?>
                     </div>
                     <?php endif; ?>
 
