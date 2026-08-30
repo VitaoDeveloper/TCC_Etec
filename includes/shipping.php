@@ -473,8 +473,9 @@ function shippingGetMigrationChecklist(PDO $pdo): array
 {
     $config = shippingGetConfig();
     $seller = $pdo->query('SELECT * FROM e5_seller_profile WHERE is_active = 1 LIMIT 1')->fetch();
+    if (!$seller) $seller = [];
 
-    $isMEI = $seller && ($seller['tax_regime'] ?? '') === 'MEI';
+    $isMEI = ($seller['tax_regime'] ?? '') === 'MEI';
     $hasToken = $config['has_token'];
 
     return [
