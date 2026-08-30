@@ -43,6 +43,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         throw new RuntimeException('Formato de imagem inválido. Use JPG, PNG ou WEBP.');
                     }
 
+                    // Validação de conteúdo real (MIME type + decode imagem)
+                    $finfo = new finfo(FILEINFO_MIME_TYPE);
+                    $mime = $finfo->file($_FILES['banner_image']['tmp_name']);
+                    $allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
+                    if (!in_array($mime, $allowedMimes, true)) {
+                        throw new RuntimeException('O conteúdo do arquivo não é uma imagem válida.');
+                    }
+                    $imgSize = @getimagesize($_FILES['banner_image']['tmp_name']);
+                    if ($imgSize === false) {
+                        throw new RuntimeException('Arquivo corrompido ou não é uma imagem real.');
+                    }
+
                     $slugBase = strtolower(trim(preg_replace('/[^a-zA-Z0-9]+/', '-', $title), '-'));
                     $pathFileName = $slugBase . '-' . time() . '.' . $extension;
 
