@@ -159,6 +159,7 @@ if (btnCalcFrete && cartCep) {
         }
         btnCalcFrete.disabled = true;
         shippingResult.innerHTML = '<span style="color:var(--ml-text-muted);">Calculando... <i class="fas fa-spinner fa-spin"></i></span>';
+        function escHtml(s) { var d = document.createElement('div'); d.appendChild(document.createTextNode(s)); return d.innerHTML; }
         fetch('<?php echo $base_path; ?>pages/cart/shipping-estimate.php', {
             method: 'POST',
             headers: {'Content-Type': 'application/x-www-form-urlencoded'},
@@ -166,18 +167,18 @@ if (btnCalcFrete && cartCep) {
         }).then(r => r.json()).then(data => {
             btnCalcFrete.disabled = false;
             if (!data.success) {
-                shippingResult.innerHTML = '<span style="color:#c0392b;">' + (data.error || 'Não foi possível calcular o frete.') + '</span>';
+                shippingResult.innerHTML = '<span style="color:#c0392b;">' + escHtml(data.error || 'Não foi possível calcular o frete.') + '</span>';
                 return;
             }
             let html = '';
             if (data.warning) {
-                html += '<div style="background:rgba(255,152,0,0.12); color:#e65100; padding:6px 8px; border-radius:4px; margin-bottom:8px;">' + data.warning + '</div>';
+                html += '<div style="background:rgba(255,152,0,0.12); color:#e65100; padding:6px 8px; border-radius:4px; margin-bottom:8px;">' + escHtml(data.warning) + '</div>';
             }
             if (data.options && data.options.length) {
                 data.options.forEach(function(opt) {
                     const est = opt.estimated ? ' <span style="background:rgba(255,152,0,0.2); color:#e65100; padding:1px 5px; border-radius:3px; font-size:0.65rem;">ESTIMADO</span>' : '';
                     html += '<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px dashed var(--ml-border);">' +
-                        '<span><strong>' + opt.method + '</strong>' + est + '<br><small style="color:var(--ml-text-muted);">' + opt.days + '</small></span>' +
+                        '<span><strong>' + escHtml(opt.method) + '</strong>' + est + '<br><small style="color:var(--ml-text-muted);">' + escHtml(opt.days) + '</small></span>' +
                         '<strong>' + (opt.cost > 0 ? 'R$ ' + Number(opt.cost).toLocaleString('pt-BR', {minimumFractionDigits: 2}) : 'Grátis') + '</strong>' +
                         '</div>';
                 });

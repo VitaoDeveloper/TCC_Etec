@@ -13,22 +13,22 @@ require_once __DIR__ . '/config.php';
 
 /**
  * Obtém o próximo número sequencial para comprovantes (COMP-XXXXXX).
+ * Incremento atômico via LAST_INSERT_ID — elimina race condition.
  */
 function obterProximoNumeroComprovante(PDO $pdo): string
 {
     try {
-        $row = $pdo->query("SELECT setting_value FROM e5_settings WHERE setting_key = 'comprovante_counter'")->fetch();
-        $counter = $row ? ((int)$row['setting_value']) + 1 : 1;
+        $stmt = $pdo->prepare('
+            INSERT INTO e5_settings (setting_key, setting_value)
+            VALUES (:key, 1)
+            ON DUPLICATE KEY UPDATE setting_value = LAST_INSERT_ID(setting_value + 1)
+        ');
+        $stmt->execute([':key' => 'comprovante_counter']);
+        $counter = (int) $pdo->lastInsertId();
     } catch (Throwable $e) {
-        $counter = 1;
+        error_log('comprovante: falha ao incrementar contador: ' . $e->getMessage());
+        $counter = (int) round(microtime(true) * 1000);
     }
-
-    $stmt = $pdo->prepare('
-        INSERT INTO e5_settings (setting_key, setting_value)
-        VALUES (:key, :val)
-        ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)
-    ');
-    $stmt->execute([':key' => 'comprovante_counter', ':val' => (string)$counter]);
 
     return 'COMP-' . str_pad((string)$counter, 6, '0', STR_PAD_LEFT);
 }

@@ -26,19 +26,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'resen
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'cancel') {
     csrf_require_valid();
-    $stmt = $pdo->prepare('SELECT status FROM e5_orders WHERE id = :id AND user_id = :uid LIMIT 1');
-    $stmt->execute([':id' => $orderId, ':uid' => $userId]);
-    $ord = $stmt->fetch();
-    if ($ord && $ord['status'] === 'pending') {
-        $items = $pdo->prepare('SELECT product_id, quantity FROM e5_order_items WHERE order_id = :oid');
-        $items->execute([':oid' => $orderId]);
-        foreach ($items as $it) {
-            $pdo->prepare('UPDATE e5_products SET stock = stock + :qty WHERE id = :pid')->execute([':qty' => (int)$it['quantity'], ':pid' => (int)$it['product_id']]);
+    $pdo->beginTransaction();
+    try {
+        $stmt = $pdo->prepare('SELECT status FROM e5_orders WHERE id = :id AND user_id = :uid LIMIT 1 FOR UPDATE');
+        $stmt->execute([':id' => $orderId, ':uid' => $userId]);
+        $ord = $stmt->fetch();
+        if ($ord && $ord['status'] === 'pending') {
+            $items = $pdo->prepare('SELECT product_id, quantity FROM e5_order_items WHERE order_id = :oid');
+            $items->execute([':oid' => $orderId]);
+            foreach ($items as $it) {
+                $pdo->prepare('UPDATE e5_products SET stock = stock + :qty WHERE id = :pid')->execute([':qty' => (int)$it['quantity'], ':pid' => (int)$it['product_id']]);
+            }
+            $pdo->prepare("UPDATE e5_orders SET status = 'canceled' WHERE id = :id AND status = 'pending'")->execute([':id' => $orderId]);
+            $message = 'Pedido cancelado com sucesso.';
+        } else {
+            $message = 'Não é possível cancelar este pedido.';
         }
-        $pdo->prepare("UPDATE e5_orders SET status = 'canceled' WHERE id = :id")->execute([':id' => $orderId]);
-        $message = 'Pedido cancelado com sucesso.';
-    } else {
-        $message = 'Não é possível cancelar este pedido.';
+        $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        $message = 'Erro ao cancelar pedido.';
     }
 }
 
@@ -123,14 +130,14 @@ include '../../components/header.php';
             <a href="../comprovante.php?id=<?php echo $orderId; ?>" target="_blank" class="ml-btn ml-btn-primary"><i class="fas fa-file-invoice"></i> Baixar Comprovante de Compra</a>
             <a href="../comprovante.php?id=<?php echo $orderId; ?>&format=pdf" target="_blank" class="ml-btn"><i class="fas fa-file-pdf"></i> Baixar PDF</a>
             <form method="post" style="display:inline">
-                <?php csrf_field(); ?>
+                <?php echo csrf_field(); ?>
                 <input type="hidden" name="action" value="resend">
                 <button type="submit" class="ml-btn"><i class="fas fa-envelope"></i> Reenviar por E-mail</button>
             </form>
             <?php endif; ?>
             <?php if ($order['status'] === 'pending'): ?>
             <form method="post" style="display:inline" onsubmit="return confirm('Tem certeza que deseja cancelar este pedido?')">
-                <?php csrf_field(); ?>
+                <?php echo csrf_field(); ?>
                 <input type="hidden" name="action" value="cancel">
                 <button type="submit" class="ml-btn ml-btn-danger"><i class="fas fa-times-circle"></i> Cancelar Pedido</button>
             </form>

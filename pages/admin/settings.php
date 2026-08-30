@@ -50,15 +50,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     $values['superfrete_sandbox'] = isset($_POST['superfrete_sandbox']) ? '1' : '0';
 
-    // SuperFrete token é salvo criptografado (nunca em texto puro)
+    // SuperFrete token é salvo criptografado (NUNCA em texto puro no e5_settings)
     if (isset($_POST['superfrete_token']) && trim($_POST['superfrete_token']) !== '') {
         try {
             require_once __DIR__ . '/../../includes/security.php';
-            $saved = saveEncryptedSetting($pdo, 'superfrete_token', trim($_POST['superfrete_token']));
-            $values['superfrete_token'] = trim($_POST['superfrete_token']);
-            if ($saved) {
-                $values['superfrete_token_saved_at'] = date('Y-m-d H:i:s');
-            }
+            saveEncryptedSetting($pdo, 'superfrete_token', trim($_POST['superfrete_token']));
+            // NÃO adicionar ao $values — token só existe em e5_encrypted_settings
         } catch (Throwable $e) {
             error_log('settings: falha ao salvar token SuperFrete: ' . $e->getMessage());
         }

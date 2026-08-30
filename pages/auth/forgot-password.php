@@ -3,15 +3,21 @@ $page_title = 'Recuperar Senha - Royal Tech';
 $base_path = '../../';
 require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../includes/mail.php';
+require_once __DIR__ . '/../../includes/rate_limit.php';
 $successMessage = null;
 $errorMessage = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_require_valid();
-    $email = trim((string) ($_POST['email'] ?? ''));
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $errorMessage = 'E-mail inválido.';
+
+    // Rate limit: máx. 5 solicitações/15min por IP (evita abuso de e-mail)
+    if (!rate_limit_check('forgot_' . $_SERVER['REMOTE_ADDR'], 5, 15)) {
+        $errorMessage = 'Muitas solicitações. Aguarde 15 minutos e tente novamente.';
     } else {
+        $email = trim((string) ($_POST['email'] ?? ''));
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $errorMessage = 'E-mail inválido.';
+        } else {
         include '../../database/connection.php';
         $stmt = $pdo->prepare('SELECT id, name FROM e5_users WHERE email = :email LIMIT 1');
         $stmt->execute([':email' => $email]);
@@ -27,6 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             sendMail($email, 'Redefinição de Senha - Royal Tech', $body);
         }
         $successMessage = 'Se o e-mail existir em nossa base, você receberá um link de recuperação.';
+        }
     }
 }
 

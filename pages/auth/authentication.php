@@ -66,9 +66,14 @@ if ($_SESSION['user_role'] === 'admin') {
     exit;
 }
 
-if (!str_starts_with($next, '/')) {
-    header('Location: ' . $next);
-    exit;
+// Open redirect fix: aceitar apenas paths sem scheme, host ou CRLF
+if ($next !== '') {
+    $uri = parse_url($next);
+    if (!isset($uri['scheme']) && !isset($uri['host'])
+        && strpos($next, "\r") === false && strpos($next, "\n") === false) {
+        header('Location: ' . $next);
+        exit;
+    }
 }
 
 header('Location: ../products/products.php');

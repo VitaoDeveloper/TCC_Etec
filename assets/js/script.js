@@ -261,6 +261,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // ========================================
     // Toast Notification
     // ========================================
+    function escHtml(s) { var d = document.createElement('div'); d.appendChild(document.createTextNode(s)); return d.innerHTML; }
     window.showToast = function(message, type) {
         type = type || 'info';
         var container = document.getElementById('toastContainer');
@@ -268,7 +269,10 @@ document.addEventListener('DOMContentLoaded', function() {
         var icons = { success: 'fa-check-circle', error: 'fa-exclamation-circle', info: 'fa-info-circle' };
         var toast = document.createElement('div');
         toast.className = 'toast toast-' + type;
-        toast.innerHTML = '<i class="fas ' + (icons[type] || icons.info) + '"></i> ' + message;
+        var iconEl = document.createElement('i');
+        iconEl.className = 'fas ' + (icons[type] || icons.info);
+        toast.appendChild(iconEl);
+        toast.appendChild(document.createTextNode(' ' + message));
         container.appendChild(toast);
         requestAnimationFrame(function() { toast.classList.add('show'); });
         setTimeout(function() {
