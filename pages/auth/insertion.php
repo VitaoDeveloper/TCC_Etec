@@ -24,7 +24,15 @@ $password = (string) filter_input(INPUT_POST, 'password');
 $postalCode = trim((string) filter_input(INPUT_POST, 'postalcode'));
 $street = trim((string) filter_input(INPUT_POST, 'street'));
 $numberRaw = trim((string) filter_input(INPUT_POST, 'number'));
-$number = preg_match('/^\d{1,6}$/', $numberRaw) ? (int) $numberRaw : 0;
+// Aceita número (1-6 dígitos) ou "S/N" para endereços sem numeração
+if (preg_match('/^\d{1,6}$/', $numberRaw)) {
+    $number = $numberRaw;
+} elseif (strtoupper($numberRaw) === 'S/N' || $numberRaw === '') {
+    $number = 'S/N';
+} else {
+    $number = 'S/N';
+    $numberInvalid = true;
+}
 $complement = trim((string) filter_input(INPUT_POST, 'complement')) ?: null;
 $privacyAccepted = isset($_POST['privacy_accepted']) ? 1 : 0;
 
@@ -34,7 +42,7 @@ $_SESSION['auth_old'] = [
     'username' => $username,
     'postalcode' => $postalCode,
     'street' => $street,
-    'number' => $number > 0 ? (string) $number : '',
+    'number' => $number,
     'complement' => $complement ?? '',
 ];
 
@@ -45,7 +53,7 @@ if (!preg_match('/^[a-zA-Z0-9._-]{4,}$/', $username)) $errors[] = 'Nome de usuá
 if (strlen($password) < 8) $errors[] = 'Senha deve ter no mínimo 8 caracteres.';
 if (!preg_match('/^\d{5}-?\d{3}$/', $postalCode)) $errors[] = 'CEP inválido. Use o formato 00000-000.';
 if (mb_strlen($street) < 4) $errors[] = 'Rua deve conter pelo menos 4 caracteres.';
-if ($number <= 0) $errors[] = 'Número deve ser maior que zero.';
+if (empty($numberRaw) || (!empty($numberInvalid) && strtoupper($numberRaw) !== 'S/N')) $errors[] = 'Número deve ser um valor válido (dígito ou S/N).';
 if (!$privacyAccepted) $errors[] = 'Você precisa aceitar a Política de Privacidade e os Termos de Uso.';
 
 if (!empty($errors)) {

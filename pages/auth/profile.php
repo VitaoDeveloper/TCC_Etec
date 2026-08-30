@@ -34,7 +34,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim((string) ($_POST['username'] ?? ''));
     $postalCode = trim((string) ($_POST['postal_code'] ?? ''));
     $street = trim((string) ($_POST['street'] ?? ''));
-    $number = (int) ($_POST['number'] ?? 0);
+    $numberRaw = trim((string) ($_POST['number'] ?? ''));
+    if (preg_match('/^\d{1,6}$/', $numberRaw)) {
+        $number = $numberRaw;
+    } elseif (strtoupper($numberRaw) === 'S/N') {
+        $number = 'S/N';
+    } else {
+        $number = $numberRaw ?: 'S/N';
+    }
     $complement = trim((string) ($_POST['complement'] ?? ''));
     $currentPass = (string) ($_POST['current_password'] ?? '');
     $newPass = (string) ($_POST['new_password'] ?? '');

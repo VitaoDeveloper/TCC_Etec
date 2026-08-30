@@ -43,14 +43,15 @@ $stmt->execute([':identifier' => $identifier]);
 $user = $stmt->fetch();
 
 if (!$user) {
-    $_SESSION['auth_errors'] = ['Não encontramos uma conta com esse e-mail/usuário.'];
+    // Mensagem genérica — evita enumerar e-mails/usuários cadastrados
+    $_SESSION['auth_errors'] = ['Credenciais inválidas. Verifique e tente novamente.'];
     $_SESSION['auth_old']['identifier'] = $identifier;
     header('Location: login.php');
     exit;
 }
 
 if (!password_verify($password, $user['password'])) {
-    $_SESSION['auth_errors'] = ['Senha incorreta. Verifique e tente novamente.'];
+    $_SESSION['auth_errors'] = ['Credenciais inválidas. Verifique e tente novamente.'];
     $_SESSION['auth_old']['identifier'] = $identifier;
     header('Location: login.php');
     exit;
