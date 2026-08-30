@@ -36,6 +36,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'refun
         if ($refundResult['success']) {
             $upd = $pdo->prepare('UPDATE e5_orders SET payment_status = "refunded", status = "canceled", updated_at = NOW() WHERE id = :id');
             $upd->execute([':id' => $orderId]);
+            // Devolver estoque de todos os itens do pedido
+            $itemsStmt = $pdo->prepare('SELECT product_id, quantity FROM e5_order_items WHERE order_id = :oid');
+            $itemsStmt->execute([':oid' => $orderId]);
+            foreach ($itemsStmt as $it) {
+                $pdo->prepare('UPDATE e5_products SET stock = stock + :qty WHERE id = :pid')->execute([':qty' => (int)$it['quantity'], ':pid' => (int)$it['product_id']]);
+            }
             error_log("Refund OK order #$orderId: " . ($refundResult['message'] ?? ''));
             header('Location: order-detail.php?id=' . $orderId . '&refunded=1');
         } else {
