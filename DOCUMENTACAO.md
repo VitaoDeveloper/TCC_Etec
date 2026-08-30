@@ -1,6 +1,6 @@
 # DOCUMENTAÇÃO — Royal Tech
 
-Última atualização: 28 de agosto de 2026 (atualizado após implementação Frete Real + Pix Real)
+Última atualização: 29 de agosto de 2026 (após verificação SDK Mercado Pago + correções carrinho)
 
 ## Visão Geral
 
@@ -420,7 +420,7 @@ Fluxo atual:
 10. Cria pedido em `e5_orders` com: `shipping_method`, `shipping_carrier`, `shipping_cost`, `shipping_delivery_time`, `shipping_is_estimated`, `shipping_postal_code`, `shipping_neighborhood/city/state` (ViaCEP). Para convidados: `user_id = NULL`, `guest_name`/`guest_email` preenchidos.
 11. Cria itens em `e5_order_items`, decrementa estoque, limpa carrinho (sessão para convidado, banco para logado).
 12. **PIX real**: `pixGenerateForOrder()` → BR Code EMV + QR Code PNG + copia-e-cola; `payment_status = pending`.
-13. **Cartão de Crédito (Checkout Transparente)**: `paymentMercadoPagoCreatePayment()` e `paymentAsaasCreatePayment()` chamam as APIs reais via cURL. Tokenização via JS SDK no front-end (cartão nunca toca o servidor). `payment_status = paid` quando aprovado, `pending` caso contrário.
+13. **Cartão de Crédito (Checkout Transparente)**: `paymentMercadoPagoCreatePayment()` e `paymentAsaasCreatePayment()` chamam as APIs reais via cURL. Tokenização via JS SDK v2 no front-end (cartão nunca toca o servidor). `payment_status = paid` quando aprovado, `pending` caso contrário. **Salvamento de cartão**: token do MP salvo em `e5_saved_cards` (não dados do cartão). Checkout permite selecionar cartão salvo ou usar novo.
 14. **Estorno**: `paymentProcessRefund()` despacha para `paymentRefundMercadoPago()` ou `paymentRefundAsaas()` (endpoint real de estorno de cada gateway).
 15. Gera comprovante (`gerarComprovanteCompra`) + envia e-mail (`enviarComprovanteEmail`).
 
@@ -774,6 +774,7 @@ O projeto possui template de Pull Request em `.github/PULL_REQUEST_TEMPLATE.md` 
 - Frete real (SuperFrete): ✅ **ATIVO EM SANDBOX** — PAC e SEDEX com preços reais em 3 rotas testadas.
 - Pix real: ✅ **BR CODE EMV VÁLIDO + QR CODE PNG** (estático/manual; `payment_status=pending`).
 - **Cartão de crédito (API de Orders):** ✅ **PAGAMENTO APROVADO EM SANDBOX** — Pedido #27, `payment_status=paid`, `gateway_transaction_id=ORDTST...`. Integração usa a API de Orders do Mercado Pago (não a API legada `/v1/payments`). Documentação oficial: https://www.mercadopago.com.br/developers/pt/docs/checkout-api-orders/overview
+- **SDK JS v2 Mercado Pago:** ✅ **VERIFICADO** — SDK `https://sdk.mercadopago.com/js/v2` carregado condicionalmente. Public Key vinda dinamicamente do banco (`loadEncryptedSetting`). Tokenização client-side via `new MercadoPagos()`. Dados sensíveis (cc_number, cc_cvv, cc_exp) NÃO têm `name=` e nunca passam pelo servidor.
 - Comprovante + E-mail: ✅ PDF GERADO + ANEXO ENVIADO (Mailpit confirmado).
 - Segurança: ⚠️ Chave criptografia hardcoded (revise), webhooks (validar specs).
 - Próximo passo crítico: **Migrar SuperFrete de sandbox para produção**.
@@ -857,20 +858,41 @@ Esperado: `payment_status = 'paid'` e `gateway_transaction_id` preenchido com o 
 ```
 Front-end (JS SDK)          Servidor (PHP)                    API Mercado Pago
 ─────────────────          ──────────────                    ────────────────
-1. JS SDK tokeniza     →
-   o cartão com a           paymentProcessCreditCard()
-   public key APP_USR-xxx   → paymentMercadoPagoCreatePayment()
-                             → paymentGatewayGetAccessToken()
-                             → lê access token de e5_encrypted_settings
-                             → POST /v1/orders com Bearer token
-                               + header X-Idempotency-Key
-                               + payload: type, transactions.payments[],
-                                 payer, items
+1. SDK v2 carregado        paymentGetConfig()               api.mercadopago.com
+   https://sdk.mercadopago  → loadEncryptedSetting()
+   .com/js/v2               → lê public key do banco
+                            → lê access token do banco
+
+2. new MercadoPagos(PK)
+   mp.createCardToken()
+   → browser envia dados   → [servidor NÃO recebe]
+     para api.mercadopago    dados do cartão
+     .com                    (cc_number, cc_cvv,
+   → retorna token.id       cc_exp NÃO têm name=)
+
+3. Form submit com:        paymentProcessCreditCard()
+   cc_token (hidden)         → paymentMercadoPagoCreatePayment()
+   cc_brand (hidden)         → POST /v1/orders com Bearer token
+   cc_name                   + header X-Idempotency-Key
+   cc_cpf                    + payload: type, transactions.payments[],
+   cc_installments             payer, items, payer.address
                                                   ──→  API valida token + cartão
                                               ←──  Retorna JSON com status
                            ←  Interpreta resposta
-   Exibe resultado     ←
+   Exibe resultado    ←
 ```
+
+**Verificação realizada (2026-08-29):**
+
+| Item | Status | Detalhe |
+|------|--------|---------|
+| SDK JS v2 incluído | ✅ | `https://sdk.mercadopago.com/js/v2` |
+| Public Key dinâmica | ✅ | Vinda do banco via `loadEncryptedSetting('mercadopago_public_key')` |
+| Tokenização client-side | ✅ | `new MercadoPagos(PK) → mp.createCardToken() → token.id` |
+| Dados sensíveis no servidor | ✅ | `cc_number`, `cc_cvv`, `cc_exp` NÃO têm `name=` — nunca enviados |
+| Backend recebe APENAS | ✅ | `cc_token`, `cc_brand`, `cc_name`, `cc_cpf`, `cc_installments` |
+| Salvar cartão | ✅ | Token (não dados) salvo em `e5_saved_cards` |
+| Cartão salvo no checkout | ✅ | Seleção de cartão existente pula tokenização |
 
 ### Erros comuns
 
