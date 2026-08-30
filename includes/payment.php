@@ -733,3 +733,46 @@ function paymentGetFeeComparison(): array
         ],
     ];
 }
+
+// ========================================
+// Saved Cards (Cartões Salvos)
+// ========================================
+
+function savedCardSave(PDO $pdo, int $userId, string $cardToken, string $brand, string $lastFour, string $cardholderName, bool $isDefault = false): bool
+{
+    if ($isDefault) {
+        $pdo->prepare('UPDATE e5_saved_cards SET is_default = 0 WHERE user_id = :uid')->execute([':uid' => $userId]);
+    }
+    $stmt = $pdo->prepare('INSERT INTO e5_saved_cards (user_id, card_token, card_brand, last_four, cardholder_name, is_default) VALUES (:uid, :token, :brand, :last4, :name, :def)');
+    return $stmt->execute([':uid' => $userId, ':token' => $cardToken, ':brand' => $brand, ':last4' => $lastFour, ':name' => $cardholderName, ':def' => $isDefault ? 1 : 0]);
+}
+
+function savedCardGetAll(PDO $pdo, int $userId): array
+{
+    $stmt = $pdo->prepare('SELECT id, card_brand, last_four, cardholder_name, is_default, created_at FROM e5_saved_cards WHERE user_id = :uid ORDER BY is_default DESC, created_at DESC');
+    $stmt->execute([':uid' => $userId]);
+    return $stmt->fetchAll();
+}
+
+function savedCardGetToken(PDO $pdo, int $userId, int $cardId): ?string
+{
+    $stmt = $pdo->prepare('SELECT card_token FROM e5_saved_cards WHERE id = :id AND user_id = :uid LIMIT 1');
+    $stmt->execute([':id' => $cardId, ':uid' => $userId]);
+    $row = $stmt->fetch();
+    return $row ? $row['card_token'] : null;
+}
+
+function savedCardDelete(PDO $pdo, int $userId, int $cardId): bool
+{
+    $stmt = $pdo->prepare('DELETE FROM e5_saved_cards WHERE id = :id AND user_id = :uid');
+    $stmt->execute([':id' => $cardId, ':uid' => $userId]);
+    return $stmt->rowCount() > 0;
+}
+
+function savedCardSetDefault(PDO $pdo, int $userId, int $cardId): bool
+{
+    $pdo->prepare('UPDATE e5_saved_cards SET is_default = 0 WHERE user_id = :uid')->execute([':uid' => $userId]);
+    $stmt = $pdo->prepare('UPDATE e5_saved_cards SET is_default = 1 WHERE id = :id AND user_id = :uid');
+    $stmt->execute([':id' => $cardId, ':uid' => $userId]);
+    return $stmt->rowCount() > 0;
+}

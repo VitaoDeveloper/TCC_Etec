@@ -25,7 +25,7 @@ include $base_path . 'components/header.php';
 <section class="ml-section" style="padding-top: 8px;"><div class="container">
     <div class="ml-section-header">
         <h2 class="ml-section-title">Seu Carrinho</h2>
-        <span class="ml-main-count"><?php echo count($items); ?> <?php echo count($items) === 1 ? 'item' : 'itens'; ?></span>
+        <span class="ml-main-count" id="cartCount"><?php echo count($items); ?> <?php echo count($items) === 1 ? 'item' : 'itens'; ?></span>
     </div>
 
     <?php if (empty($items)): ?>
@@ -37,7 +37,7 @@ include $base_path . 'components/header.php';
         </div>
     <?php else: ?>
         <div class="ml-cart-grid">
-            <div>
+            <div id="cartItems">
                 <?php foreach ($items as $item):
                     $img = (string) ($item['image_path'] ?? '');
                     if ($img === '') {
@@ -49,41 +49,44 @@ include $base_path . 'components/header.php';
                     }
                     $subtotal = (float)$item['price'] * (int)$item['quantity'];
                 ?>
-                <div class="cart-item" data-product-id="<?php echo (int)$item['product_id']; ?>">
-                    <img src="<?php echo htmlspecialchars($img, ENT_QUOTES, 'UTF-8'); ?>" alt="<?php echo htmlspecialchars($item['name'], ENT_QUOTES, 'UTF-8'); ?>" class="cart-item-img">
+                <div class="cart-item" data-product-id="<?php echo (int)$item['product_id']; ?>" data-unit-price="<?php echo (float)$item['price']; ?>" data-stock="<?php echo (int)$item['stock']; ?>">
+                    <img src="<?php echo htmlspecialchars($img, ENT_QUOTES, 'UTF-8'); ?>" alt="<?php echo htmlspecialchars($item['name'], ENT_QUOTES, 'UTF-8'); ?>" class="cart-item-img" loading="lazy">
                     <div class="cart-item-info">
                         <strong><?php echo htmlspecialchars($item['name'], ENT_QUOTES, 'UTF-8'); ?></strong>
                         <span class="cart-item-brand"><?php echo htmlspecialchars($item['brand'] ?? '', ENT_QUOTES, 'UTF-8'); ?></span>
                         <span class="cart-item-unit">R$ <?php echo number_format((float)$item['price'], 2, ',', '.'); ?> un.</span>
                     </div>
-                    <div class="qty-stepper" style="margin-bottom: 0;">
+                    <div class="qty-stepper">
                         <button type="button" class="cart-qty-btn" data-action="dec" aria-label="Diminuir quantidade">−</button>
-                        <input type="number" class="cart-qty" value="<?php echo (int)$item['quantity']; ?>" min="0" max="<?php echo (int)$item['stock']; ?>" aria-label="Quantidade">
+                        <input type="number" class="cart-qty" value="<?php echo (int)$item['quantity']; ?>" min="1" max="<?php echo (int)$item['stock']; ?>" aria-label="Quantidade">
                         <button type="button" class="cart-qty-btn" data-action="inc" aria-label="Aumentar quantidade">+</button>
                     </div>
                     <span class="cart-item-subtotal cart-subtotal">R$ <?php echo number_format($subtotal, 2, ',', '.'); ?></span>
                     <button type="button" class="cart-remove" title="Remover" aria-label="Remover item do carrinho"><i class="fas fa-trash-alt"></i></button>
                 </div>
                 <?php endforeach; ?>
-                <a href="../products/products.php" class="ml-btn"><i class="fas fa-arrow-left"></i> Continuar Comprando</a>
             </div>
 
-            <div class="ml-summary-card">
-                <h3>Resumo</h3>
-                <div class="ml-summary-line total">
-                    <span>Total</span>
-                    <span>R$ <?php echo number_format($total, 2, ',', '.'); ?></span>
-                </div>
-                <div id="shipping-estimator" style="margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--ml-border);">
-                    <label for="cartCep" style="font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 6px;">Calcular frete</label>
-                    <div style="display: flex; gap: 6px;">
-                        <input type="text" id="cartCep" name="cep" inputmode="numeric" maxlength="9" placeholder="00000-000" value="<?php echo htmlspecialchars($cep ?? '', ENT_QUOTES, 'UTF-8'); ?>" style="flex:1; padding:8px; border:1px solid var(--ml-border); border-radius:6px;">
-                        <button type="button" id="btnCalcFrete" class="ml-btn" style="padding: 8px 12px;"><i class="fas fa-calculator"></i> Calcular</button>
+            <div>
+                <a href="../products/products.php" class="ml-btn" style="margin-bottom: 14px;"><i class="fas fa-arrow-left"></i> Continuar Comprando</a>
+
+                <div class="ml-summary-card">
+                    <h3>Resumo</h3>
+                    <div class="ml-summary-line total">
+                        <span>Total</span>
+                        <span id="summaryTotal">R$ <?php echo number_format($total, 2, ',', '.'); ?></span>
                     </div>
-                    <div id="shippingResult" style="margin-top: 10px; font-size: 0.85rem;"></div>
-                </div>
-                <div class="ml-summary-actions">
-                    <a href="../cart/checkout.php" class="ml-btn ml-btn-primary ml-btn-block"><i class="fas fa-credit-card"></i> Finalizar Pedido</a>
+                    <div id="shipping-estimator" style="margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--ml-border);">
+                        <label for="cartCep" style="font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 6px;">Calcular frete</label>
+                        <div style="display: flex; gap: 6px;">
+                            <input type="text" id="cartCep" name="cep" inputmode="numeric" maxlength="9" placeholder="00000-000" value="<?php echo htmlspecialchars($cep ?? '', ENT_QUOTES, 'UTF-8'); ?>" style="flex:1; padding:8px; border:1px solid var(--ml-border); border-radius:6px;">
+                            <button type="button" id="btnCalcFrete" class="ml-btn" style="padding: 8px 12px;"><i class="fas fa-calculator"></i> Calcular</button>
+                        </div>
+                        <div id="shippingResult" style="margin-top: 10px; font-size: 0.85rem;"></div>
+                    </div>
+                    <div class="ml-summary-actions">
+                        <a href="../cart/checkout.php" class="ml-btn ml-btn-primary ml-btn-block"><i class="fas fa-credit-card"></i> Finalizar Pedido</a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -91,106 +94,156 @@ include $base_path . 'components/header.php';
 </div></section>
 
 <script>
-function updateCartQty(productId, qty) {
-    fetch('<?php echo $base_path; ?>pages/cart/update.php', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: 'product_id=' + productId + '&quantity=' + qty
-    }).then(r => r.json()).then(data => {
-        if (data.success) location.reload();
-    });
-}
+(function() {
+    const basePath = <?php echo json_encode($base_path); ?>;
+    const cartItemsEl = document.getElementById('cartItems');
+    const summaryTotalEl = document.getElementById('summaryTotal');
+    const cartCountEl = document.getElementById('cartCount');
 
-document.querySelectorAll('.cart-qty-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-        const input = this.parentElement.querySelector('.cart-qty');
-        const productId = this.closest('[data-product-id]').dataset.productId;
-        let val = parseInt(input.value) || 0;
-        if (this.dataset.action === 'inc') {
-            const max = parseInt(input.max) || 999;
-            if (val < max) val++;
-        } else {
-            if (val > 0) val--;
-        }
-        input.value = val;
-        updateCartQty(productId, val);
-    });
-});
+    function escHtml(s) { var d = document.createElement('div'); d.appendChild(document.createTextNode(s)); return d.innerHTML; }
 
-document.querySelectorAll('.cart-qty').forEach(input => {
-    input.addEventListener('change', function() {
-        const productId = this.closest('[data-product-id]').dataset.productId;
-        updateCartQty(productId, parseInt(this.value) || 0);
-    });
-});
+    function showToast(msg, type) {
+        if (window.showToast) { window.showToast(msg, type); return; }
+        var t = document.createElement('div');
+        t.className = 'toast toast-' + (type || 'info');
+        var c = document.getElementById('toastContainer');
+        if (c) { c.appendChild(t); setTimeout(function(){ t.remove(); }, 3500); }
+    }
 
-document.querySelectorAll('.cart-remove').forEach(btn => {
-    btn.addEventListener('click', function() {
-        const productId = this.closest('[data-product-id]').dataset.productId;
-        fetch('<?php echo $base_path; ?>pages/cart/remove.php', {
+    function recalcTotal() {
+        let total = 0;
+        cartItemsEl.querySelectorAll('.cart-item').forEach(function(el) {
+            const price = parseFloat(el.dataset.unitPrice) || 0;
+            const qty = parseInt(el.querySelector('.cart-qty').value) || 0;
+            const sub = price * qty;
+            el.querySelector('.cart-item-subtotal').textContent = 'R$ ' + sub.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+            total += sub;
+        });
+        summaryTotalEl.textContent = 'R$ ' + total.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+    }
+
+    function setItemLoading(el, loading) {
+        el.style.opacity = loading ? '0.5' : '1';
+        el.style.pointerEvents = loading ? 'none' : '';
+    }
+
+    function removeItem(productId) {
+        const el = cartItemsEl.querySelector('[data-product-id="' + productId + '"]');
+        if (el) setItemLoading(el, true);
+        fetch(basePath + 'pages/cart/remove.php', {
             method: 'POST',
             headers: {'Content-Type': 'application/x-www-form-urlencoded'},
             body: 'product_id=' + productId
-        }).then(r => r.json()).then(data => {
-            if (data.success) location.reload();
+        }).then(function(r) { return r.json(); }).then(function(data) {
+            if (data.success) {
+                if (el) { el.style.transition = 'opacity 0.2s, transform 0.2s'; el.style.opacity = '0'; el.style.transform = 'translateX(30px)'; setTimeout(function(){ el.remove(); recalcTotal(); updateCount(data.count); }, 200); }
+                else recalcTotal();
+            } else {
+                if (el) setItemLoading(el, false);
+                showToast(data.message || 'Erro ao remover item.', 'error');
+            }
+        }).catch(function() {
+            if (el) setItemLoading(el, false);
+            showToast('Falha de conexão.', 'error');
         });
-    });
-});
+    }
 
-const btnCalcFrete = document.getElementById('btnCalcFrete');
-const cartCep = document.getElementById('cartCep');
-const shippingResult = document.getElementById('shippingResult');
-
-function formatCepDigits(v) {
-    return v.replace(/\D/g, '').slice(0, 8);
-}
-
-if (btnCalcFrete && cartCep) {
-    cartCep.addEventListener('input', function() {
-        const d = formatCepDigits(this.value);
-        this.value = d ? d.replace(/^(\d{5})(\d{0,3}).*/, '$1-$2') : '';
-    });
-
-    btnCalcFrete.addEventListener('click', function() {
-        const cep = formatCepDigits(cartCep.value);
-        if (cep.length !== 8) {
-            shippingResult.innerHTML = '<span style="color:#c0392b;">Informe um CEP válido.</span>';
-            return;
-        }
-        btnCalcFrete.disabled = true;
-        shippingResult.innerHTML = '<span style="color:var(--ml-text-muted);">Calculando... <i class="fas fa-spinner fa-spin"></i></span>';
-        function escHtml(s) { var d = document.createElement('div'); d.appendChild(document.createTextNode(s)); return d.innerHTML; }
-        fetch('<?php echo $base_path; ?>pages/cart/shipping-estimate.php', {
+    function updateQty(productId, qty) {
+        const el = cartItemsEl.querySelector('[data-product-id="' + productId + '"]');
+        if (el) setItemLoading(el, true);
+        fetch(basePath + 'pages/cart/update.php', {
             method: 'POST',
             headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-            body: 'cep=' + encodeURIComponent(cep)
-        }).then(r => r.json()).then(data => {
-            btnCalcFrete.disabled = false;
-            if (!data.success) {
-                shippingResult.innerHTML = '<span style="color:#c0392b;">' + escHtml(data.error || 'Não foi possível calcular o frete.') + '</span>';
+            body: 'product_id=' + productId + '&quantity=' + qty
+        }).then(function(r) { return r.json(); }).then(function(data) {
+            if (data.success) {
+                recalcTotal();
+                updateCount(data.count);
+            } else {
+                if (el) {
+                    setItemLoading(el, false);
+                    showToast(data.message || 'Erro ao atualizar quantidade.', 'error');
+                }
+            }
+        }).catch(function() {
+            if (el) setItemLoading(el, false);
+            showToast('Falha de conexão.', 'error');
+        });
+    }
+
+    function updateCount(count) {
+        if (cartCountEl) cartCountEl.textContent = count + (count === 1 ? ' item' : ' itens');
+        const headerBadge = document.querySelector('.ml-cart-link .ml-badge');
+        if (headerBadge) { if (count > 0) { headerBadge.textContent = count; } else { headerBadge.remove(); } }
+        else if (count > 0) { const b = document.createElement('span'); b.className = 'ml-badge'; b.textContent = count; const link = document.querySelector('.ml-cart-link'); if (link) link.appendChild(b); }
+    }
+
+    if (cartItemsEl) {
+        cartItemsEl.addEventListener('click', function(e) {
+            const btn = e.target.closest('.cart-qty-btn');
+            if (btn) {
+                const container = btn.closest('.cart-item');
+                const input = container.querySelector('.cart-qty');
+                const max = parseInt(input.max) || 999;
+                let val = parseInt(input.value) || 1;
+                val = btn.dataset.action === 'inc' ? Math.min(val + 1, max) : Math.max(val - 1, 1);
+                input.value = val;
+                updateQty(container.dataset.productId, val);
                 return;
             }
-            let html = '';
-            if (data.warning) {
-                html += '<div style="background:rgba(255,152,0,0.12); color:#e65100; padding:6px 8px; border-radius:4px; margin-bottom:8px;">' + escHtml(data.warning) + '</div>';
+            const rm = e.target.closest('.cart-remove');
+            if (rm) {
+                removeItem(rm.closest('.cart-item').dataset.productId);
             }
-            if (data.options && data.options.length) {
-                data.options.forEach(function(opt) {
-                    const est = opt.estimated ? ' <span style="background:rgba(255,152,0,0.2); color:#e65100; padding:1px 5px; border-radius:3px; font-size:0.65rem;">ESTIMADO</span>' : '';
-                    html += '<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px dashed var(--ml-border);">' +
-                        '<span><strong>' + escHtml(opt.method) + '</strong>' + est + '<br><small style="color:var(--ml-text-muted);">' + escHtml(opt.days) + '</small></span>' +
-                        '<strong>' + (opt.cost > 0 ? 'R$ ' + Number(opt.cost).toLocaleString('pt-BR', {minimumFractionDigits: 2}) : 'Grátis') + '</strong>' +
-                        '</div>';
-                });
-            } else {
-                html += '<span style="color:var(--ml-text-muted);">Nenhuma opção disponível para este CEP.</span>';
-            }
-            shippingResult.innerHTML = html;
-        }).catch(function() {
-            btnCalcFrete.disabled = false;
-            shippingResult.innerHTML = '<span style="color:#c0392b;">Falha ao calcular frete. Tente novamente.</span>';
         });
-    });
-}
+
+        cartItemsEl.addEventListener('change', function(e) {
+            if (e.target.classList.contains('cart-qty')) {
+                const container = e.target.closest('.cart-item');
+                const val = Math.max(1, parseInt(e.target.value) || 1);
+                e.target.value = val;
+                updateQty(container.dataset.productId, val);
+            }
+        });
+    }
+
+    // Frete
+    var btnCalcFrete = document.getElementById('btnCalcFrete');
+    var cartCep = document.getElementById('cartCep');
+    var shippingResult = document.getElementById('shippingResult');
+
+    if (btnCalcFrete && cartCep) {
+        cartCep.addEventListener('input', function() {
+            var d = this.value.replace(/\D/g, '').slice(0, 8);
+            this.value = d ? d.replace(/^(\d{5})(\d{0,3}).*/, '$1-$2') : '';
+        });
+
+        btnCalcFrete.addEventListener('click', function() {
+            var cep = cartCep.value.replace(/\D/g, '');
+            if (cep.length !== 8) { shippingResult.innerHTML = '<span style="color:#c0392b;">Informe um CEP válido.</span>'; return; }
+            btnCalcFrete.disabled = true;
+            shippingResult.innerHTML = '<span style="color:var(--ml-text-muted);">Calculando... <i class="fas fa-spinner fa-spin"></i></span>';
+            fetch(basePath + 'pages/cart/shipping-estimate.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: 'cep=' + encodeURIComponent(cep)
+            }).then(function(r) { return r.json(); }).then(function(data) {
+                btnCalcFrete.disabled = false;
+                if (!data.success) { shippingResult.innerHTML = '<span style="color:#c0392b;">' + escHtml(data.error || 'Erro ao calcular frete.') + '</span>'; return; }
+                var html = '';
+                if (data.warning) html += '<div style="background:rgba(255,152,0,0.12); color:#e65100; padding:6px 8px; border-radius:4px; margin-bottom:8px;">' + escHtml(data.warning) + '</div>';
+                if (data.options && data.options.length) {
+                    data.options.forEach(function(opt) {
+                        var est = opt.estimated ? ' <span style="background:rgba(255,152,0,0.2); color:#e65100; padding:1px 5px; border-radius:3px; font-size:0.65rem;">ESTIMADO</span>' : '';
+                        html += '<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px dashed var(--ml-border);">' +
+                            '<span><strong>' + escHtml(opt.method) + '</strong>' + est + '<br><small style="color:var(--ml-text-muted);">' + escHtml(opt.days) + '</small></span>' +
+                            '<strong>' + (opt.cost > 0 ? 'R$ ' + opt.cost.toLocaleString('pt-BR', {minimumFractionDigits: 2}) : 'Grátis') + '</strong></div>';
+                    });
+                } else html += '<span style="color:var(--ml-text-muted);">Nenhuma opção disponível.</span>';
+                shippingResult.innerHTML = html;
+            }).catch(function() { btnCalcFrete.disabled = false; shippingResult.innerHTML = '<span style="color:#c0392b;">Falha ao calcular frete.</span>'; });
+        });
+    }
+})();
 </script>
 <?php include $base_path . 'components/footer.php'; ?>

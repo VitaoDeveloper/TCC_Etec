@@ -24,13 +24,21 @@ if (!$stmt->fetch()) {
     exit;
 }
 
+// Validação de estoque (para guest e logged-in)
+$stockCheck = validateStock($pdo, $productId, $quantity);
+if (!$stockCheck['ok']) {
+    echo json_encode(['success' => false, 'message' => $stockCheck['msg']]);
+    exit;
+}
+
 if ($isGuest) {
     sessionCartAddItem($productId, $quantity);
     $count = sessionCartGetCount();
 } else {
-    $check = validateStock($pdo, $productId, $quantity, cartGetItemQuantity($pdo, (int)$_SESSION['user_id'], $productId));
-    if (!$check['ok']) {
-        echo json_encode(['success' => false, 'message' => $check['msg']]);
+    $cartQty = cartGetItemQuantity($pdo, (int)$_SESSION['user_id'], $productId);
+    $totalCheck = validateStock($pdo, $productId, $quantity, $cartQty);
+    if (!$totalCheck['ok']) {
+        echo json_encode(['success' => false, 'message' => $totalCheck['msg']]);
         exit;
     }
     cartAddItem($pdo, (int)$_SESSION['user_id'], $productId, $quantity);

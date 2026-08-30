@@ -271,11 +271,18 @@ if ($isConfirming) {
                     'expires' => date('d/m/Y', strtotime('+3 days')),
                 ];
             } elseif ($paymentMethod === 'credit') {
-                $ccToken = trim($_POST['cc_token'] ?? '');
                 $ccInstallments = min(12, max(1, (int) ($_POST['cc_installments'] ?? 1)));
                 $ccCpf = trim($_POST['cc_cpf'] ?? '');
                 $customerName = $isGuest ? $guestName : ($user['name'] ?? '');
                 $customerEmail = $isGuest ? $guestEmail : ($user['email'] ?? '');
+
+                // Verificar se usou cartão salvo
+                $savedCardId = (int) ($_POST['saved_card_id'] ?? 0);
+                if (!$isGuest && $savedCardId > 0) {
+                    $ccToken = savedCardGetToken($pdo, $userId, $savedCardId) ?? '';
+                } else {
+                    $ccToken = trim($_POST['cc_token'] ?? '');
+                }
 
                 $itemsForGateway = [];
                 foreach ($items as $item) {
@@ -299,6 +306,18 @@ if ($isConfirming) {
                 ]);
 
                 if ($cardResult['success']) {
+                    // Salvar cartão se checkbox marcado
+                    if (!$isGuest && isset($_POST['save_card']) && !empty($ccToken)) {
+                        try {
+                            $lastFour = substr(preg_replace('/\D/', '', $_POST['cc_number'] ?? ''), -4);
+                            $brand = trim($_POST['cc_brand'] ?? 'visa');
+                            $name = $customerName;
+                            $hasCards = !empty(savedCardGetAll($pdo, $userId));
+                            savedCardSave($pdo, $userId, $ccToken, $brand, $lastFour, $name, !$hasCards);
+                        } catch (Throwable $e) {
+                            error_log('checkout: falha ao salvar cartão: ' . $e->getMessage());
+                        }
+                    }
                     $txId = $cardResult['data']['transaction_id'] ?? null;
                     $stmtUpd = $pdo->prepare('UPDATE e5_orders SET payment_status = :ps, gateway_transaction_id = :tx WHERE id = :oid');
                     $stmtUpd->execute([':ps' => 'paid', ':tx' => $txId, ':oid' => $orderId]);
@@ -517,7 +536,7 @@ include $base_path . 'components/header.php';
                     </div>
                     <?php else: ?>
                     <p><strong><?php echo htmlspecialchars($user['name'], ENT_QUOTES, 'UTF-8'); ?></strong></p>
-                    <p style="color: var(--ml-text-secondary);"><?php echo htmlspecialchars($user['street'] ?? '', ENT_QUOTES, 'UTF-8'); ?>, <?php echo (int)($user['number'] ?? 0); ?><?php if ($user['complement']): ?> - <?php echo htmlspecialchars($user['complement'], ENT_QUOTES, 'UTF-8'); ?><?php endif; ?></p>
+                    <p style="color: var(--ml-text-secondary);"><?php echo htmlspecialchars($user['street'] ?? '', ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(($user['number'] ?? 'S/N') ?: 'S/N', ENT_QUOTES, 'UTF-8'); ?><?php if ($user['complement']): ?> - <?php echo htmlspecialchars($user['complement'], ENT_QUOTES, 'UTF-8'); ?><?php endif; ?></p>
                     <p style="color: var(--ml-text-secondary);">
                         <?php if ($freteAddress && $freteAddress['bairro']): ?>
                             <?php echo htmlspecialchars($freteAddress['bairro'], ENT_QUOTES, 'UTF-8'); ?> - <?php echo htmlspecialchars($freteAddress['cidade'], ENT_QUOTES, 'UTF-8'); ?>/<?php echo htmlspecialchars($freteAddress['uf'], ENT_QUOTES, 'UTF-8'); ?><br>
@@ -606,6 +625,33 @@ include $base_path . 'components/header.php';
                         <!-- Campos de Cartão de Crédito — Checkout Transparente -->
                         <div id="creditCardFields" style="margin-bottom: 16px; padding: 16px; border: 1px solid var(--ml-border); border-radius: 8px; background: var(--ml-bg-secondary, #f8f9fa);">
                             <p style="font-size: 0.85rem; font-weight: 600; margin-bottom: 12px;"><i class="fas fa-lock"></i> Dados do Cartão de Crédito (pagamento seguro via <?php echo htmlspecialchars(strtoupper($gatewayUsed ?? 'gateway'), ENT_QUOTES, 'UTF-8'); ?>)</p>
+
+                            <?php if (!$isGuest):
+                                $savedCards = savedCardGetAll($pdo, $userId);
+                                if (!empty($savedCards)):
+                            ?>
+                            <div style="margin-bottom: 14px;">
+                                <label style="font-size: 0.82rem; font-weight: 600; display: block; margin-bottom: 6px;"><i class="fas fa-credit-card"></i> Cartão Salvo</label>
+                                <div style="display: flex; flex-direction: column; gap: 6px;">
+                                    <?php foreach ($savedCards as $sc): ?>
+                                    <label class="payment-option" style="display: flex; align-items: center; gap: 10px; padding: 10px; border: 1px solid var(--ml-border); border-radius: 6px; cursor: pointer; font-size: 0.85rem;">
+                                        <input type="radio" name="saved_card_id" value="<?php echo (int)$sc['id']; ?>" <?php echo $sc['is_default'] ? 'checked' : ''; ?>>
+                                        <i class="fab fa-cc-<?php echo htmlspecialchars($sc['card_brand'], ENT_QUOTES, 'UTF-8'); ?>" style="font-size: 1.4rem; color: var(--ml-text-muted);"></i>
+                                        <span>**** <?php echo htmlspecialchars($sc['last_four'], ENT_QUOTES, 'UTF-8'); ?> — <?php echo htmlspecialchars($sc['cardholder_name'], ENT_QUOTES, 'UTF-8'); ?></span>
+                                        <?php if ($sc['is_default']): ?><span style="background: var(--ml-accent); color: var(--ml-bg); padding: 1px 6px; border-radius: 3px; font-size: 0.65rem; font-weight: 600;">PADRÃO</span><?php endif; ?>
+                                    </label>
+                                    <?php endforeach; ?>
+                                    <label class="payment-option" style="display: flex; align-items: center; gap: 10px; padding: 10px; border: 1px solid var(--ml-border); border-radius: 6px; cursor: pointer; font-size: 0.85rem;">
+                                        <input type="radio" name="saved_card_id" value="new" checked>
+                                        <i class="fas fa-plus-circle" style="font-size: 1.4rem; color: var(--ml-text-muted);"></i>
+                                        <span>Usar novo cartão</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <?php endif;
+                            endif; ?>
+
+                            <div id="ccFieldsNew" <?php echo (!$isGuest && !empty($savedCards)) ? 'style="display:none;"' : ''; ?>>
                             <div class="auth-field"><label class="auth-label" for="cc_name">Nome no Cartão</label><div class="auth-input-wrap"><input type="text" id="cc_name" name="cc_name" required autocomplete="cc-name" placeholder="Como está impresso no cartão"></div></div>
                             <div class="auth-field"><label class="auth-label" for="cc_number">Número do Cartão</label><div class="auth-input-wrap"><input type="text" id="cc_number" required autocomplete="cc-number" placeholder="0000 0000 0000 0000" maxlength="19" inputmode="numeric"></div></div>
                             <div style="display: flex; gap: 10px;">
@@ -622,6 +668,12 @@ include $base_path . 'components/header.php';
                                 <option value="<?php echo $i; ?>"><?php echo $i; ?>x de R$ <?php echo number_format($val, 2, ',', '.'); ?><?php echo $i === 1 ? ' (à vista)' : ''; ?></option>
                                 <?php endfor; ?>
                             </select></div></div>
+                            <?php if (!$isGuest): ?>
+                            <label style="display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 0.82rem; color: var(--ml-text-secondary);">
+                                <input type="checkbox" name="save_card" value="1"> Salvar este cartão para próximas compras
+                            </label>
+                            <?php endif; ?>
+                            </div><!-- /ccFieldsNew -->
                             <input type="hidden" id="cc_token" name="cc_token" value="">
                             <input type="hidden" id="cc_brand" name="cc_brand" value="visa">
                             <p id="cc_error" style="color: #c0392b; font-size: 0.82rem; margin-top: 8px; display: none;"></p>
@@ -653,6 +705,13 @@ include $base_path . 'components/header.php';
                 if (f) f.submit();
             });
         });
+        // Toggle entre cartão salvo e novo
+        document.querySelectorAll('input[name="saved_card_id"]').forEach(function(el) {
+            el.addEventListener('change', function() {
+                var ccNew = document.getElementById('ccFieldsNew');
+                if (ccNew) ccNew.style.display = this.value === 'new' ? '' : 'none';
+            });
+        });
         </script>
 
         <?php if ($paymentMethod === 'credit'): ?>
@@ -667,7 +726,7 @@ include $base_path . 'components/header.php';
             var ccWaiting = document.getElementById('cc_waiting');
             var ccNumber = document.getElementById('cc_number');
             var ccExp = document.getElementById('cc_exp');
-            var ccCvv = document.getElementById('cc_cvp');
+            var ccCvv = document.getElementById('cc_cvv');
             var ccName = document.getElementById('cc_name');
             var ccCpf = document.getElementById('cc_cpf');
 
@@ -699,6 +758,10 @@ include $base_path . 'components/header.php';
 
             if (form && btnConfirm && ccTokenInput) {
                 form.addEventListener('submit', function(e) {
+                    // Se cartão salvo está selecionado, não precisa tokenizar
+                    var savedCardRadio = form.querySelector('input[name="saved_card_id"]:checked');
+                    if (savedCardRadio && savedCardRadio.value !== 'new') return true;
+
                     // If already tokenized, allow normal submit
                     if (ccTokenInput.value) return true;
 

@@ -14,8 +14,10 @@ function sessionCartGetItems($pdo) {
     $placeholders = implode(',', array_fill(0, count($ids), '?'));
     $stmt = $pdo->prepare("
         SELECT p.id AS product_id, p.name, p.price, p.old_price, p.brand, p.stock,
-               (SELECT pi.image_path FROM e5_product_images pi WHERE pi.product_id = p.id ORDER BY pi.is_primary DESC, pi.id ASC LIMIT 1) AS image_path
-        FROM e5_products p WHERE p.id IN ($placeholders)
+               COALESCE(pi.image_path, '') AS image_path
+        FROM e5_products p
+        LEFT JOIN e5_product_images pi ON pi.product_id = p.id AND pi.is_primary = 1
+        WHERE p.id IN ($placeholders)
     ");
     $stmt->execute($ids);
     $products = [];
@@ -79,9 +81,10 @@ function cartGetItems($pdo, $userId) {
     $stmt = $pdo->prepare('
         SELECT c.product_id, c.quantity,
                p.name, p.price, p.old_price, p.brand, p.stock,
-               (SELECT pi.image_path FROM e5_product_images pi WHERE pi.product_id = p.id ORDER BY pi.is_primary DESC, pi.id ASC LIMIT 1) AS image_path
+               COALESCE(pi.image_path, \'\') AS image_path
         FROM e5_cart c
         INNER JOIN e5_products p ON p.id = c.product_id
+        LEFT JOIN e5_product_images pi ON pi.product_id = p.id AND pi.is_primary = 1
         WHERE c.user_id = :uid
         ORDER BY c.created_at DESC
     ');
@@ -90,14 +93,10 @@ function cartGetItems($pdo, $userId) {
 }
 
 function cartAddItem($pdo, $userId, $productId, $quantity = 1) {
-    $stmtCheck = $pdo->prepare('SELECT id, quantity FROM e5_cart WHERE user_id = :uid AND product_id = :pid');
-    $stmtCheck->execute([':uid' => $userId, ':pid' => $productId]);
-    $existing = $stmtCheck->fetch();
-    if ($existing) {
-        $stmt = $pdo->prepare('UPDATE e5_cart SET quantity = :qty WHERE id = :id');
-        return $stmt->execute([':qty' => (int)$existing['quantity'] + $quantity, ':id' => $existing['id']]);
-    }
-    $stmt = $pdo->prepare('INSERT INTO e5_cart (user_id, product_id, quantity) VALUES (:uid, :pid, :qty)');
+    $stmt = $pdo->prepare('
+        INSERT INTO e5_cart (user_id, product_id, quantity) VALUES (:uid, :pid, :qty)
+        ON DUPLICATE KEY UPDATE quantity = quantity + VALUES(quantity)
+    ');
     return $stmt->execute([':uid' => $userId, ':pid' => $productId, ':qty' => $quantity]);
 }
 
