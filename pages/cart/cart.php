@@ -168,7 +168,7 @@ include $base_path . 'components/header.php';
             el.querySelector('.cart-item-subtotal').textContent = 'R$ ' + sub.toLocaleString('pt-BR', {minimumFractionDigits: 2});
             total += sub;
         });
-        summaryTotalEl.textContent = 'R$ ' + total.toLocaleString('pt-BB', {minimumFractionDigits: 2});
+        summaryTotalEl.textContent = 'R$ ' + total.toLocaleString('pt-BR', {minimumFractionDigits: 2});
     }
 
     function setItemLoading(el, loading) {

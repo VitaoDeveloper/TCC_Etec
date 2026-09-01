@@ -174,7 +174,7 @@ function validatePriceChange($pdo, $items) {
         $stmt = $pdo->prepare('SELECT price FROM e5_products WHERE id = :pid LIMIT 1');
         $stmt->execute([':pid' => $item['product_id']]);
         $current = $stmt->fetch();
-        if ($current && (float) $current['price'] !== (float) $item['price']) {
+        if ($current && abs((float) $current['price'] - (float) $item['price']) > 0.001) {
             $changes[] = [
                 'product_id' => $item['product_id'],
                 'name' => $item['name'],
