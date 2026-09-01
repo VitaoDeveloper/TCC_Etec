@@ -32,6 +32,12 @@ if (!$stockCheck['ok']) {
 }
 
 if ($isGuest) {
+    $existingQty = $_SESSION['guest_cart'][$productId] ?? 0;
+    $totalCheck = validateStock($pdo, $productId, $quantity, $existingQty);
+    if (!$totalCheck['ok']) {
+        echo json_encode(['success' => false, 'message' => $totalCheck['msg']]);
+        exit;
+    }
     sessionCartAddItem($productId, $quantity);
     $count = sessionCartGetCount();
 } else {

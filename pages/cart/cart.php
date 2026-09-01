@@ -38,6 +38,33 @@ include $base_path . 'components/header.php';
     <?php else: ?>
         <div class="ml-cart-grid">
             <div id="cartItems">
+                <?php
+                $freeShippingThreshold = (float) (store_config('free_shipping_threshold') ?: 500);
+                $progressPct = min(100, ($total / $freeShippingThreshold) * 100);
+                $remaining = max(0, $freeShippingThreshold - $total);
+                ?>
+                <?php if ($total < $freeShippingThreshold): ?>
+                <div style="background: rgba(76,175,80,0.08); border: 1px solid rgba(76,175,80,0.3); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="font-size: 0.85rem; font-weight: 600; color: var(--ml-green, #4caf50);">
+                            <i class="fas fa-truck"></i> Frete Grátis
+                        </span>
+                        <span style="font-size: 0.82rem; color: var(--ml-text-secondary);">
+                            Faltam <strong>R$ <?php echo number_format($remaining, 2, ',', '.'); ?></strong>
+                        </span>
+                    </div>
+                    <div style="background: var(--ml-border, #e0e0e0); border-radius: 4px; height: 6px; overflow: hidden;">
+                        <div style="background: var(--ml-green, #4caf50); height: 100%; width: <?php echo $progressPct; ?>%; border-radius: 4px; transition: width 0.3s;"></div>
+                    </div>
+                </div>
+                <?php else: ?>
+                <div style="background: rgba(76,175,80,0.08); border: 1px solid rgba(76,175,80,0.3); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; text-align: center;">
+                    <span style="font-size: 0.85rem; font-weight: 600; color: var(--ml-green, #4caf50);">
+                        <i class="fas fa-gift"></i> Parabéns! Você ganhou <strong>Frete Grátis</strong>!
+                    </span>
+                </div>
+                <?php endif; ?>
+
                 <?php foreach ($items as $item):
                     $img = (string) ($item['image_path'] ?? '');
                     if ($img === '') {
@@ -67,7 +94,12 @@ include $base_path . 'components/header.php';
                         <button type="button" class="cart-qty-btn" data-action="inc" aria-label="Aumentar quantidade">+</button>
                     </div>
                     <span class="cart-item-subtotal cart-subtotal">R$ <?php echo number_format($subtotal, 2, ',', '.'); ?></span>
-                    <button type="button" class="cart-remove" title="Remover" aria-label="Remover item do carrinho"><i class="fas fa-trash-alt"></i></button>
+                    <div style="display:flex; flex-direction:column; gap:4px; align-items:center;">
+                        <?php if (!$isGuest): ?>
+                        <button type="button" class="cart-move-wishlist" data-product-id="<?php echo (int)$item['product_id']; ?>" title="Salvar nos Favoritos" aria-label="Mover para favoritos" style="background:none; border:none; color:var(--ml-text-muted); cursor:pointer; padding:4px; font-size:0.85rem;"><i class="far fa-heart"></i></button>
+                        <?php endif; ?>
+                        <button type="button" class="cart-remove" title="Remover" aria-label="Remover item do carrinho"><i class="fas fa-trash-alt"></i></button>
+                    </div>
                 </div>
                 <?php endforeach; ?>
             </div>
@@ -77,6 +109,16 @@ include $base_path . 'components/header.php';
 
                 <div class="ml-summary-card">
                     <h3>Resumo</h3>
+
+                    <div id="couponBox" style="margin-bottom: 14px; padding: 12px; border: 1px solid var(--ml-border); border-radius: 8px;">
+                        <label style="font-size: 0.82rem; font-weight: 600; display: block; margin-bottom: 6px;"><i class="fas fa-tag"></i> Cupom de Desconto</label>
+                        <div style="display: flex; gap: 6px;">
+                            <input type="text" id="couponCode" placeholder="Código do cupom" style="flex:1; padding:8px; border:1px solid var(--ml-border); border-radius:6px; text-transform:uppercase; font-size:0.85rem;">
+                            <a href="#" id="btnApplyCoupon" class="ml-btn" style="padding: 8px 12px; font-size: 0.82rem; white-space:nowrap;"><i class="fas fa-check"></i> Aplicar</a>
+                        </div>
+                        <div id="couponResult" style="margin-top: 6px; font-size: 0.82rem;"></div>
+                    </div>
+
                     <div class="ml-summary-line total">
                         <span>Total</span>
                         <span id="summaryTotal">R$ <?php echo number_format($total, 2, ',', '.'); ?></span>
@@ -89,8 +131,9 @@ include $base_path . 'components/header.php';
                         </div>
                         <div id="shippingResult" style="margin-top: 10px; font-size: 0.85rem;"></div>
                     </div>
-                    <div class="ml-summary-actions">
+                    <div class="ml-summary-actions" style="margin-top: 14px;">
                         <a href="../cart/checkout.php" class="ml-btn ml-btn-primary ml-btn-block"><i class="fas fa-credit-card"></i> Finalizar Pedido</a>
+                        <button type="button" id="btnClearCart" class="ml-btn ml-btn-block" style="margin-top: 8px; color: var(--ml-red, #c0392b);"><i class="fas fa-trash-alt"></i> Limpar Carrinho</button>
                     </div>
                 </div>
             </div>
@@ -111,6 +154,7 @@ include $base_path . 'components/header.php';
         if (window.showToast) { window.showToast(msg, type); return; }
         var t = document.createElement('div');
         t.className = 'toast toast-' + (type || 'info');
+        t.textContent = msg;
         var c = document.getElementById('toastContainer');
         if (c) { c.appendChild(t); setTimeout(function(){ t.remove(); }, 3500); }
     }
@@ -124,7 +168,7 @@ include $base_path . 'components/header.php';
             el.querySelector('.cart-item-subtotal').textContent = 'R$ ' + sub.toLocaleString('pt-BR', {minimumFractionDigits: 2});
             total += sub;
         });
-        summaryTotalEl.textContent = 'R$ ' + total.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+        summaryTotalEl.textContent = 'R$ ' + total.toLocaleString('pt-BB', {minimumFractionDigits: 2});
     }
 
     function setItemLoading(el, loading) {
@@ -141,8 +185,15 @@ include $base_path . 'components/header.php';
             body: 'product_id=' + productId
         }).then(function(r) { return r.json(); }).then(function(data) {
             if (data.success) {
-                if (el) { el.style.transition = 'opacity 0.2s, transform 0.2s'; el.style.opacity = '0'; el.style.transform = 'translateX(30px)'; setTimeout(function(){ el.remove(); recalcTotal(); updateCount(data.count); }, 200); }
-                else recalcTotal();
+                if (el) {
+                    var savedQty = parseInt(el.querySelector('.cart-qty').value) || 1;
+                    var savedPrice = parseFloat(el.dataset.unitPrice) || 0;
+                    el.style.transition = 'opacity 0.2s, transform 0.2s';
+                    el.style.opacity = '0';
+                    el.style.transform = 'translateX(30px)';
+                    setTimeout(function(){ el.remove(); recalcTotal(); updateCount(data.count); }, 200);
+                    showUndoToast(productId, savedQty, savedPrice, data.count);
+                } else recalcTotal();
             } else {
                 if (el) setItemLoading(el, false);
                 showToast(data.message || 'Erro ao remover item.', 'error');
@@ -150,6 +201,26 @@ include $base_path . 'components/header.php';
         }).catch(function() {
             if (el) setItemLoading(el, false);
             showToast('Falha de conexão.', 'error');
+        });
+    }
+
+    function showUndoToast(productId, qty, price, currentCount) {
+        var toast = document.createElement('div');
+        toast.style.cssText = 'position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#333; color:#fff; padding:12px 20px; border-radius:8px; z-index:9999; display:flex; align-items:center; gap:12px; font-size:0.85rem; box-shadow:0 4px 12px rgba(0,0,0,0.3);';
+        toast.innerHTML = '<span>Item removido</span><button style="background:var(--ml-accent,#d4af37);color:#000;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-weight:600;font-size:0.8rem;">Desfazer</button>';
+        document.body.appendChild(toast);
+        var timer = setTimeout(function() { toast.remove(); }, 5000);
+        toast.querySelector('button').addEventListener('click', function() {
+            clearTimeout(timer);
+            toast.remove();
+            fetch(basePath + 'pages/cart/add.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: 'product_id=' + productId + '&quantity=' + qty
+            }).then(function(r) { return r.json(); }).then(function(data) {
+                if (data.success) { location.reload(); }
+                else showToast(data.message || 'Erro ao desfazer.', 'error');
+            });
         });
     }
 
@@ -183,6 +254,23 @@ include $base_path . 'components/header.php';
         else if (count > 0) { const b = document.createElement('span'); b.className = 'ml-badge'; b.textContent = count; const link = document.querySelector('.ml-cart-link'); if (link) link.appendChild(b); }
     }
 
+    // Limpar carrinho
+    var btnClear = document.getElementById('btnClearCart');
+    if (btnClear) {
+        btnClear.addEventListener('click', function() {
+            if (!confirm('Tem certeza que deseja esvaziar o carrinho?')) return;
+            fetch(basePath + 'pages/cart/clear.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: ''
+            }).then(function(r) { return r.json(); }).then(function(data) {
+                if (data.success) location.reload();
+                else showToast('Erro ao limpar carrinho.', 'error');
+            }).catch(function() { showToast('Falha de conexão.', 'error'); });
+        });
+    }
+
+    // Event delegation
     if (cartItemsEl) {
         cartItemsEl.addEventListener('click', function(e) {
             const btn = e.target.closest('.cart-qty-btn');
@@ -194,6 +282,31 @@ include $base_path . 'components/header.php';
                 val = btn.dataset.action === 'inc' ? Math.min(val + 1, max) : Math.max(val - 1, 1);
                 input.value = val;
                 updateQty(container.dataset.productId, val);
+                return;
+            }
+            const wlBtn = e.target.closest('.cart-move-wishlist');
+            if (wlBtn) {
+                var pid = wlBtn.dataset.productId;
+                wlBtn.style.pointerEvents = 'none';
+                wlBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                fetch(basePath + 'pages/wishlist/toggle.php', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: 'product_id=' + pid
+                }).then(function(r) { return r.json(); }).then(function(data) {
+                    if (data.success) {
+                        removeItem(pid);
+                        showToast('Produto movido para favoritos.', 'success');
+                    } else {
+                        wlBtn.innerHTML = '<i class="far fa-heart"></i>';
+                        wlBtn.style.pointerEvents = '';
+                        showToast(data.message || 'Erro ao favoritar.', 'error');
+                    }
+                }).catch(function() {
+                    wlBtn.innerHTML = '<i class="far fa-heart"></i>';
+                    wlBtn.style.pointerEvents = '';
+                    showToast('Falha de conexão.', 'error');
+                });
                 return;
             }
             const rm = e.target.closest('.cart-remove');
@@ -247,6 +360,17 @@ include $base_path . 'components/header.php';
                 } else html += '<span style="color:var(--ml-text-muted);">Nenhuma opção disponível.</span>';
                 shippingResult.innerHTML = html;
             }).catch(function() { btnCalcFrete.disabled = false; shippingResult.innerHTML = '<span style="color:#c0392b;">Falha ao calcular frete.</span>'; });
+        });
+    }
+
+    // Cupom de desconto
+    var btnCoupon = document.getElementById('btnApplyCoupon');
+    if (btnCoupon) {
+        btnCoupon.addEventListener('click', function(e) {
+            e.preventDefault();
+            var code = document.getElementById('couponCode').value.trim();
+            if (!code) { document.getElementById('couponResult').innerHTML = '<span style="color:#c0392b;">Digite um código.</span>'; return; }
+            window.location.href = 'checkout.php?coupon_code=' + encodeURIComponent(code);
         });
     }
 })();
