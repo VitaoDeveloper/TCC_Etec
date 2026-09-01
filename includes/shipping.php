@@ -49,11 +49,14 @@ function shippingGetConfig(): array
     $token = (string) store_config('superfrete_token');
     if (empty($token)) {
         try {
-            if (!isset($GLOBALS['pdo'])) {
+            if (!isset($GLOBALS['pdo']) || !$GLOBALS['pdo'] instanceof PDO) {
                 include_once dirname(__DIR__) . '/database/connection.php';
             }
-            $token = (string) (loadEncryptedSetting($GLOBALS['pdo'], 'superfrete_token')
-                ?: loadEncryptedSetting($GLOBALS['pdo'], 'superfrete_access_token'));
+            
+            if (isset($GLOBALS['pdo']) && $GLOBALS['pdo'] instanceof PDO) {
+                $token = (string) (loadEncryptedSetting($GLOBALS['pdo'], 'superfrete_token')
+                    ?: loadEncryptedSetting($GLOBALS['pdo'], 'superfrete_access_token'));
+            }
         } catch (Throwable $e) {
             error_log('shippingGetConfig: falha ao ler token SuperFrete: ' . $e->getMessage());
         }

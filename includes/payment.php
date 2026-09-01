@@ -53,8 +53,12 @@ function paymentGetConfig(): array
 function paymentGetGatewayFee(string $gateway, string $documentType): array
 {
     try {
-        if (!isset($GLOBALS['pdo'])) {
+        if (!isset($GLOBALS['pdo']) || !$GLOBALS['pdo'] instanceof PDO) {
             include_once dirname(__DIR__) . '/database/connection.php';
+        }
+        
+        if (!isset($GLOBALS['pdo']) || !$GLOBALS['pdo'] instanceof PDO) {
+            throw new RuntimeException('Database connection not available');
         }
         
         $stmt = $GLOBALS['pdo']->prepare('

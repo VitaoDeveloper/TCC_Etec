@@ -80,10 +80,10 @@ $shippingCep = $_POST['shipping_cep'] ?? ($user['postal_code'] ?? '');
 
 $shippingResult = [
     'success' => false,
-    'provider' => 'estimated',
+    'provider' => 'error',
     'is_real' => false,
     'warning' => null,
-    'error' => null,
+    'error' => 'Informe o CEP para calcular o frete.',
     'address' => null,
     'options' => [],
 ];
@@ -93,7 +93,6 @@ if (!empty($shippingCep)) {
 }
 
 $shippingOptions = $shippingResult['options'] ?? [];
-$isRealFrete = $shippingResult['is_real'] ?? false;
 $freteWarning = $shippingResult['warning'] ?? null;
 $freteError = $shippingResult['error'] ?? null;
 $freteAddress = $shippingResult['address'] ?? null;
@@ -215,7 +214,7 @@ if ($isConfirming) {
                 ':carrier' => $selectedOption['carrier'] ?? null,
                 ':shipcost' => $shippingCost,
                 ':shipdays' => $selectedOption['days'] ?? null,
-                ':shipest' => $isRealFrete ? 0 : 1,
+                ':shipest' => 0,
                 ':pay' => $paymentMethod,
                 ':gateway' => $gatewaySnapshot,
                 ':paystatus' => $paymentMethod === 'delivery' ? 'pending' : 'pending', // PIX = pending até confirmação
@@ -517,9 +516,6 @@ include $base_path . 'components/header.php';
                                     <span style="color: var(--ml-text-muted); font-size: 0.8rem; margin-left: 6px;">por <?php echo htmlspecialchars($opt['carrier'], ENT_QUOTES, 'UTF-8'); ?></span>
                                 <?php endif; ?>
                                 <span class="shipping-days"><?php echo htmlspecialchars($opt['days'], ENT_QUOTES, 'UTF-8'); ?></span>
-                                <?php if (!empty($opt['estimated'])): ?>
-                                    <span class="shipping-badge" style="background: rgba(255,152,0,0.2); color: #e65100; padding: 2px 6px; border-radius: 3px; font-size: 0.7rem; margin-left: 6px;">ESTIMADO</span>
-                                <?php endif; ?>
                                 <span class="shipping-cost"><?php echo $opt['cost'] > 0 ? 'R$ ' . number_format($opt['cost'], 2, ',', '.') : '<strong style="color:var(--ml-green);">Grátis</strong>'; ?></span>
                             </div>
                         </label>
@@ -609,9 +605,6 @@ include $base_path . 'components/header.php';
                         <span><?php echo $shippingCost > 0 ? 'R$ ' . number_format($shippingCost, 2, ',', '.') : '<span style="color:var(--ml-green);">Grátis</span>'; ?></span>
                     </div>
                     <div style="font-size: 0.8rem; color: var(--ml-text-muted); text-align: right; padding: 2px 0 6px;">Previsão: <?php echo htmlspecialchars($selectedOption['days'] ?? '—', ENT_QUOTES, 'UTF-8'); ?></div>
-                    <?php if (!$isRealFrete): ?>
-                    <div style="font-size: 0.75rem; color: #e65100; text-align: right; padding: 2px 0 8px;"><i class="fas fa-exclamation-circle"></i> Valor estimado — configure o token da SuperFrete para preços reais.</div>
-                    <?php endif; ?>
                     <?php endif; ?>
                     <?php if ($pixDiscount > 0): ?>
                     <div class="ml-summary-line discount">
