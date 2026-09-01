@@ -57,6 +57,9 @@ if (!password_verify($password, $user['password'])) {
     exit;
 }
 
+// Previne session fixation: regenera ID após autenticação bem-sucedida
+session_regenerate_id(true);
+
 $_SESSION['user_id'] = (int) $user['id'];
 $_SESSION['user_name'] = $user['name'];
 $_SESSION['user_role'] = $user['role'] ?? 'customer';

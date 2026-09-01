@@ -155,49 +155,50 @@ function shippingCalculate(string $toPostalCode, float $totalValue, array $items
         $address = ['cep' => $cep, 'logradouro' => '', 'bairro' => '', 'cidade' => '', 'uf' => ''];
     }
 
-    $useFreeShipping = $config['free_shipping_threshold'] > 0 && $totalValue >= $config['free_shipping_threshold'];
-
-    if ($config['provider'] === 'superfrete') {
-        $result = shippingCalculateSuperFrete($cep, $items, $config);
-        if ($result['success']) {
-            if ($useFreeShipping) {
-                foreach ($result['options'] as &$opt) {
-                    $opt['cost'] = 0.00;
-                }
-                unset($opt);
-            }
-            return [
-                'success' => true,
-                'provider' => 'superfrete',
-                'is_real' => true,
-                'warning' => $useFreeShipping ? 'Frete grátis aplicado no valor do pedido.' : null,
-                'error' => null,
-                'address' => $address,
-                'options' => $result['options'],
-            ];
-        }
-
-        // Fallback transparente: API indisponível
+    // Requer token da SuperFrete configurado
+    if ($config['provider'] !== 'superfrete' || !$config['has_token']) {
         return [
-            'success' => true,
-            'provider' => 'estimated',
+            'success' => false,
+            'error' => 'Cálculo de frete não configurado. Configure o token da SuperFrete no painel admin (Configurações > Frete).',
+            'provider' => 'error',
             'is_real' => false,
-            'warning' => 'Não conseguimos consultar o frete real no momento. Os valores abaixo são <strong>estimados</strong> e podem variar. (' . htmlspecialchars($result['error'] ?? '', ENT_QUOTES, 'UTF-8') . ')',
-            'error' => $result['error'] ?? null,
+            'warning' => null,
             'address' => $address,
-            'options' => shippingEstimatedOptions($cep, $totalValue, $config, $address),
+            'options' => [],
         ];
     }
 
-    // Sem token configurado
+    $result = shippingCalculateSuperFrete($cep, $items, $config);
+    
+    if (!$result['success']) {
+        return [
+            'success' => false,
+            'error' => 'Erro ao calcular frete: ' . ($result['error'] ?? 'Serviço indisponível. Tente novamente.'),
+            'provider' => 'error',
+            'is_real' => false,
+            'warning' => null,
+            'address' => $address,
+            'options' => [],
+        ];
+    }
+
+    $useFreeShipping = $config['free_shipping_threshold'] > 0 && $totalValue >= $config['free_shipping_threshold'];
+
+    if ($useFreeShipping) {
+        foreach ($result['options'] as &$opt) {
+            $opt['cost'] = 0.00;
+        }
+        unset($opt);
+    }
+    
     return [
         'success' => true,
-        'provider' => 'estimated',
-        'is_real' => false,
-        'warning' => 'Frete <strong>estimado</strong>: configure o token da SuperFrete no painel admin para obter preços e prazos reais das transportadoras.',
+        'provider' => 'superfrete',
+        'is_real' => true,
+        'warning' => $useFreeShipping ? 'Frete grátis aplicado no valor do pedido.' : null,
         'error' => null,
         'address' => $address,
-        'options' => shippingEstimatedOptions($cep, $totalValue, $config, $address),
+        'options' => $result['options'],
     ];
 }
 

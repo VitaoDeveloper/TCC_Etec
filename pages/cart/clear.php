@@ -10,6 +10,14 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
+// CSRF: valida token obrigatoriamente
+$csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? ($_POST['_csrf_token'] ?? null);
+if (!$csrfToken || !isset($_SESSION['_csrf_token']) || !hash_equals($_SESSION['_csrf_token'], $csrfToken)) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => 'CSRF token inválido.']);
+    exit;
+}
+
 require_once __DIR__ . '/../../database/connection.php';
 require_once __DIR__ . '/../../includes/cart_functions.php';
 

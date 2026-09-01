@@ -9,7 +9,7 @@ function sessionCartInit() {
 
 function sessionCartCleanup() {
     sessionCartInit();
-    $maxAge = 7 * 24 * 60 * 60;
+    $maxAge = 2 * 24 * 60 * 60; // 2 dias (LGPD compliance)
     if (isset($_SESSION['guest_cart_timestamp'])) {
         if (time() - $_SESSION['guest_cart_timestamp'] > $maxAge) {
             $_SESSION['guest_cart'] = [];
@@ -187,6 +187,15 @@ function validatePriceChange($pdo, $items) {
 }
 
 function decrementStock($pdo, $productId, $quantity) {
-    $stmt = $pdo->prepare('UPDATE e5_products SET stock = stock - :qty WHERE id = :pid AND stock >= :qty2');
-    return $stmt->execute([':qty' => $quantity, ':pid' => $productId, ':qty2' => $quantity]);
+    // SELECT FOR UPDATE previne race condition (2 usuários comprando o último item)
+    $stmt = $pdo->prepare('SELECT stock FROM e5_products WHERE id = :pid FOR UPDATE');
+    $stmt->execute([':pid' => $productId]);
+    $row = $stmt->fetch();
+    
+    if (!$row || (int)$row['stock'] < $quantity) {
+        throw new RuntimeException('Estoque insuficiente para produto ID ' . $productId);
+    }
+    
+    $stmt = $pdo->prepare('UPDATE e5_products SET stock = stock - :qty WHERE id = :pid');
+    return $stmt->execute([':qty' => $quantity, ':pid' => $productId]);
 }

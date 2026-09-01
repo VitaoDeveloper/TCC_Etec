@@ -270,67 +270,48 @@ if ($isConfirming) {
 
             // Gera informações de pagamento por método
             if ($paymentMethod === 'pix') {
-                $pixResult = null;
-                if ($gatewayUsed === 'mercadopago') {
-                    $pixResult = paymentMercadoPagoCreatePix($grandTotal, (string) $orderId, $itemsForGateway, $customerData);
+                if ($gatewayUsed !== 'mercadopago') {
+                    throw new RuntimeException('Gateway de pagamento não configurado. Configure o Mercado Pago no painel admin.');
                 }
-                if ($pixResult && $pixResult['success']) {
-                    $stmtUpd = $pdo->prepare('UPDATE e5_orders SET gateway_transaction_id = :tx WHERE id = :oid');
-                    $stmtUpd->execute([':tx' => $pixResult['data']['order_id'], ':oid' => $orderId]);
-                    $orderPaymentInfo = [
-                        'method'       => 'Pix',
-                        'instructions'=> 'Escaneie o QR Code abaixo ou copie o código Pix no app do seu banco.',
-                        'br_code'     => $pixResult['data']['qr_code'],
-                        'qr_data_uri' => $pixResult['data']['qr_data_uri'],
-                        'expires'     => date('d/m/Y H:i', strtotime($pixResult['data']['expires_at'])),
-                    ];
-                } else {
-                    // Fallback: PIX estático local (includes/pix.php)
-                    $pix = pixGenerateForOrder($grandTotal, (string) $orderId, ['name' => $customerData['name']]);
-                    if ($pix['success']) {
-                        $orderPaymentInfo = [
-                            'method'       => 'Pix',
-                            'instructions'=> 'Escaneie o QR Code abaixo ou copie o código Pix (copia-e-cola) no app do seu banco.',
-                            'br_code'     => $pix['data']['br_code'],
-                            'qr_data_uri' => $pix['data']['qr_data_uri'],
-                            'expires'     => date('d/m/Y H:i', strtotime($pix['data']['expires_at'])),
-                            'txid'        => $pix['data']['txid'],
-                        ];
-                    } else {
-                        $orderPaymentInfo = [
-                            'method'       => 'Pix',
-                            'instructions'=> 'Erro ao gerar código Pix. Tente novamente ou use outro método.',
-                            'br_code'     => null,
-                            'qr_data_uri' => null,
-                            'expires'     => date('d/m/Y H:i', strtotime('+30 minutes')),
-                        ];
-                    }
+                
+                $pixResult = paymentMercadoPagoCreatePix($grandTotal, (string) $orderId, $itemsForGateway, $customerData);
+                
+                if (!$pixResult || !$pixResult['success']) {
+                    throw new RuntimeException('Erro ao gerar código Pix: ' . ($pixResult['message'] ?? 'Gateway indisponível'));
                 }
+                
+                $stmtUpd = $pdo->prepare('UPDATE e5_orders SET gateway_transaction_id = :tx WHERE id = :oid');
+                $stmtUpd->execute([':tx' => $pixResult['data']['order_id'], ':oid' => $orderId]);
+                
+                $orderPaymentInfo = [
+                    'method'       => 'Pix',
+                    'instructions'=> 'Escaneie o QR Code abaixo ou copie o código Pix no app do seu banco.',
+                    'br_code'     => $pixResult['data']['qr_code'],
+                    'qr_data_uri' => $pixResult['data']['qr_data_uri'],
+                    'expires'     => date('d/m/Y H:i', strtotime($pixResult['data']['expires_at'])),
+                ];
             } elseif ($paymentMethod === 'boleto') {
-                $boletoResult = null;
-                if ($gatewayUsed === 'mercadopago') {
-                    $boletoResult = paymentMercadoPagoCreateBoleto($grandTotal, (string) $orderId, $itemsForGateway, $customerData);
+                if ($gatewayUsed !== 'mercadopago') {
+                    throw new RuntimeException('Gateway de pagamento não configurado. Configure o Mercado Pago no painel admin.');
                 }
-                if ($boletoResult && $boletoResult['success']) {
-                    $stmtUpd = $pdo->prepare('UPDATE e5_orders SET gateway_transaction_id = :tx WHERE id = :oid');
-                    $stmtUpd->execute([':tx' => $boletoResult['data']['order_id'], ':oid' => $orderId]);
-                    $orderPaymentInfo = [
-                        'method'       => 'Boleto',
-                        'instructions'=> 'Boleto gerado com sucesso. Clique no link para imprimir.',
-                        'ticket_url'  => $boletoResult['data']['ticket_url'],
-                        'barcode'     => $boletoResult['data']['barcode'],
-                        'digitable'   => $boletoResult['data']['digitable_line'],
-                        'expires'     => date('d/m/Y', strtotime($boletoResult['data']['due_date'])),
-                    ];
-                } else {
-                    $configBoleto = paymentGetConfig();
-                    $orderPaymentInfo = [
-                        'method'       => 'Boleto',
-                        'instructions'=> 'Boleto será gerado via gateway. Aguarde o e-mail ou acesse "Meus Pedidos".',
-                        'boleto_number'=> null,
-                        'expires'      => date('d/m/Y', strtotime('+' . $configBoleto['boleto_days'] . ' days')),
-                    ];
+                
+                $boletoResult = paymentMercadoPagoCreateBoleto($grandTotal, (string) $orderId, $itemsForGateway, $customerData);
+                
+                if (!$boletoResult || !$boletoResult['success']) {
+                    throw new RuntimeException('Erro ao gerar boleto: ' . ($boletoResult['message'] ?? 'Gateway indisponível'));
                 }
+                
+                $stmtUpd = $pdo->prepare('UPDATE e5_orders SET gateway_transaction_id = :tx WHERE id = :oid');
+                $stmtUpd->execute([':tx' => $boletoResult['data']['order_id'], ':oid' => $orderId]);
+                
+                $orderPaymentInfo = [
+                    'method'       => 'Boleto',
+                    'instructions'=> 'Boleto gerado com sucesso. Clique no link para imprimir.',
+                    'ticket_url'  => $boletoResult['data']['ticket_url'],
+                    'barcode'     => $boletoResult['data']['barcode'],
+                    'digitable'   => $boletoResult['data']['digitable_line'],
+                    'expires'     => date('d/m/Y', strtotime($boletoResult['data']['due_date'])),
+                ];
             } elseif ($paymentMethod === 'credit') {
                 $ccInstallments = min(12, max(1, (int) ($_POST['cc_installments'] ?? 1)));
                 $ccCpf = $customerData['cpf']; // já extraído do POST acima
