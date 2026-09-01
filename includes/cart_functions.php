@@ -3,11 +3,38 @@
 function sessionCartInit() {
     if (!isset($_SESSION['guest_cart'])) {
         $_SESSION['guest_cart'] = [];
+        $_SESSION['guest_cart_timestamp'] = time();
     }
+}
+
+function sessionCartCleanup() {
+    sessionCartInit();
+    $maxAge = 7 * 24 * 60 * 60;
+    if (isset($_SESSION['guest_cart_timestamp'])) {
+        if (time() - $_SESSION['guest_cart_timestamp'] > $maxAge) {
+            $_SESSION['guest_cart'] = [];
+            $_SESSION['guest_cart_timestamp'] = time();
+        }
+    }
+}
+
+function sessionCartMergeToUser($pdo, $userId) {
+    if (!isset($_SESSION['guest_cart']) || empty($_SESSION['guest_cart'])) {
+        return;
+    }
+    foreach ($_SESSION['guest_cart'] as $productId => $quantity) {
+        $stockCheck = validateStock($pdo, $productId, $quantity);
+        if ($stockCheck['ok']) {
+            cartAddItem($pdo, $userId, $productId, $quantity);
+        }
+    }
+    $_SESSION['guest_cart'] = [];
+    $_SESSION['guest_cart_timestamp'] = time();
 }
 
 function sessionCartGetItems($pdo) {
     sessionCartInit();
+    sessionCartCleanup();
     $cart = $_SESSION['guest_cart'];
     if (empty($cart)) return [];
     $ids = array_keys($cart);
@@ -37,6 +64,7 @@ function sessionCartGetItems($pdo) {
 
 function sessionCartAddItem($productId, $quantity = 1) {
     sessionCartInit();
+    $_SESSION['guest_cart_timestamp'] = time();
     if (isset($_SESSION['guest_cart'][$productId])) {
         $_SESSION['guest_cart'][$productId] += $quantity;
     } else {
@@ -46,6 +74,7 @@ function sessionCartAddItem($productId, $quantity = 1) {
 
 function sessionCartUpdateQuantity($productId, $quantity) {
     sessionCartInit();
+    $_SESSION['guest_cart_timestamp'] = time();
     if ($quantity <= 0) {
         sessionCartRemoveItem($productId);
         return;
@@ -125,7 +154,7 @@ function cartClear($pdo, $userId) {
 }
 
 function validateStock($pdo, $productId, $quantity, $cartQty = 0) {
-    $stmt = $pdo->prepare('SELECT stock FROM e5_products WHERE id = :pid LIMIT 1');
+    $stmt = $pdo->prepare('SELECT stock, price, name FROM e5_products WHERE id = :pid LIMIT 1');
     $stmt->execute([':pid' => $productId]);
     $product = $stmt->fetch();
     if (!$product) return ['ok' => false, 'msg' => 'Produto não encontrado.'];
@@ -136,7 +165,25 @@ function validateStock($pdo, $productId, $quantity, $cartQty = 0) {
         if ($cartQty > 0) $msg .= " Você já tem $cartQty no carrinho.";
         return ['ok' => false, 'msg' => $msg];
     }
-    return ['ok' => true, 'available' => $available];
+    return ['ok' => true, 'available' => $available, 'price' => (float) $product['price'], 'name' => $product['name']];
+}
+
+function validatePriceChange($pdo, $items) {
+    $changes = [];
+    foreach ($items as $item) {
+        $stmt = $pdo->prepare('SELECT price FROM e5_products WHERE id = :pid LIMIT 1');
+        $stmt->execute([':pid' => $item['product_id']]);
+        $current = $stmt->fetch();
+        if ($current && (float) $current['price'] !== (float) $item['price']) {
+            $changes[] = [
+                'product_id' => $item['product_id'],
+                'name' => $item['name'],
+                'old_price' => (float) $item['price'],
+                'new_price' => (float) $current['price']
+            ];
+        }
+    }
+    return $changes;
 }
 
 function decrementStock($pdo, $productId, $quantity) {

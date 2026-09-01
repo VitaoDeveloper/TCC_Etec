@@ -62,6 +62,12 @@ $_SESSION['user_name'] = $user['name'];
 $_SESSION['user_role'] = $user['role'] ?? 'customer';
 $_SESSION['auth_success'] = 'Login realizado com sucesso. Bem-vindo(a)!';
 
+// Merge do carrinho guest → user
+if (isset($_SESSION['guest_cart']) && !empty($_SESSION['guest_cart'])) {
+    require_once __DIR__ . '/../../includes/cart_functions.php';
+    sessionCartMergeToUser($pdo, $_SESSION['user_id']);
+}
+
 if ($_SESSION['user_role'] === 'admin') {
     header('Location: ../admin/index.php');
     exit;

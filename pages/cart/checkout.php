@@ -174,6 +174,16 @@ if ($isConfirming) {
         }
     }
 
+    // Validação de mudança de preço
+    $priceChanges = validatePriceChange($pdo, $items);
+    if (!empty($priceChanges) && !$errorMessage) {
+        $priceChangeMsg = 'Os seguintes produtos tiveram alteração de preço: ';
+        $priceChangeMsg .= implode(', ', array_map(function($c) {
+            return $c['name'] . ' (de R$ ' . number_format($c['old_price'], 2, ',', '.') . ' para R$ ' . number_format($c['new_price'], 2, ',', '.') . ')';
+        }, $priceChanges));
+        $errorMessage = $priceChangeMsg . '. Atualize a página para ver os novos valores.';
+    }
+
     if (!$selectedOption) {
         $errorMessage = 'Selecione uma opção de frete válida.';
     }

@@ -8,3 +8,7 @@ storage/logs/*.encryption_key
 
 # Encryption key (chave de criptografia)
 .encryption_key
+
+# Debug files (não commitar)
+api/webhooks/debug_*.php
+api/webhooks/*_debug.php

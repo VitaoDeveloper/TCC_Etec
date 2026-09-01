@@ -55,6 +55,11 @@ include $base_path . 'components/header.php';
                         <strong><?php echo htmlspecialchars($item['name'], ENT_QUOTES, 'UTF-8'); ?></strong>
                         <span class="cart-item-brand"><?php echo htmlspecialchars($item['brand'] ?? '', ENT_QUOTES, 'UTF-8'); ?></span>
                         <span class="cart-item-unit">R$ <?php echo number_format((float)$item['price'], 2, ',', '.'); ?> un.</span>
+                        <?php if ((int)$item['stock'] > 0 && (int)$item['stock'] <= 5): ?>
+                            <span class="cart-item-stock-warning" style="color: var(--ml-orange, #ff9800); font-size: 0.75rem; display: block;">
+                                <i class="fas fa-exclamation-triangle"></i> Apenas <?php echo (int)$item['stock']; ?> em estoque
+                            </span>
+                        <?php endif; ?>
                     </div>
                     <div class="qty-stepper">
                         <button type="button" class="cart-qty-btn" data-action="dec" aria-label="Diminuir quantidade">−</button>

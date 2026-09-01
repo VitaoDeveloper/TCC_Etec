@@ -926,6 +926,48 @@ Front-end (JS SDK)          Servidor (PHP + SDK dx-php)       API Mercado Pago
 | Reembolso via SDK | ✅ | `OrderClient::refund()` substituiu cURL à API legada |
 | Webhook com SDK lookup | ✅ | `paymentMercadoPagoGetOrder()` resolve external_reference de data.id |
 
+### Segurança: Validação de Assinatura Webhook
+
+**Status:** ✅ CORRIGIDO — Assinatura é obrigatória por padrão.
+
+**Problema original:** O endpoint aceitava webhooks sem header `x-signature`, permitindo que qualquer pessoa forjasse notificações para alterar status de pedidos.
+
+**Correção aplicada** (`includes/gateways.php:416-445`):
+
+```php
+// SECURITY: Check if signature bypass is explicitly allowed (dev only)
+$signatureRequired = store_config('webhook_signature_required') !== '0';
+
+if ($signatureRequired) {
+    // Production: signature is MANDATORY
+    if (!$xSignature) {
+        // Rejeita com HTTP 400
+        return ['success' => false, 'message' => 'Assinatura obrigatória'];
+    }
+    // ... valida HMAC-SHA256 via SDK
+} else {
+    // Dev/testing only: log que assinatura foi ignorada
+    error_log("WARNING: webhook signature validation DISABLED");
+}
+```
+
+**Como funciona:**
+- Por padrão (`webhook_signature_required` não definido ou `!= '0'`): assinatura **OBRIGATÓRIA**
+- Para desabilitar (dev/teste local): `INSERT INTO e5_settings VALUES ('webhook_signature_required', '0')`
+- Em produção: **NUNCA** definir `webhook_signature_required=0`
+
+**Teste de validação:**
+```bash
+# Sem assinatura → REJEITADO (HTTP 400)
+curl -X POST "http://localhost/TCC_Etec/api/webhooks/mercadopago.php" -d '{}'
+# {"error":"Assinatura obrigatória — header x-signature ausente"}
+
+# Com assinatura inválida → REJEITADO (HTTP 400)
+curl -X POST "http://localhost/TCC_Etec/api/webhooks/mercadopago.php" \
+  -H "x-signature: ts=123,v1=fake" -d '{}'
+# {"error":"Assinatura inválida"}
+```
+
 ### Erros comuns
 
 | Erro | Causa | Solução |

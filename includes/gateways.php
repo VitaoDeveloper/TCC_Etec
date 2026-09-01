@@ -387,8 +387,15 @@ function gatewayGetForOrder(PDO $pdo, int $orderId): ?string
 /**
  * Process incoming webhook
  * Always processes regardless of gateway active status
+ *
+ * SECURITY: Signature validation is ALWAYS required in production.
+ * Set webhook_signature_required=0 in e5_settings ONLY for local dev/testing.
+ *
+ * @param string|null $xSignature   Raw x-signature header value (Orders API format: ts=...,v1=...)
+ * @param string|null $xRequestId   Raw x-request-id header value (UUID for correlation)
+ * @param string|null $dataId       data.id from query string (order/payment ID)
  */
-function gatewayProcessWebhook(PDO $pdo, string $gatewayName, string $eventType, string $payload, ?string $signature = null): array
+function gatewayProcessWebhook(PDO $pdo, string $gatewayName, string $eventType, string $payload, ?string $xSignature = null, ?string $xRequestId = null, ?string $dataId = null): array
 {
     // Log the webhook
     $stmt = $pdo->prepare('
@@ -400,15 +407,25 @@ function gatewayProcessWebhook(PDO $pdo, string $gatewayName, string $eventType,
         ':gw' => $gatewayName,
         ':event' => $eventType,
         ':payload' => $payload,
-        ':sig' => $signature,
+        ':sig' => $xSignature,
         ':status' => 'pending',
     ]);
     
     $webhookId = (int) $pdo->lastInsertId();
     
-    // Verify signature
-    if ($signature) {
-        $isValid = webhookVerifySignature($gatewayName, $payload, $signature);
+    // SECURITY: Check if signature bypass is explicitly allowed (dev only)
+    $signatureRequired = store_config('webhook_signature_required') !== '0';
+    
+    if ($signatureRequired) {
+        // Production: signature is MANDATORY
+        if (!$xSignature) {
+            $pdo->prepare('UPDATE e5_webhook_log SET processing_status = :status, error_message = :msg WHERE id = :id')
+                ->execute([':status' => 'failed', ':msg' => 'Missing x-signature header', ':id' => $webhookId]);
+            
+            return ['success' => false, 'message' => 'Assinatura obrigatória — header x-signature ausente'];
+        }
+        
+        $isValid = webhookVerifySignature($gatewayName, $xSignature, $xRequestId, $dataId);
         
         $pdo->prepare('UPDATE e5_webhook_log SET signature_valid = :valid WHERE id = :id')
             ->execute([':valid' => $isValid ? 1 : 0, ':id' => $webhookId]);
@@ -419,6 +436,12 @@ function gatewayProcessWebhook(PDO $pdo, string $gatewayName, string $eventType,
             
             return ['success' => false, 'message' => 'Assinatura inválida'];
         }
+    } else {
+        // Dev/testing only: log that signature was skipped
+        error_log("WARNING: webhook signature validation DISABLED for $gatewayName — set webhook_signature_required=1 for production");
+        
+        $pdo->prepare('UPDATE e5_webhook_log SET signature_valid = NULL WHERE id = :id')
+            ->execute([':id' => $webhookId]);
     }
     
     // Process based on gateway and event type
@@ -428,9 +451,20 @@ function gatewayProcessWebhook(PDO $pdo, string $gatewayName, string $eventType,
 }
 
 /**
- * Verify webhook signature
+ * Verify webhook signature using the official SDK validator.
+ *
+ * Para Mercado Pago: usa WebhookSignatureValidator::validate() do SDK dx-php.
+ * O algoritmo correto ( Orders API ) é:
+ *   1. Extrair ts= e v1= do header x-signature
+ *   2. Montar manifest: id:{data_id};request-id:{x_request_id};ts:{ts};
+ *   3. Calcular hash_hmac('sha256', $manifest, $secret)
+ *   4. Comparar com hash_equals() contra v1
+ *
+ * @param string|null $xSignature   Raw x-signature header (formato: ts=...,v1=...)
+ * @param string|null $xRequestId   Raw x-request-id header
+ * @param string|null $dataId       data.id da query string
  */
-function webhookVerifySignature(string $gatewayName, string $payload, string $signature): bool
+function webhookVerifySignature(string $gatewayName, ?string $xSignature, ?string $xRequestId = null, ?string $dataId = null): bool
 {
     try {
         if (!isset($GLOBALS['pdo'])) {
@@ -440,22 +474,35 @@ function webhookVerifySignature(string $gatewayName, string $payload, string $si
         $webhookSecret = loadEncryptedSetting($GLOBALS['pdo'], $gatewayName . '_webhook_secret');
         
         if (!$webhookSecret) {
+            error_log("webhookVerifySignature: no secret configured for $gatewayName");
             return false;
         }
         
         if ($gatewayName === 'mercadopago') {
-            // Mercado Pago uses HMAC-SHA256
-            $expected = hash_hmac('sha256', $payload, $webhookSecret);
-            return hash_equals($expected, $signature);
+            // Use official SDK validator — implements manifest-based HMAC-SHA256
+            \MercadoPago\Webhook\WebhookSignatureValidator::validate(
+                $xSignature,
+                $xRequestId,
+                $dataId,
+                $webhookSecret
+            );
+            return true; // no exception = valid
+            
         } elseif ($gatewayName === 'asaas') {
             // Asaas uses token in header, simplified validation
-            return !empty($signature);
+            return !empty($xSignature);
         }
         
         return false;
         
+    } catch (\MercadoPago\Exceptions\InvalidWebhookSignatureException $e) {
+        error_log("webhookVerifySignature failed ($gatewayName): " . $e->getReason());
+        return false;
+    } catch (\InvalidArgumentException $e) {
+        error_log("webhookVerifySignature invalid arg ($gatewayName): " . $e->getMessage());
+        return false;
     } catch (Throwable $e) {
-        error_log('Webhook signature verification failed: ' . $e->getMessage());
+        error_log("webhookVerifySignature error ($gatewayName): " . $e->getMessage());
         return false;
     }
 }
