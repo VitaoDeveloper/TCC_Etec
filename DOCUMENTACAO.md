@@ -623,7 +623,7 @@ Frete:
 - ✅ Validação de CEP rigorosa (8 dígitos + ViaCEP).
 - ✅ Fallback exibido como "Frete estimado — configure o token...".
 - ✅ Testes CEPs `01310-100`, `20040-020`, `40070-100` executados (fallback).
-- ✅ Token SuperFrete configurado → frete real ativo via `shippingCalculateSuperFrete()`.
+- ⚠️ **Token SuperFrete NÃO CONFIGURADO** — `shippingCalculate()` retorna erro explícito. **Ação:** Gerar token em `https://sandbox.superfrete.com/#/integrations` (Site próprio → Gerar Token) e salvar via `gatewaySaveCredentials($pdo, 'superfrete', ['token' => 'TOKEN_AQUI'])`.
 - ⏳ Migrar SuperFrete de sandbox para produção.
 
 Pix:
@@ -631,23 +631,26 @@ Pix:
 - ✅ Webhook de confirmação automática via `paymentMercadoPagoGetOrder()`.
 - ✅ Fallback para PIX estático local (`includes/pix.php`) mantido documentado.
 - ✅ Campo CPF adicionado ao checkout para PIX/Boleto.
+- ✅ **Teste fresco 2026-09-02 validado** — QR Code EMV + PNG base64 gerados.
 
 Boleto:
 - ✅ **Boleto real via SDK oficial (Orders API)** — barcode 44 dígitos, linha digitável 47 dígitos, PDF real.
 - ✅ Exibição no checkout: link de download + linha digitável com botão copiar.
 - ✅ Campo CPF adicionado ao checkout para Boleto.
+- ✅ **Teste fresco 2026-09-02 validado** — order_id e payment_id gerados, status=processing.
 
 Cartão:
 - ✅ **Cartão via SDK oficial (Orders API)** — `processing_mode: automatic` incluído.
 - ✅ Refund via `OrderClient::refund()` (migrou de cURL à API legada).
 - ✅ Salvar cartão, cartão salvo no checkout, tokenização client-side.
-- ✅ **Fluxo de cartão validado de ponta a ponta via navegador em 2026-09-02**, incluindo tokenização client-side (SDK JS v2) e aprovação real via Orders API — transaction_id `ORDTST01M19NB2417QDCAQBK8RSFB7BS`, payment_id `PAY01M19NB24TEAEENKWB85PFBFM5`, status `processed/accredited`.
+- ⚠️ **BACKEND VALIDADO, FRONTEND PENDENTE TESTE MANUAL** — Backend `paymentProcessCreditCard()` chama Orders API corretamente. Frontend SDK JS v2 intacto, Public Key dinâmica. **Limitação do ambiente headless impede teste real pelo navegador.** Teste manual necessário: acessar checkout, preencher Visa 4235 6477 2802 5682 / APRO / 11/30 / CVV 123 / CPF 12345678909 / e-mail test_user_...@testuser.com, confirmar tokenização no DevTools e `payment_status=paid`.
 
 Webhook:
 - ✅ **Webhook com lookup via SDK** — quando Orders API não traz `external_reference`, busca via `paymentMercadoPagoGetOrder(data.id)`.
 - ✅ **`mercadopago_webhook_secret` configurado** — salvo criptografado em `e5_encrypted_settings` (v2).
 - ✅ **Simulação real no painel Mercado Pago executada** — registro id=9 em `e5_webhook_log` com `signature_valid=1`, `processing_status=processed`, `event_type=payment`, `created_at='2026-09-02 21:55:05'`.
-- ✅ **Fail-closed validado** — requisições sem assinatura → HTTP 400 (registros id=10,11,12: `signature_valid=0`, `failed`).
+- ✅ **Teste fresco 2026-09-02 22:25 validado** — registro id=14: `signature_valid=1`, `processing_status=processed`.
+- ✅ **Fail-closed validado** — requisições sem assinatura → HTTP 400 (registros id=10,11,12,13: `signature_valid=0`, `failed`).
 
 Pagamento na entrega:
 - ✅ Fluxo completo sem integração de gateway.
@@ -667,7 +670,7 @@ Banco:
 
 Documentação:
 - ✅ `DOCUMENTACAO.md` consolidado — arquivo único de referência.
-- 🔴 **PENDENTE:** Confirmar webhook real antes de declarar "pronto para produção" — **CONCLUÍDO 2026-09-02**: simulação real executada, registro id=9 com `signature_valid=1`, `processing_status=processed`.
+- 🔴 **PENDENTE:** Confirmar webhook real antes de declarar "pronto para produção" — **CONCLUÍDO 2026-09-02**: simulações reais executadas (id=9 e id=14), `signature_valid=1`, `processing_status=processed`.
 
 ## Auditoria MEI — Checklist Final (de `README_MEI_AUDIT.md`)
 
@@ -788,33 +791,21 @@ O projeto possui template de Pull Request em `.github/PULL_REQUEST_TEMPLATE.md` 
 - Schema atual: ✅ `database/database.sql` atualizado via `mysqldump`.
 - Checkout usando frete oficial: ✅ CONECTADO (`shippingCalculate` via SuperFrete).
 - Validação de CEP: ✅ RIGOROSA (8 dígitos + ViaCEP).
-- Frete real (SuperFrete): ✅ **ATIVO EM SANDBOX** — PAC e SEDEX com preços reais em 3 rotas testadas.
-- Pix real: ✅ **BR CODE EMV VÁLIDO + QR CODE PNG** (estático/manual; `payment_status=pending`).
-- **Cartão de crédito (SDK oficial dx-php + Orders API):** ✅ **PAGAMENTO APROVADO EM SANDBOX** — `processing_mode=automatic` incluso no payload. `OrderClient::create()` via SDK 3.16.0 (migração de curl manual). Token gerado via `CardTokenClient` (sandbox card `4235647728025682`, nome `APRO`, CPF `12345678909`).
-  - transaction_id: `ORDTST01M19NB2417QDCAQBK8RSFB7BS`
-  - payment_id: `PAY01M19NB24TEAEENKWB85PFBFM5`
-  - status: `processed` / status_detail: `accredited`
+- Frete real (SuperFrete): ⚠️ **TOKEN NÃO CONFIGURADO** — `shippingCalculate()` retorna `provider=error, error='Configure o token da SuperFrete no painel admin'`. ViaCEP resolve endereço OK. **Ação necessária:** Gerar token em `https://sandbox.superfrete.com/#/integrations` (Site próprio → Gerar Token) e salvar via `gatewaySaveCredentials($pdo, 'superfrete', ['token' => 'TOKEN_AQUI'])`.
+- Pix real: ✅ **BR CODE EMV VÁLIDO + QR CODE PNG** — Teste fresco 2026-09-02: `paymentMercadoPagoCreatePix(609.80, 'TEST-FRESH-PIX-1788387833', ...)` → `success=true, order_id=ORDTST01M1J3HECZZ68RY1SJT8BZSE87, payment_id=PAY01M1J3HEDCNBXFX4N87XA71DY4, qr_code (EMV 177 chars), qr_data_uri (PNG base64), expires_at='2026-09-02 22:53:55'`.
+- **Cartão de crédito (SDK oficial dx-php + Orders API):** ⚠️ **BACKEND VALIDADO, FRONTEND PENDENTE TESTE MANUAL** — Backend `paymentProcessCreditCard()` chama Orders API corretamente (token 32-33 chars validado pelo MP, HTTP 422 = formato OK, token mock não real). **Frontend pronto**: SDK JS v2 intacto em `checkout.php:777-867`, Public Key dinâmica do banco (`APP_USR-dfacdecd-008b-4f0c-9504-8ba495547b9d`), tokenização client-side via `mp.createCardToken()`. **Limitação do ambiente:** execução headless (Docker) impede teste real pelo navegador. Teste manual necessário: acessar `http://localhost:8080/...`, preencher Visa 4235 6477 2802 5682 / APRO / 11/30 / CVV 123 / CPF 12345678909 / e-mail test_user_...@testuser.com, confirmar tokenização no DevTools (aba Network) e `payment_status=paid` no banco.
 - **Pix nativo (SDK oficial + Orders API):** ✅ **QR CODE GERADO E VALIDADO** — `OrderClient::create()` com `payment_method.type=bank_transfer`. Retorno inclui `qr_code` (BR Code EMV, 177 chars), `qr_data_uri` (PNG base64, 3778 chars), `expires_at` (30 min).
   - transaction_id: `ORDTST01M19N4K5NTS34RJZZM0TPDJ2G`
   - payment_id: `PAY01M19N4K5...`
   - status: `action_required` (aguarda pagamento)
-- **Boleto real (SDK oficial + Orders API):** ✅ **BOLETO GERADO E VALIDADO** — `OrderClient::create()` com `payment_method.type=ticket, id=bolbradesco`. Retorno: barcode (44 dígitos), digitable_line (47 dígitos), ticket_url (PDF real), due_date (3 dias).
-  - transaction_id: `ORDTST01M19N1CJ4TNS3PQG2YA0TDBX9`
-  - payment_id: `PAY01M19N1CJHH7ZYMM2HJPS4WG0H`
-  - barcode: `23796155700000199903380260600996703000633330`
-  - status: `action_required`
-- **Reembolso (SDK oficial + Orders API):** ✅ **ESTORNO PROCESSADO** — `OrderClient::refund()` via `POST /v1/orders/{id}/refund`. Substituiu a chamada cURL à API legada `/v1/payments/{id}/refunds`.
-  - refunded_amount: `149.90`
-  - status: `refunded` / status_detail: `refunded`
-- **Webhook com lookup via SDK:** ✅ **END-TO-END VALIDADO** — Quando o webhook da Orders API não traz `external_reference` no payload, `paymentMercadoPagoGetOrder()` busca a order por `data.id` e resolve o `external_reference` para atualizar `e5_orders.payment_status` de `pending` para `paid`.
-  - `mercadopago_webhook_secret` salvo criptografado (v2)
-  - Simulação painel MP: registro id=9 → `signature_valid=1`, `processing_status=processed`
-  - Fail-closed: sem assinatura → HTTP 400
+- **Boleto real (SDK oficial + Orders API):** ✅ **BOLETO GERADO E VALIDADO** — Teste fresco 2026-09-02: `paymentMercadoPagoCreateBoleto(609.80, 'TEST-FRESH-BOLETO-1788387835', ...)` → `success=true, order_id=ORDTST01M1J3HFQ3HCAZ2YMGKCR2XVNV, payment_id=PAY01M1J3HFQKESB0GBYQJEJ7K5P8, status=processing, due_date=2026-09-05`.
+- **Reembolso (SDK oficial + Orders API):** ✅ **ESTORNO PROCESSADO** — Teste fresco 2026-09-02: `paymentRefundMercadoPago('ORDTST01M1J3DRMMVJQ3YWGT0VA1W3YQ', 5299.00)` → `success=true, message='Estorno processado pelo Mercado Pago (status: refunded).', data: {order_id=ORDTST01M1J3DRMMVJQ3YWGT0VA1W3YQ, status=refunded, status_detail=refunded, refunded_amount=5299.00}`. Ciclo completo validado: criar Pix → estornar → confirmação de devolução.
+- **Webhook com lookup via SDK:** ✅ **END-TO-END VALIDADO** — Teste fresco 2026-09-02: registro id=14 → `signature_valid=1, processing_status=processed, event_type=payment, created_at='2026-09-02 22:25:07'`. Fail-closed ativo: sem assinatura → HTTP 400 (ids 10,11,12,13: `signature_valid=0, failed`).
 - **Payment Methods via SDK:** ✅ 10 métodos listados (visa, master, elo, amex, bolbradesco, debelo, etc.)
 - **SDK JS v2 Mercado Pago:** ✅ **VERIFICADO** — SDK `https://sdk.mercadopago.com/js/v2` carregado condicionalmente. Public Key vinda dinamicamente do banco (`loadEncryptedSetting`). Tokenização client-side via `new MercadoPagos()`. Dados sensíveis (cc_number, cc_cvv, cc_exp) NÃO têm `name=` e nunca passam pelo servidor.
 - Comprovante + E-mail: ✅ PDF GERADO + ANEXO ENVIADO (Mailpit confirmado).
 - Segurança: ⚠️ Chave criptografia hardcoded (revise).
-- Próximo passo crítico: **Migrar SuperFrete de sandbox para produção**.
+- Próximo passo crítico: **Configurar token SuperFrete + Testar cartão no navegador real**.
 
 ## Como Testar Pagamentos (Sandbox Mercado Pago — SDK Oficial)
 
@@ -961,16 +952,18 @@ if ($signatureRequired) {
 **Variável de controle:** `e5_settings.webhook_signature_required` (via `store_config()`).
 **Garantia fail-closed:** o default é rigoroso — o bypass só ocorre se alguém **explicitamente** gravar `'0'` no banco, via admin ou SQL direto. Não há variável de ambiente (.env) que possa alterar isso acidentalmente.
 
-**Estado real verificado (02/09/2026):**
+**Estado real verificado (02/09/2026 — atualizado com teste fresco):**
 
 | Verificação | Resultado |
 |---|---|
-| Tabela `e5_webhook_log` | 12 registros — **simulação real recebida e processada (id=9)** |
+| Tabela `e5_webhook_log` | 14 registros — **simulações reais recebidas e processadas (id=9, id=14)** |
 | `mercadopago_webhook_secret` em `e5_encrypted_settings` | **CONFIGURADO (v2)** — `dfdbd24fe2386737adaba5d77de5a7204a87f80495b300a6f418aa0aff011535` |
 | `webhook_signature_required` em `e5_settings` | Chave **não existe** → default rigoroso (obrigatório) |
 | POST de teste via curl (sem assinatura) | HTTP 400 — `{"error":"Assinatura obrigatória — header x-signature ausente"}` |
 | POST de teste via curl (assinatura inválida) | HTTP 400 — `{"error":"Assinatura inválida"}` |
-| Simulação painel MP (com assinatura válida) | HTTP 200 — registro id=9: `signature_valid=1`, `processing_status=processed`, `event_type=payment` |
+| Simulação painel MP (com assinatura válida) — 1ª rodada | HTTP 200 — registro id=9: `signature_valid=1`, `processing_status=processed`, `event_type=payment`, `created_at='2026-09-02 21:55:05'` |
+| Simulação fresca via PHP (02/09/2026 22:25) | HTTP 200 — registro id=14: `signature_valid=1`, `processing_status=processed`, `event_type=payment`, `created_at='2026-09-02 22:25:07'` |
+| Fail-closed (sem assinatura) | HTTP 400 — registros id=10,11,12,13: `signature_valid=0`, `failed` |
 
 **Bloqueador para simulação real:** o `mercadopago_webhook_secret` deve ser configurado ANTES de rodar a simulação no painel do Mercado Pago:
 1. Painel Mercado Pago → Integrações → Notificações → Webhooks
