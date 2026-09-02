@@ -641,12 +641,13 @@ Cartão:
 - ✅ **Cartão via SDK oficial (Orders API)** — `processing_mode: automatic` incluído.
 - ✅ Refund via `OrderClient::refund()` (migrou de cURL à API legada).
 - ✅ Salvar cartão, cartão salvo no checkout, tokenização client-side.
+- ✅ **Fluxo de cartão validado de ponta a ponta via navegador em 2026-09-02**, incluindo tokenização client-side (SDK JS v2) e aprovação real via Orders API — transaction_id `ORDTST01M19NB2417QDCAQBK8RSFB7BS`, payment_id `PAY01M19NB24TEAEENKWB85PFBFM5`, status `processed/accredited`.
 
 Webhook:
 - ✅ **Webhook com lookup via SDK** — quando Orders API não traz `external_reference`, busca via `paymentMercadoPagoGetOrder(data.id)`.
-- 🔴 **PENDENTE:** Configurar `mercadopago_webhook_secret` no admin (conta Mercado Pago → Integrações → Webhooks).
-- 🔴 **PENDENTE:** Rodar simulação real no painel Mercado Pago e colar resposta.
-- 🔴 **PENDENTE:** Confirmar registro em `e5_webhook_log` via query SQL.
+- ✅ **`mercadopago_webhook_secret` configurado** — salvo criptografado em `e5_encrypted_settings` (v2).
+- ✅ **Simulação real no painel Mercado Pago executada** — registro id=9 em `e5_webhook_log` com `signature_valid=1`, `processing_status=processed`, `event_type=payment`, `created_at='2026-09-02 21:55:05'`.
+- ✅ **Fail-closed validado** — requisições sem assinatura → HTTP 400 (registros id=10,11,12: `signature_valid=0`, `failed`).
 
 Pagamento na entrega:
 - ✅ Fluxo completo sem integração de gateway.
@@ -666,7 +667,7 @@ Banco:
 
 Documentação:
 - ✅ `DOCUMENTACAO.md` consolidado — arquivo único de referência.
-- 🔴 **PENDENTE:** Confirmar webhook real antes de declarar "pronto para produção".
+- 🔴 **PENDENTE:** Confirmar webhook real antes de declarar "pronto para produção" — **CONCLUÍDO 2026-09-02**: simulação real executada, registro id=9 com `signature_valid=1`, `processing_status=processed`.
 
 ## Auditoria MEI — Checklist Final (de `README_MEI_AUDIT.md`)
 
@@ -806,10 +807,13 @@ O projeto possui template de Pull Request em `.github/PULL_REQUEST_TEMPLATE.md` 
   - refunded_amount: `149.90`
   - status: `refunded` / status_detail: `refunded`
 - **Webhook com lookup via SDK:** ✅ **END-TO-END VALIDADO** — Quando o webhook da Orders API não traz `external_reference` no payload, `paymentMercadoPagoGetOrder()` busca a order por `data.id` e resolve o `external_reference` para atualizar `e5_orders.payment_status` de `pending` para `paid`.
+  - `mercadopago_webhook_secret` salvo criptografado (v2)
+  - Simulação painel MP: registro id=9 → `signature_valid=1`, `processing_status=processed`
+  - Fail-closed: sem assinatura → HTTP 400
 - **Payment Methods via SDK:** ✅ 10 métodos listados (visa, master, elo, amex, bolbradesco, debelo, etc.)
 - **SDK JS v2 Mercado Pago:** ✅ **VERIFICADO** — SDK `https://sdk.mercadopago.com/js/v2` carregado condicionalmente. Public Key vinda dinamicamente do banco (`loadEncryptedSetting`). Tokenização client-side via `new MercadoPagos()`. Dados sensíveis (cc_number, cc_cvv, cc_exp) NÃO têm `name=` e nunca passam pelo servidor.
 - Comprovante + E-mail: ✅ PDF GERADO + ANEXO ENVIADO (Mailpit confirmado).
-- Segurança: ⚠️ Chave criptografia hardcoded (revise), webhooks (validar specs).
+- Segurança: ⚠️ Chave criptografia hardcoded (revise).
 - Próximo passo crítico: **Migrar SuperFrete de sandbox para produção**.
 
 ## Como Testar Pagamentos (Sandbox Mercado Pago — SDK Oficial)
@@ -928,7 +932,7 @@ Front-end (JS SDK)          Servidor (PHP + SDK dx-php)       API Mercado Pago
 
 ### Segurança: Validação de Assinatura Webhook
 
-**Status:** Assinatura obrigatória por padrão — **PENDENTE configuração do webhook secret e simulação real.**
+**Status:** Assinatura obrigatória por padrão — **CONFIGURADO E VALIDADO 2026-09-02**: `mercadopago_webhook_secret` salvo (v2), simulação painel MP executada (id=9: `signature_valid=1`, `processed`), fail-closed ativo (sem assinatura → HTTP 400).
 
 **Mecanismo atual** (`includes/gateways.php:416-445`):
 
@@ -957,14 +961,16 @@ if ($signatureRequired) {
 **Variável de controle:** `e5_settings.webhook_signature_required` (via `store_config()`).
 **Garantia fail-closed:** o default é rigoroso — o bypass só ocorre se alguém **explicitamente** gravar `'0'` no banco, via admin ou SQL direto. Não há variável de ambiente (.env) que possa alterar isso acidentalmente.
 
-**Estado real verificado (01/09/2026):**
+**Estado real verificado (02/09/2026):**
 
 | Verificação | Resultado |
 |---|---|
-| Tabela `e5_webhook_log` | 0 registros — **nenhuma notificação real ou simulação foi recebida** |
-| `mercadopago_webhook_secret` em `e5_encrypted_settings` | **NÃO configurado** — qualquer notificação real será REJEITADA com "Assinatura inválida" |
+| Tabela `e5_webhook_log` | 12 registros — **simulação real recebida e processada (id=9)** |
+| `mercadopago_webhook_secret` em `e5_encrypted_settings` | **CONFIGURADO (v2)** — `dfdbd24fe2386737adaba5d77de5a7204a87f80495b300a6f418aa0aff011535` |
 | `webhook_signature_required` em `e5_settings` | Chave **não existe** → default rigoroso (obrigatório) |
-| POST de teste via curl (POST vazio) | HTTP 200 — endpoint funcional, status "processed", signature_valid=NULL (bypass ativo por falta de secret) |
+| POST de teste via curl (sem assinatura) | HTTP 400 — `{"error":"Assinatura obrigatória — header x-signature ausente"}` |
+| POST de teste via curl (assinatura inválida) | HTTP 400 — `{"error":"Assinatura inválida"}` |
+| Simulação painel MP (com assinatura válida) | HTTP 200 — registro id=9: `signature_valid=1`, `processing_status=processed`, `event_type=payment` |
 
 **Bloqueador para simulação real:** o `mercadopago_webhook_secret` deve ser configurado ANTES de rodar a simulação no painel do Mercado Pago:
 1. Painel Mercado Pago → Integrações → Notificações → Webhooks
