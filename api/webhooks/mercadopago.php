@@ -26,13 +26,10 @@ $eventType   = $_SERVER['HTTP_X_WEBHOOK_TYPE'] ?? ($_GET['type'] ?? 'unknown');
 
 // data.id from query string — PHP converte pontos para underscores em $_GET,
 // então parseamos a query string crua para preservar a chave exata "data.id"
-// IMPORTANTE: O SDK lowercases o dataId antes do HMAC (ver WebhookSignatureValidator::buildManifest)
+// IMPORTANTE: O SDK NÃO lowercases o dataId — deve usar o case original
 $queryParams = [];
 parse_str($_SERVER['QUERY_STRING'] ?? '', $queryParams);
 $dataId = $queryParams['data.id'] ?? $queryParams['data_id'] ?? null;
-if ($dataId !== null) {
-    $dataId = strtolower($dataId);
-}
 
 if (empty($payload)) {
     http_response_code(400);
