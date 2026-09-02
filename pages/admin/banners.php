@@ -24,15 +24,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 $finalImagePath = $imageUrlInput;
 
-                if (isset($_FILES['banner_image']) && is_uploaded_file($_FILES['banner_image']['tmp_name'])) {
+                $hasFile = isset($_FILES['banner_image']);
+                $uploadError = $hasFile ? (int) $_FILES['banner_image']['error'] : UPLOAD_ERR_NO_FILE;
+                $hasUploadAttempt = $uploadError !== UPLOAD_ERR_NO_FILE;
+
+                if ($hasUploadAttempt) {
+                    if ($uploadError !== UPLOAD_ERR_OK) {
+                        throw new RuntimeException(uploadErrorMessage($uploadError));
+                    }
+
+                    if ((int) $_FILES['banner_image']['size'] > 2097152) {
+                        throw new RuntimeException('A imagem deve ter no máximo 2MB.');
+                    }
+
                     $uploadDirAbsolute = realpath(__DIR__ . '/../../assets/img');
                     if ($uploadDirAbsolute === false) {
                         throw new RuntimeException('Diretório de imagens não encontrado.');
                     }
 
                     $targetDir = $uploadDirAbsolute . '/banners';
-                    if (!is_dir($targetDir) && !mkdir($targetDir, 0775, true) && !is_dir($targetDir)) {
-                        throw new RuntimeException('Não foi possível criar diretório de upload.');
+                    if (!is_dir($targetDir)) {
+                        if (!@mkdir($targetDir, 0775, true) && !is_dir($targetDir)) {
+                            throw new RuntimeException('Não foi possível criar o diretório de uploads (' . $targetDir . '). Verifique as permissões de escrita da pasta assets/img.');
+                        }
+                    }
+                    if (!is_writable($targetDir)) {
+                        throw new RuntimeException('O diretório de uploads não tem permissão de escrita (' . $targetDir . ').');
                     }
 
                     $allowedExt = ['jpg', 'jpeg', 'png', 'webp'];
@@ -187,6 +204,7 @@ if (isset($_GET['edit'])) {
                     <div class="admin-form-group">
                         <label for="banner_image">Upload de imagem (JPG, PNG, WEBP)</label>
                         <input type="file" id="banner_image" name="banner_image" accept=".jpg,.jpeg,.png,.webp">
+                        <small style="color:var(--color-gray); display:block; margin-top:6px;">Ao enviar um arquivo neste campo, ele substitui o caminho do campo acima.</small>
                         <?php if ($editBanner && $editBanner['image_path']): ?>
                         <small style="color:var(--color-gray); display:block; margin-top:6px;">
                             Imagem atual: <?php echo htmlspecialchars($editBanner['image_path'], ENT_QUOTES, 'UTF-8'); ?>
@@ -220,9 +238,10 @@ if (isset($_GET['edit'])) {
                     } elseif ($imgPath !== '') {
                         $imgUrl = '../../' . ltrim($imgPath, '/');
                     }
+                    $imgAvailable = imageAvailable($imgPath);
                     ?>
                     <div style="height:180px; background:#1a1a1a; display:flex; align-items:center; justify-content:center; overflow:hidden; position:relative;">
-                        <?php if ($imgUrl && file_exists(str_replace('../../', __DIR__ . '/../../', $imgUrl))): ?>
+                        <?php if ($imgUrl && $imgAvailable): ?>
                         <img src="<?php echo htmlspecialchars($imgUrl, ENT_QUOTES, 'UTF-8'); ?>"
                              alt="<?php echo htmlspecialchars($b['title'], ENT_QUOTES, 'UTF-8'); ?>"
                              style="width:100%; height:100%; object-fit:cover;">

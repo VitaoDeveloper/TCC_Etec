@@ -19,7 +19,63 @@ E-commerce premium desenvolvido como Trabalho de Conclusão de Curso (TCC) da ET
 
 **Admin:** dashboard com métricas, CRUD de produtos/categorias/banners, gerenciamento de pedidos/clientes, relatórios, newsletter e configurações do sistema.
 
-## Instalação
+## Upload e exibição de imagens
+
+- As imagens enviadas pela área administrativa são salvas fisicamente em `assets/img/products/` (produtos) e `assets/img/banners/` (banners), e o caminho correspondente é gravado no banco (`e5_product_images.image_path` / `e5_banners.image_path`).
+- Na tela de produto/banner existem **dois campos de imagem**:
+  1. **Caminho da imagem** (campo manual) — usado quando nenhum arquivo é enviado no upload.
+  2. **Upload de imagem** — ao enviar um arquivo, ele **substitui** o caminho manual.
+- O formulário **edita sem enviar imagem sem quebrar**: a imagem/caminho já existente é preservado.
+- Formatos aceitos: JPG, JPEG, PNG e WEBP (máx. 2 MB).
+- Os diretórios de upload são criados automaticamente, mas a pasta `assets/img` precisa ter permissão de escrita para o usuário do servidor web (ex.: `daemon` no XAMPP/Apache).
+- A exibição usa fallback para uma imagem padrão (`assets/img/placeholder-product.svg`) quando o arquivo não existe em disco — evitando ícone de imagem quebrada. Helpers em [`includes/image_helpers.php`](includes/image_helpers.php) (`renderProductImage`, `imageAvailable`, `uploadErrorMessage`).
+
+## Configuração
+
+### Variáveis de Ambiente
+Antes de executar é importante definir como as variáveis de ambiente (arquivos .env e .env.prod) serão configuradas
+
+#### Rodando com XAMPP (criar arquivo .env)
+```env
+# Database credentials
+DB_HOST=localhost
+DB_NAME=e5_royaltech
+DB_USER=root
+DB_PASS=
+DB_CHARSET=utf8mb4
+
+# SMTP (Mail server) credentials
+MAIL_HOST=localhost
+MAIL_PORT=1025
+MAIL_USERNAME=
+MAIL_PASSWORD=
+MAIL_ENCRYPTION=
+# Opcional: remetente padrao. Se vazio, usa store_email da configuracao da loja.
+MAIL_FROM=
+```
+
+#### Rodando com Docker (criar arquivo .env.prod)
+```env
+# Database credentials
+DB_HOST=db
+DB_NAME=e5_royaltech
+DB_USER=root
+DB_PASS=
+DB_CHARSET=utf8mb4
+
+# SMTP (Mail server) credentials
+MAIL_HOST=mailpit
+MAIL_PORT=1025
+MAIL_USERNAME=
+MAIL_PASSWORD=
+MAIL_ENCRYPTION=
+# Opcional: remetente padrao. Se vazio, usa store_email da configuracao da loja.
+MAIL_FROM=
+```
+O serviço para teste de envio de emails via servidor SMTP utilizado é o Mailpit. Caso você esteja rodando com o XAMPP, será necessário instalar o Mailpit localmente e incializar o seu processo, para que ele possa ser acessado com http://localhost:1025 (para uso do serivço pela aplicação) e http://localhost:8025 (para visualização em interface dos emails enviados). <br><br>
+Se estiver rodando com Docker, o Mailpit já vem empacotado junto do compose, sem precisar instalar nada.
+
+## Executando
 
 ### Docker (recomendado)
 
