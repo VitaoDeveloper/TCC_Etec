@@ -63,15 +63,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $finalImagePath = $imagePathInput;
-            if (isset($_FILES['product_image']) && is_uploaded_file($_FILES['product_image']['tmp_name'])) {
+
+            $hasFile = isset($_FILES['product_image']);
+            $uploadError = $hasFile ? (int) $_FILES['product_image']['error'] : UPLOAD_ERR_NO_FILE;
+            $hasUploadAttempt = $uploadError !== UPLOAD_ERR_NO_FILE;
+
+            if ($hasUploadAttempt) {
+                if ($uploadError !== UPLOAD_ERR_OK) {
+                    throw new RuntimeException(uploadErrorMessage($uploadError));
+                }
+
+                if ((int) $_FILES['product_image']['size'] > 2097152) {
+                    throw new RuntimeException('A imagem deve ter no máximo 2MB.');
+                }
+
                 $uploadDirAbsolute = realpath(__DIR__ . '/../../assets/img');
                 if ($uploadDirAbsolute === false) {
                     throw new RuntimeException('Diretório de imagens não encontrado.');
                 }
 
                 $targetDir = $uploadDirAbsolute . '/products';
-                if (!is_dir($targetDir) && !mkdir($targetDir, 0775, true) && !is_dir($targetDir)) {
-                    throw new RuntimeException('Não foi possível criar diretório de upload.');
+                if (!is_dir($targetDir)) {
+                    if (!@mkdir($targetDir, 0775, true) && !is_dir($targetDir)) {
+                        throw new RuntimeException('Não foi possível criar o diretório de uploads (' . $targetDir . '). Verifique as permissões de escrita da pasta assets/img.');
+                    }
+                }
+                if (!is_writable($targetDir)) {
+                    throw new RuntimeException('O diretório de uploads não tem permissão de escrita (' . $targetDir . ').');
                 }
 
                 $allowedExt = ['jpg', 'jpeg', 'png', 'webp'];
@@ -130,7 +148,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         } catch (Throwable $e) {
             error_log('Product form error: ' . $e->getMessage());
-            $errorMessage = 'Erro ao salvar produto/imagem. Verifique os dados e tente novamente.';
+            $errorMessage = 'Erro ao salvar produto/imagem: ' . $e->getMessage();
         }
     }
 }
@@ -221,12 +239,13 @@ $categories = $pdo->query('SELECT id, name FROM e5_categories ORDER BY name')->f
                     <div class="admin-form-group">
                         <label for="image_path">Caminho da imagem</label>
                         <input type="text" id="image_path" name="image_path" data-auto-path="<?php echo $currentImagePath === '' ? '1' : '0'; ?>" placeholder="/assets/img/products/meu-produto.jpg" value="<?php echo htmlspecialchars($currentImagePath, ENT_QUOTES, 'UTF-8'); ?>">
-                        <small style="color:var(--color-gray);">Informe apenas o nome do arquivo (ex: produto.jpg) que o sistema completa o caminho.</small>
+                        <small style="color:var(--color-gray);">Informe apenas o nome do arquivo (ex: produto.jpg) que o sistema completa o caminho. Usado quando nenhum arquivo é enviado no upload abaixo.</small>
                     </div>
 
                     <div class="admin-form-group">
                         <label for="product_image">Upload de imagem (JPG, PNG, WEBP)</label>
                         <input type="file" id="product_image" name="product_image" accept=".jpg,.jpeg,.png,.webp">
+                        <small style="color:var(--color-gray); display:block; margin-top:6px;">Ao enviar um arquivo neste campo, ele substitui o caminho do campo acima.</small>
                         <?php if ($currentImagePath): ?>
                         <small style="color:var(--color-gray); display:block; margin-top:6px;">Imagem atual: <?php echo htmlspecialchars($currentImagePath, ENT_QUOTES, 'UTF-8'); ?></small>
                         <?php endif; ?>

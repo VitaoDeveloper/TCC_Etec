@@ -14,6 +14,7 @@ include '../../database/connection.php';
 require_once $base_path . 'includes/csrf.php';
 require_once $base_path . 'includes/status_labels.php';
 require_once $base_path . 'includes/comprovante.php';
+require_once $base_path . 'includes/image_helpers.php';
 $userId = (int) $_SESSION['user_id'];
 $orderId = (int) ($_GET['id'] ?? 0);
 $message = null;
@@ -81,14 +82,7 @@ include '../../components/header.php';
             <thead><tr><th>Produto</th><th>Qtd</th><th>Preço Unit.</th><th>Subtotal</th></tr></thead>
             <tbody>
             <?php foreach ($items as $item):
-                $img = (string) ($item['image_path'] ?? '');
-                if ($img === '') {
-                    $img = $base_path . 'assets/img/placeholder-product.svg';
-                } elseif (preg_match('#^/#', $img)) {
-                    $img = $base_path . ltrim($img, '/');
-                } elseif (!preg_match('#^https?://#i', $img)) {
-                    $img = $base_path . $img;
-                }
+                $img = renderProductImage((string) ($item['image_path'] ?? ''), $base_path);
             ?>
                 <tr>
                     <td style="display:flex; align-items:center; gap:10px;">

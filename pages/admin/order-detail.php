@@ -6,6 +6,7 @@ require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../includes/status_labels.php';
 require_once __DIR__ . '/../../includes/comprovante.php';
 require_once __DIR__ . '/../../includes/payment.php';
+require_once __DIR__ . '/../../includes/image_helpers.php';
 
 $orderId = (int) ($_GET['id'] ?? 0);
 
@@ -157,8 +158,7 @@ $sinfo = $statusLabels[$order['status']] ?? ['label' => $order['status'], 'class
                         <?php foreach ($items as $it): ?>
                         <tr>
                             <td><?php echo htmlspecialchars($it['product_name'], ENT_QUOTES, 'UTF-8'); ?></td>
-                            <td><?php if ($it['image_path']): $img = $it['image_path'];
-                                if (preg_match('#^https?://#i', $img)) {} elseif (preg_match('#^/#', $img)) $img = '../../' . ltrim($img, '/'); else $img = '../../' . $img; ?>
+                            <td><?php if ($it['image_path']): $img = renderProductImage($it['image_path'], '../../'); ?>
                                 <img src="<?php echo htmlspecialchars($img, ENT_QUOTES, 'UTF-8'); ?>" style="width:50px;height:50px;object-fit:cover;border-radius:5px;" alt=""></td>
                             <?php else: ?><td style="color:var(--color-gray);">—</td><?php endif; ?>
                             <td>R$ <?php echo number_format((float)$it['unit_price'], 2, ',', '.'); ?></td>

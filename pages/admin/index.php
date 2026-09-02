@@ -3,6 +3,7 @@ $page_title = 'Painel Administrativo - Royal Tech';
 include 'auth_check.php';
 include '../../database/connection.php';
 require_once __DIR__ . '/../../includes/status_labels.php';
+require_once __DIR__ . '/../../includes/image_helpers.php';
 
 $totalOrders = $pdo->query('SELECT COUNT(*) FROM e5_orders')->fetchColumn();
 $totalRevenue = $pdo->query("SELECT COALESCE(SUM(total), 0) FROM e5_orders WHERE status != 'canceled'")->fetchColumn();
@@ -134,10 +135,7 @@ $topProducts = $pdo->query('
                         <?php if (empty($topProducts)): ?>
                         <p style="color:var(--color-gray); text-align:center; padding:20px;">Nenhuma venda ainda.</p>
                         <?php else: foreach ($topProducts as $p):
-                            $img = (string) ($p['image_path'] ?? '');
-                            if ($img === '') $img = '../../assets/img/placeholder-product.svg';
-                            elseif (preg_match('#^/#', $img)) $img = '../../' . ltrim($img, '/');
-                            elseif (!preg_match('#^https?://#i', $img)) $img = '../../' . $img;
+                            $img = renderProductImage((string) ($p['image_path'] ?? ''), '../../');
                         ?>
                         <div class="popular-product" style="display: flex; align-items: center; gap: 15px; padding: 15px 0; border-bottom: 1px solid var(--color-border);">
                             <img src="<?php echo htmlspecialchars($img, ENT_QUOTES, 'UTF-8'); ?>" alt="<?php echo htmlspecialchars($p['name'], ENT_QUOTES, 'UTF-8'); ?>" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;">

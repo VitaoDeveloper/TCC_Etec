@@ -8,6 +8,7 @@ session_start();
 $isGuest = !isset($_SESSION['user_id']);
 require_once $base_path . 'database/connection.php';
 require_once $base_path . 'includes/cart_functions.php';
+require_once $base_path . 'includes/image_helpers.php';
 
 if ($isGuest) {
     $items = sessionCartGetItems($pdo);
@@ -66,14 +67,7 @@ include $base_path . 'components/header.php';
                 <?php endif; ?>
 
                 <?php foreach ($items as $item):
-                    $img = (string) ($item['image_path'] ?? '');
-                    if ($img === '') {
-                        $img = $base_path . 'assets/img/placeholder-product.svg';
-                    } elseif (preg_match('#^/#', $img)) {
-                        $img = $base_path . ltrim($img, '/');
-                    } elseif (!preg_match('#^https?://#i', $img)) {
-                        $img = $base_path . $img;
-                    }
+                    $img = renderProductImage((string) ($item['image_path'] ?? ''), $base_path);
                     $subtotal = (float)$item['price'] * (int)$item['quantity'];
                 ?>
                 <div class="cart-item" data-product-id="<?php echo (int)$item['product_id']; ?>" data-unit-price="<?php echo (float)$item['price']; ?>" data-stock="<?php echo (int)$item['stock']; ?>">

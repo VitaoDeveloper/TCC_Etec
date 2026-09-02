@@ -28,14 +28,8 @@ $_pis_new = !empty($product_is_new);
 $_pis_feat = !empty($product_is_featured);
 
 $base = $base_path ?? '';
-$imageCandidate = (string) $_pimage;
-if ($imageCandidate === '') {
-    $imageCandidate = $base . 'assets/img/placeholder-product.svg';
-} elseif (preg_match('#^/#', $imageCandidate)) {
-    $imageCandidate = $base . ltrim($imageCandidate, '/');
-} elseif (!preg_match('#^https?://#i', $imageCandidate)) {
-    $imageCandidate = $base . $imageCandidate;
-}
+require_once __DIR__ . '/../includes/image_helpers.php';
+$imageCandidate = renderProductImage((string) $_pimage, $base);
 
 $_discount = 0;
 if ($_pold !== null && $_pold > $_pprice && $_pold > 0) {
