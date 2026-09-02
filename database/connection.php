@@ -22,7 +22,7 @@ if (!isset($GLOBALS['pdo'])) {
     try {
         $pdo = new PDO($dsn, $dbUser, $dbPass, $options);
     } catch (PDOException $e) {
-        if ($e->getCode() == 1049) {
+        if ($e->getCode() == 1049 or $e->getCode() == 1146) {
             $dsnSemBanco = "mysql:host=$dbHost;charset=$dbCharset";
             $pdoTemp = new PDO($dsnSemBanco, $dbUser, $dbPass, $options);
             
