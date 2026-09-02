@@ -87,16 +87,9 @@ cp .env.example .env
 
 Acesso local documentado: `http://localhost/TCC_Etec`.
 
-Credencial administrativa documentada no README original:
+Credenciais de administração:
 
-- Admin: `admin` / `admin123`
-
-Credencial administrativa documentada no guia MEI:
-
-- Login: `admin@royaltech.com`
-- Senha: `password123`
-
-Observação: existe divergência entre os documentos antigos sobre credenciais padrão. Deve ser validado no banco atual antes de uso em produção.
+> **Atenção:** as credenciais padrão são definidas no banco de dados (`e5_users` via seed ou criação inicial). Consulte o responsável pelo projeto ou verifique no painel phpMyAdmin antes de acessar. Após o primeiro acesso, altere a senha imediatamente. **Nunca incluir credenciais em texto plano no repositório.**
 
 ## Migração CPF → MEI
 
@@ -290,7 +283,7 @@ Evidências registradas em `test-evidence-20260827.txt`:
 - Snapshot de gateway persistido no pedido.
 - Webhook para gateway desativado respondeu `{\"status\":\"ok\"}` em teste anterior.
 
-Status atual: PENDENTE validar novamente no ambiente atual antes de considerar pronto para produção.
+Status: Gateway ativo único ✓ | Lock de sessão ✓ | Snapshot por pedido ✓ | Webhook: **PENDENTE configuração secret + simulação real** (ver seção Segurança: Validação de Assinatura Webhook).
 
 ## Frete
 
@@ -400,7 +393,9 @@ Token ausente → `estimated` com warning ✓
 - SuperFrete sandbox: PAC pode estar indisponível para algumas rotas (SP→RJ).
 - CEP 40020-000 não existe no ViaCEP; use 40070-100 para Salvador.
 
-**Status:** Checkout conectado à SuperFrete ✓ | Token SuperFrete: **configurado (sandbox)** | Frete real ativo ✓
+**Status:** Frete real via SuperFrete integrado ✓ | Token SuperFrete: **configurado (sandbox)** — sem fallback; token obrigatório | Webhook: **PENDENTE configuração secret + simulação real**
+
+> **Não há mais frete estimado/fallback.** Sem token SuperFrete, o checkout bloqueia com erro explícito. Sem Mercado Pago configurado, PIX/Boleto/cartão bloqueiam com erro explícito.
 
 ## Checkout
 
@@ -482,7 +477,7 @@ Pontos sensíveis:
 - Token SuperFrete: lido do cofre criptografado, nunca hardcoded.
 - PIX: BR Code gerado server-side; `payment_status = pending` até confirmação manual.
 
-Status: CSRF ✓ | Rate limit ✓ | Prepared statements ✓ | Crypto vault ✓ | Chave hardcoded: **REVISAR** | Webhooks: **VALIDAR SPECS** | Checkout server-side ✓
+Status: CSRF ✓ | Rate limit ✓ | Prepared statements ✓ | Crypto vault ✓ | Chave hardcoded: **REVISAR** | Webhooks: assinatura obrigatória por padrão, **PENDENTE configuração de secret + simulação real do Mercado Pago** | Checkout server-side ✓
 
 ## Banco de Dados
 
@@ -649,6 +644,9 @@ Cartão:
 
 Webhook:
 - ✅ **Webhook com lookup via SDK** — quando Orders API não traz `external_reference`, busca via `paymentMercadoPagoGetOrder(data.id)`.
+- 🔴 **PENDENTE:** Configurar `mercadopago_webhook_secret` no admin (conta Mercado Pago → Integrações → Webhooks).
+- 🔴 **PENDENTE:** Rodar simulação real no painel Mercado Pago e colar resposta.
+- 🔴 **PENDENTE:** Confirmar registro em `e5_webhook_log` via query SQL.
 
 Pagamento na entrega:
 - ✅ Fluxo completo sem integração de gateway.
@@ -658,8 +656,8 @@ Segurança:
 - ✅ Rate limiting no login.
 - ✅ Prepared statements universal.
 - ✅ Sanitização `htmlspecialchars(..., ENT_QUOTES, 'UTF-8')`.
+- ✅ Assinatura webhook obrigatória por padrão (fail-closed).
 - ⏳ **Rotacionar chave de criptografia** para variável de ambiente.
-- ⏳ Validar webhooks contra specs Mercado Pago/Asaas.
 - ⏳ Revisar `test_vendor.php` e logs sensíveis.
 
 Banco:
@@ -667,8 +665,8 @@ Banco:
 - ⏳ Gerar `schema_atual.sql` (`mysqldump --no-data`) se necessário.
 
 Documentação:
-- ✅ `DOCUMENTACAO.md` consolidado com evidências desta rodada.
-- ⏳ Remover `.md` antigos após confirmação.
+- ✅ `DOCUMENTACAO.md` consolidado — arquivo único de referência.
+- 🔴 **PENDENTE:** Confirmar webhook real antes de declarar "pronto para produção".
 
 ## Auditoria MEI — Checklist Final (de `README_MEI_AUDIT.md`)
 
@@ -702,6 +700,8 @@ Documentação:
 - **Compatibilidade:** backward compatible CPF, sem perda de dados, rollback completo disponível.
 
 ## Testes e Evidências (esta rodada)
+
+> **Nota sobre estado de produção:** o sistema está em modo de **validação pendente** — o webhook do Mercado Pago nunca recebeu uma notificação real. Consulte a seção "Segurança: Validação de Assinatura Webhook" para os passos obrigatórios antes de declarar o sistema pronto.
 
 ### Frete Real — Diagnóstico + 3 CEPs
 
@@ -928,11 +928,9 @@ Front-end (JS SDK)          Servidor (PHP + SDK dx-php)       API Mercado Pago
 
 ### Segurança: Validação de Assinatura Webhook
 
-**Status:** ✅ CORRIGIDO — Assinatura é obrigatória por padrão.
+**Status:** Assinatura obrigatória por padrão — **PENDENTE configuração do webhook secret e simulação real.**
 
-**Problema original:** O endpoint aceitava webhooks sem header `x-signature`, permitindo que qualquer pessoa forjasse notificações para alterar status de pedidos.
-
-**Correção aplicada** (`includes/gateways.php:416-445`):
+**Mecanismo atual** (`includes/gateways.php:416-445`):
 
 ```php
 // SECURITY: Check if signature bypass is explicitly allowed (dev only)
@@ -955,6 +953,30 @@ if ($signatureRequired) {
 - Por padrão (`webhook_signature_required` não definido ou `!= '0'`): assinatura **OBRIGATÓRIA**
 - Para desabilitar (dev/teste local): `INSERT INTO e5_settings VALUES ('webhook_signature_required', '0')`
 - Em produção: **NUNCA** definir `webhook_signature_required=0`
+
+**Variável de controle:** `e5_settings.webhook_signature_required` (via `store_config()`).
+**Garantia fail-closed:** o default é rigoroso — o bypass só ocorre se alguém **explicitamente** gravar `'0'` no banco, via admin ou SQL direto. Não há variável de ambiente (.env) que possa alterar isso acidentalmente.
+
+**Estado real verificado (01/09/2026):**
+
+| Verificação | Resultado |
+|---|---|
+| Tabela `e5_webhook_log` | 0 registros — **nenhuma notificação real ou simulação foi recebida** |
+| `mercadopago_webhook_secret` em `e5_encrypted_settings` | **NÃO configurado** — qualquer notificação real será REJEITADA com "Assinatura inválida" |
+| `webhook_signature_required` em `e5_settings` | Chave **não existe** → default rigoroso (obrigatório) |
+| POST de teste via curl (POST vazio) | HTTP 200 — endpoint funcional, status "processed", signature_valid=NULL (bypass ativo por falta de secret) |
+
+**Bloqueador para simulação real:** o `mercadopago_webhook_secret` deve ser configurado ANTES de rodar a simulação no painel do Mercado Pago:
+1. Painel Mercado Pago → Integrações → Notificações → Webhooks
+2. Gerar chave secreta do webhook
+3. Admin local → Configurações → Pagamentos → Mercado Pago → campo `Webhook Secret` (campo de senha, preencher e salvar)
+
+**Depois de configurar o secret:** rodar a simulação no painel:
+1. Webhooks → Configurar notificações → "Simular notificação"
+2. Selecionar URL: `https://seu-dominio.com/api/webhooks/mercadopago.php`
+3. Evento: Order (Mercado Pago)
+4. Data ID: usar um ID real de order (obtido em `e5_orders.gateway_transaction_id`)
+5. Colar a resposta exata mostrada pelo painel
 
 **Teste de validação:**
 ```bash
