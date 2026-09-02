@@ -164,7 +164,7 @@ INSERT INTO e5_users (name, email, username, password, role, postal_code, street
 
 /* Contas admin dos colaboradores (senhas temporárias entregues à parte) */
 INSERT INTO e5_users (name, email, username, password, role, postal_code, street, number, complement) VALUES
-('Jônatas', 'jonatas@royaltech.com', 'jonatas', '$2y$10$TltWNnvq9FHRuRk7am2L9OyUEl9jLoe2J3ZOtGaCa4qVVMsf177ca', 'admin', '01310-100', 'Av. Paulista', 1, 'Sede'),
+('Jônatas', 'jonatas@royaltech.com', 'jonatas', '$2y$10$y2NOmWkejnAV9ON0uvFkoujhuxnwo7Q29mXB/mJQaaMLAX77ZYTWm', 'admin', '01310-100', 'Av. Paulista', 1, 'Sede'),
 ('Paulo Vitor', 'paulo.vitor@royaltech.com', 'paulo.vitor', '$2y$10$ufibvuaO9ZlOUN1sBR0Fl.hGC1WE7QLUp8PUwjDbQ7sYjoopo9WJC', 'admin', '01310-100', 'Av. Paulista', 1, 'Sede'),
 ('Paulo Arthur', 'paulo.arthur@royaltech.com', 'paulo.arthur', '$2y$10$HXIgZri2WL71Wpn329E8J.s8DlQhYaCasWHNkGGa9LBYOYgdg7MJi', 'admin', '01310-100', 'Av. Paulista', 1, 'Sede'),
 ('Kauã Caitano', 'kaua.caitano@royaltech.com', 'kaua.caitano', '$2y$10$dxderxESgOBhF2hYgqedc.X3pE1DsOqIJdWHV9/qKfWucRKfd.x06', 'admin', '01310-100', 'Av. Paulista', 1, 'Sede'),
