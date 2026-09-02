@@ -107,7 +107,7 @@ Acesse `http://localhost/TCC_Etec`.
 
 ### Credenciais padrão
 
-- **Admin:** `admin` / `admin123`
+> **Atenção:** as credenciais de administração são definidas no banco de dados. Consulte o phpMyAdmin ou o responsável pelo projeto. Após o primeiro acesso, altere a senha. **Nunca incluir credenciais em texto plano no repositório.**
 
 ## Segurança
 
