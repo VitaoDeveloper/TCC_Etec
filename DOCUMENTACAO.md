@@ -623,7 +623,11 @@ Frete:
 - ✅ Validação de CEP rigorosa (8 dígitos + ViaCEP).
 - ✅ Fallback exibido como "Frete estimado — configure o token...".
 - ✅ Testes CEPs `01310-100`, `20040-020`, `40070-100` executados (fallback).
-- ⚠️ **Token SuperFrete NÃO CONFIGURADO** — `shippingCalculate()` retorna erro explícito. **Ação:** Gerar token em `https://sandbox.superfrete.com/#/integrations` (Site próprio → Gerar Token) e salvar via `gatewaySaveCredentials($pdo, 'superfrete', ['token' => 'TOKEN_AQUI'])`.
+- ✅ **Token SuperFrete CONFIGURADO E TESTADO (2026-09-02)** — `shippingCalculate()` agora usa API real SuperFrete (sandbox).
+  - SP (01310-100): PAC R$ 19,75 (2 dias), SEDEX R$ 12,82 (1 dia) — descontos 6,05 / 14,78
+  - RJ (20040-020): SEDEX R$ 34,57 (1 dia) — PAC indisponível no trecho — desconto 12,23
+  - BA (40070-100): PAC R$ 26,35 (2 dias), SEDEX R$ 48,39 (1 dia) — descontos 7,75 / 16,61
+  - Resposta bruta da API capturada em `shippingTestDiagnostic()` — transportadora Correios, sandbox.superfrete.com
 - ⏳ Migrar SuperFrete de sandbox para produção.
 
 Pix:
@@ -791,7 +795,7 @@ O projeto possui template de Pull Request em `.github/PULL_REQUEST_TEMPLATE.md` 
 - Schema atual: ✅ `database/database.sql` atualizado via `mysqldump`.
 - Checkout usando frete oficial: ✅ CONECTADO (`shippingCalculate` via SuperFrete).
 - Validação de CEP: ✅ RIGOROSA (8 dígitos + ViaCEP).
-- Frete real (SuperFrete): ⚠️ **TOKEN NÃO CONFIGURADO** — `shippingCalculate()` retorna `provider=error, error='Configure o token da SuperFrete no painel admin'`. ViaCEP resolve endereço OK. **Ação necessária:** Gerar token em `https://sandbox.superfrete.com/#/integrations` (Site próprio → Gerar Token) e salvar via `gatewaySaveCredentials($pdo, 'superfrete', ['token' => 'TOKEN_AQUI'])`.
+- Frete real (SuperFrete): ✅ **TOKEN CONFIGURADO E TESTADO (2026-09-02)** — `shippingCalculate()` usa API real SuperFrete (sandbox). Preços reais: SP PAC R$ 19,75/SEDEX R$ 12,82; RJ SEDEX R$ 34,57; BA PAC R$ 26,35/SEDEX R$ 48,39. Descontos aplicados automaticamente. Resposta bruta da API capturada. **Próximo:** Migrar para token de produção.
 - Pix real: ✅ **BR CODE EMV VÁLIDO + QR CODE PNG** — Teste fresco 2026-09-02: `paymentMercadoPagoCreatePix(609.80, 'TEST-FRESH-PIX-1788387833', ...)` → `success=true, order_id=ORDTST01M1J3HECZZ68RY1SJT8BZSE87, payment_id=PAY01M1J3HEDCNBXFX4N87XA71DY4, qr_code (EMV 177 chars), qr_data_uri (PNG base64), expires_at='2026-09-02 22:53:55'`.
 - **Cartão de crédito (SDK oficial dx-php + Orders API):** ⚠️ **BACKEND VALIDADO, FRONTEND PENDENTE TESTE MANUAL** — Backend `paymentProcessCreditCard()` chama Orders API corretamente (token 32-33 chars validado pelo MP, HTTP 422 = formato OK, token mock não real). **Frontend pronto**: SDK JS v2 intacto em `checkout.php:777-867`, Public Key dinâmica do banco (`APP_USR-dfacdecd-008b-4f0c-9504-8ba495547b9d`), tokenização client-side via `mp.createCardToken()`. **Limitação do ambiente:** execução headless (Docker) impede teste real pelo navegador. Teste manual necessário: acessar `http://localhost:8080/...`, preencher Visa 4235 6477 2802 5682 / APRO / 11/30 / CVV 123 / CPF 12345678909 / e-mail test_user_...@testuser.com, confirmar tokenização no DevTools (aba Network) e `payment_status=paid` no banco.
 - **Pix nativo (SDK oficial + Orders API):** ✅ **QR CODE GERADO E VALIDADO** — `OrderClient::create()` com `payment_method.type=bank_transfer`. Retorno inclui `qr_code` (BR Code EMV, 177 chars), `qr_data_uri` (PNG base64, 3778 chars), `expires_at` (30 min).
@@ -805,7 +809,7 @@ O projeto possui template de Pull Request em `.github/PULL_REQUEST_TEMPLATE.md` 
 - **SDK JS v2 Mercado Pago:** ✅ **VERIFICADO** — SDK `https://sdk.mercadopago.com/js/v2` carregado condicionalmente. Public Key vinda dinamicamente do banco (`loadEncryptedSetting`). Tokenização client-side via `new MercadoPagos()`. Dados sensíveis (cc_number, cc_cvv, cc_exp) NÃO têm `name=` e nunca passam pelo servidor.
 - Comprovante + E-mail: ✅ PDF GERADO + ANEXO ENVIADO (Mailpit confirmado).
 - Segurança: ⚠️ Chave criptografia hardcoded (revise).
-- Próximo passo crítico: **Configurar token SuperFrete + Testar cartão no navegador real**.
+- Próximo passo crítico: **Migrar SuperFrete para produção + Testar cartão no navegador real**.
 
 ## Como Testar Pagamentos (Sandbox Mercado Pago — SDK Oficial)
 
