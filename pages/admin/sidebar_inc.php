@@ -3,7 +3,7 @@ $activePage = $activePage ?? '';
 
 // Caminho base do site (ex.: /TCC_Etec/) calculado a partir do script atual,
 // para links absolutos como "Voltar ao site" (mesma lógica usada em pages/404.php).
-$adminSiteBase = rtrim(dirname(dirname(dirname($_SERVER['SCRIPT_NAME'] ?? 'index.php')), '/\\')) . '/';
+$adminSiteBase = rtrim(dirname(dirname(dirname($_SERVER['SCRIPT_NAME'] ?? 'index.php'))), '/\\') . '/';
 
 $navItems = [
     'dashboard'  => ['href' => 'index.php',     'icon' => 'fa-tachometer-alt', 'label' => 'Dashboard'],
