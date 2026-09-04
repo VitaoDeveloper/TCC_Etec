@@ -3,4 +3,8 @@
 test
 vendor
 assets/img/*/*
-storage/
+
+# Na pasta storage/comprovantes, versionar apenas a pasta (via .gitkeep),
+# ignorando os PDFs gerados em runtime.
+storage/comprovantes/*
+!storage/comprovantes/.gitkeep
