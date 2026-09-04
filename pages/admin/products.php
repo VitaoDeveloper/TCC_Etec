@@ -43,9 +43,12 @@ unset($_SESSION['admin_message']);
                     <h2>Produtos</h2>
                     <p>Lista de produtos cadastrados</p>
                 </div>
+                <div class="admin-header-actions">
                 <a class="btn btn-primary" href="product-form.php">
                     <i class="fas fa-plus"></i> Novo produto
                 </a>
+                <?php include 'header_user_inc.php'; ?>
+            </div>
             </header>
 
             <?php if ($message): ?>

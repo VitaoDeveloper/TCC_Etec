@@ -52,6 +52,7 @@ unset($_SESSION['admin_message']);
                 </div>
                 <div class="admin-actions">
                     <a href="?export=csv" class="btn btn-primary"><i class="fas fa-download"></i> Exportar CSV</a>
+                    <?php include 'header_user_inc.php'; ?>
                 </div>
             </header>
             <?php if ($message): ?>

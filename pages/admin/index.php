@@ -54,12 +54,7 @@ $topProducts = $pdo->query('
                     <p>Bem-vindo ao painel de administração</p>
                 </div>
                 <div class="admin-actions">
-                    <button class="action-btn" aria-label="Notificações"><i class="fas fa-bell"></i></button>
-                    <button class="action-btn" aria-label="Mensagens"><i class="fas fa-envelope"></i></button>
-                    <div class="admin-user">
-                        <img src="../../assets/img/placeholder-avatar.svg" alt="Admin">
-                        <span>Administrador</span>
-                    </div>
+                    <?php include 'header_user_inc.php'; ?>
                 </div>
             </header>
 

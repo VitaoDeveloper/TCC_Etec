@@ -42,7 +42,10 @@ $sinfo = $statusLabels[$order['status']] ?? ['label' => $order['status'], 'class
                     <h2>Pedido #<?php echo str_pad((string)$order['id'], 4, '0', STR_PAD_LEFT); ?></h2>
                     <p><a href="orders.php" style="color:var(--color-primary);">&larr; Voltar para Pedidos</a></p>
                 </div>
-                <span class="status-badge <?php echo $sinfo['class']; ?>"><?php echo $sinfo['label']; ?></span>
+                <div class="admin-actions">
+                    <span class="status-badge <?php echo $sinfo['class']; ?>"><?php echo $sinfo['label']; ?></span>
+                    <?php include 'header_user_inc.php'; ?>
+                </div>
             </header>
 
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:25px; margin-bottom:30px;">

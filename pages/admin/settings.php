@@ -89,6 +89,7 @@ function sel($key, $val) { global $settings; return ($settings[$key] ?? '') === 
                 </div>
                 <div class="admin-actions">
                     <button type="submit" form="settingsForm" class="btn btn-primary"><i class="fas fa-save"></i> Salvar Alterações</button>
+                    <?php include 'header_user_inc.php'; ?>
                 </div>
             </header>
             <?php if ($message): ?>
