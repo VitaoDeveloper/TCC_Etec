@@ -1,5 +1,10 @@
 <?php
 $activePage = $activePage ?? '';
+
+// Caminho base do site (ex.: /TCC_Etec/) calculado a partir do script atual,
+// para links absolutos como "Voltar ao site" (mesma lógica usada em pages/404.php).
+$adminSiteBase = rtrim(dirname(dirname(dirname($_SERVER['SCRIPT_NAME'] ?? 'index.php')), '/\\')) . '/';
+
 $navItems = [
     'dashboard'  => ['href' => 'index.php',     'icon' => 'fa-tachometer-alt', 'label' => 'Dashboard'],
     'products'   => ['href' => 'products.php',   'icon' => 'fa-box',           'label' => 'Produtos'],
@@ -32,7 +37,7 @@ $navItems = [
 <?php endforeach; ?>
     </nav>
     <div class="admin-sidebar-footer">
-        <a href="../index.php" class="admin-nav-link admin-site-link" title="Voltar ao site">
+        <a href="<?php echo $adminSiteBase; ?>index.php" class="admin-nav-link admin-site-link" title="Voltar ao site">
             <i class="fas fa-store"></i>
             <span>Voltar ao site</span>
             <i class="fas fa-external-link-alt admin-site-external"></i>
