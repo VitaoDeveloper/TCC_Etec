@@ -154,6 +154,9 @@ $categories = $pdo->query('SELECT id, name FROM e5_categories ORDER BY name')->f
                     <h2><?php echo $productId > 0 ? 'Editar Produto' : 'Novo Produto'; ?></h2>
                     <p>Preencha os dados do produto</p>
                 </div>
+                <div class="admin-actions">
+                    <?php include 'header_user_inc.php'; ?>
+                </div>
             </header>
 
             <?php if ($errorMessage): ?>

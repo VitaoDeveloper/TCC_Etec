@@ -1,7 +1,6 @@
 SET NAMES utf8mb4;
 
-DROP DATABASE IF EXISTS e5_royaltech;
-CREATE DATABASE e5_royaltech;
+CREATE DATABASE IF NOT EXISTS e5_royaltech;
 USE e5_royaltech;
 
 CREATE TABLE IF NOT EXISTS e5_users (
@@ -66,6 +65,10 @@ CREATE TABLE IF NOT EXISTS e5_orders (
   shipping_city VARCHAR(80) NULL,
   shipping_state VARCHAR(40) NULL,
   shipping_postal_code VARCHAR(10) NULL,
+  tracking_code VARCHAR(100) NULL,
+  comprovante_filename VARCHAR(60) NULL,
+  email_status ENUM('sent','failed','skipped') NULL,
+  email_error TEXT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_orders_user FOREIGN KEY (user_id) REFERENCES e5_users(id)
@@ -164,7 +167,7 @@ INSERT INTO e5_users (name, email, username, password, role, postal_code, street
 
 /* Contas admin dos colaboradores (senhas temporárias entregues à parte) */
 INSERT INTO e5_users (name, email, username, password, role, postal_code, street, number, complement) VALUES
-('Jônatas', 'jonatas@royaltech.com', 'jonatas', '$2y$10$TltWNnvq9FHRuRk7am2L9OyUEl9jLoe2J3ZOtGaCa4qVVMsf177ca', 'admin', '01310-100', 'Av. Paulista', 1, 'Sede'),
+('Jônatas', 'jonatas@royaltech.com', 'jonatas', '$2y$10$y2NOmWkejnAV9ON0uvFkoujhuxnwo7Q29mXB/mJQaaMLAX77ZYTWm', 'admin', '01310-100', 'Av. Paulista', 1, 'Sede'),
 ('Paulo Vitor', 'paulo.vitor@royaltech.com', 'paulo.vitor', '$2y$10$ufibvuaO9ZlOUN1sBR0Fl.hGC1WE7QLUp8PUwjDbQ7sYjoopo9WJC', 'admin', '01310-100', 'Av. Paulista', 1, 'Sede'),
 ('Paulo Arthur', 'paulo.arthur@royaltech.com', 'paulo.arthur', '$2y$10$HXIgZri2WL71Wpn329E8J.s8DlQhYaCasWHNkGGa9LBYOYgdg7MJi', 'admin', '01310-100', 'Av. Paulista', 1, 'Sede'),
 ('Kauã Caitano', 'kaua.caitano@royaltech.com', 'kaua.caitano', '$2y$10$dxderxESgOBhF2hYgqedc.X3pE1DsOqIJdWHV9/qKfWucRKfd.x06', 'admin', '01310-100', 'Av. Paulista', 1, 'Sede'),
@@ -244,3 +247,6 @@ INSERT INTO e5_wishlist (user_id, product_id) VALUES
 (1, 7),
 (2, 9),
 (3, 1);
+
+INSERT INTO e5_settings (setting_key, setting_value) VALUES
+('comprovante_counter', '0');

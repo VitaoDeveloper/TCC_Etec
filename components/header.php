@@ -4,6 +4,7 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 $isLoggedIn = isset($_SESSION['user_id']);
+$isAdmin = $isLoggedIn && (($_SESSION['user_role'] ?? '') === 'admin');
 $basePath = $base_path ?? '';
 
 require_once dirname(__DIR__) . '/includes/config.php';
@@ -118,6 +119,12 @@ require_once dirname(__DIR__) . '/includes/category_icons.php';
 
             <!-- Auth -->
             <?php if ($isLoggedIn): ?>
+                <?php if ($isAdmin): ?>
+                <a href="<?php echo $basePath; ?>pages/admin/index.php" class="ml-header-action ml-admin-link" title="Painel Administrativo">
+                    <i class="fas fa-crown"></i>
+                    <span class="ml-header-action-text">Painel Admin</span>
+                </a>
+                <?php endif; ?>
                 <a href="<?php echo $basePath; ?>pages/auth/profile.php" class="ml-header-action" title="Minha Conta">
                     <i class="far fa-user"></i>
                     <span class="ml-header-action-text">Minha Conta</span>

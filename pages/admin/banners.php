@@ -150,9 +150,12 @@ if (isset($_GET['edit'])) {
                     <h2>Gerenciar Banners</h2>
                     <p><?php echo count($banners); ?> banner(es) cadastrado(s)</p>
                 </div>
+                <div class="admin-header-actions">
                 <a class="btn btn-primary" href="banners.php">
                     <i class="fas fa-plus"></i> Novo Banner
                 </a>
+                <?php include 'header_user_inc.php'; ?>
+            </div>
             </header>
 
             <?php if ($message): ?>

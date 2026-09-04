@@ -53,6 +53,7 @@ unset($_SESSION['admin_message']);
                 </div>
                 <div class="admin-actions">
                     <button class="btn btn-secondary" aria-label="Exportar clientes"><i class="fas fa-file-export"></i> Exportar</button>
+                    <?php include 'header_user_inc.php'; ?>
                 </div>
             </header>
             <?php if ($message): ?>

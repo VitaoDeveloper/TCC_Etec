@@ -36,6 +36,9 @@ unset($_SESSION['admin_message']);
                     <h2>Mensagens de Contato</h2>
                     <p><?php echo count($contacts); ?> mensagen(s)</p>
                 </div>
+                <div class="admin-actions">
+                    <?php include 'header_user_inc.php'; ?>
+                </div>
             </header>
             <?php if ($message): ?>
             <div class="auth-feedback auth-feedback-success"><?php echo htmlspecialchars($message, ENT_QUOTES, 'UTF-8'); ?></div>

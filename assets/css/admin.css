@@ -112,8 +112,148 @@
     display: flex;
     align-items: center;
     gap: 20px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
 }
 
+/* Área de usuário no header (ícones + avatar + sair) */
+.admin-user-area {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.admin-action-buttons {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.admin-action-buttons .action-btn {
+    position: relative;
+    background: var(--color-black-light);
+}
+
+.action-btn-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    background: var(--color-primary);
+    color: var(--color-black);
+    font-size: 0.65rem;
+    font-weight: 700;
+    line-height: 18px;
+    text-align: center;
+    border-radius: 9px;
+    border: 2px solid var(--color-black);
+}
+
+/* Dropdown de notificações */
+.admin-notif {
+    position: relative;
+}
+
+.admin-notif-panel {
+    position: absolute;
+    top: calc(100% + 12px);
+    right: 0;
+    width: 340px;
+    max-height: 0;
+    overflow: hidden;
+    background: var(--color-black-light);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    opacity: 0;
+    transform: translateY(-8px);
+    transition: max-height 0.25s ease, opacity 0.25s ease, transform 0.25s ease;
+    z-index: 1200;
+}
+
+.admin-notif-panel.open {
+    max-height: 420px;
+    opacity: 1;
+    transform: translateY(0);
+    overflow-y: auto;
+}
+
+.admin-notif-header {
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--color-border);
+    position: sticky;
+    top: 0;
+    background: var(--color-black-light);
+}
+
+.admin-notif-header h4 {
+    font-size: 1rem;
+}
+
+.admin-notif-empty {
+    padding: 25px 20px;
+    color: var(--color-gray);
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.admin-notif-list {
+    padding: 0;
+    margin: 0;
+}
+
+.admin-notif-list li {
+    border-bottom: 1px solid var(--color-border);
+}
+
+.admin-notif-list li:last-child {
+    border-bottom: none;
+}
+
+.admin-notif-list li a {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 20px;
+    color: var(--color-gray-light);
+    font-size: 0.9rem;
+    transition: var(--transition);
+}
+
+.admin-notif-list li a:hover {
+    background: rgba(212, 175, 55, 0.08);
+    color: var(--color-white);
+}
+
+.admin-notif-list li a i {
+    margin-top: 5px;
+    font-size: 0.55rem;
+    color: var(--color-primary);
+    flex-shrink: 0;
+}
+
+.admin-notif-footer {
+    padding: 12px 20px;
+    border-top: 1px solid var(--color-border);
+    text-align: center;
+    position: sticky;
+    bottom: 0;
+    background: var(--color-black-light);
+}
+
+.admin-notif-footer a {
+    color: var(--color-primary);
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.admin-notif-footer a:hover {
+    text-decoration: underline;
+}
+
+/* Avatar do usuário */
 .admin-user {
     display: flex;
     align-items: center;
@@ -134,6 +274,39 @@
 .admin-user span {
     font-weight: 500;
     color: var(--color-white);
+}
+
+/* Botão de sair no header */
+.admin-logout-btn {
+    padding: 9px 16px;
+    font-size: 0.8rem;
+}
+
+.admin-logout-btn:hover {
+    border-color: var(--color-primary);
+}
+
+/* Agrupador à direita do header (quando não há .admin-actions) */
+.admin-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-left: auto;
+}
+
+/* Sidebar footer / voltar ao site */
+.admin-sidebar-footer {
+    padding: 20px 0;
+    border-top: 1px solid var(--color-border);
+}
+
+.admin-sidebar-footer .admin-site-link {
+    justify-content: flex-start;
+}
+
+.admin-sidebar-footer .admin-site-link .admin-site-external {
+    margin-left: auto;
+    font-size: 0.8rem;
 }
 
 /* Admin Cards */
@@ -514,9 +687,29 @@
         font-size: 1.4rem;
     }
     
-    .admin-actions {
+    .admin-actions,
+    .admin-header-actions {
         width: 100%;
         justify-content: flex-end;
+    }
+
+    .admin-user-area {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 12px;
+        width: 100%;
+    }
+
+    .admin-logout-label {
+        display: none;
+    }
+
+    .admin-logout-btn {
+        padding: 9px 12px;
+    }
+
+    .admin-notif-panel {
+        width: 290px;
     }
 
     .admin-card {
@@ -545,5 +738,33 @@
 
     .admin-file-upload {
         padding: 25px;
+    }
+}
+
+@media (max-width: 480px) {
+    .admin-user-area {
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    .admin-user {
+        padding: 6px 10px;
+        gap: 8px;
+    }
+
+    .admin-user img {
+        width: 30px;
+        height: 30px;
+    }
+
+    .admin-user span {
+        max-width: 90px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .admin-action-buttons {
+        gap: 8px;
     }
 }
