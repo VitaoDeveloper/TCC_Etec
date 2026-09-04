@@ -76,6 +76,9 @@ if (isset($_GET['edit'])) {
                     <h2>Categorias</h2>
                     <p>Cadastro e gerenciamento de categorias</p>
                 </div>
+                <div class="admin-actions">
+                    <?php include 'header_user_inc.php'; ?>
+                </div>
             </header>
 
             <?php if ($message): ?>

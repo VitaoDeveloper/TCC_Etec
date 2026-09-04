@@ -181,6 +181,21 @@
     }
 }
 
+/* Admin panel link — destaque dourado no header */
+.ml-admin-link {
+    color: var(--ml-accent);
+    font-weight: 600;
+}
+
+.ml-admin-link i {
+    color: var(--ml-accent);
+}
+
+.ml-admin-link:hover {
+    background: rgba(212, 175, 55, 0.12);
+    color: var(--ml-accent);
+}
+
 .ml-header-action .ml-badge {
     position: absolute;
     top: 2px;

@@ -31,9 +31,11 @@ $navItems = [
         </div>
 <?php endforeach; ?>
     </nav>
-    <div style="padding:20px; margin-top:auto;">
-        <a href="logout.php" class="btn btn-secondary" style="width:100%;">
-            <i class="fas fa-sign-out-alt"></i> Sair
+    <div class="admin-sidebar-footer">
+        <a href="../index.php" class="admin-nav-link admin-site-link" title="Voltar ao site">
+            <i class="fas fa-store"></i>
+            <span>Voltar ao site</span>
+            <i class="fas fa-external-link-alt admin-site-external"></i>
         </a>
     </div>
 </aside>

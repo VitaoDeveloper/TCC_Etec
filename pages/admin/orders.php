@@ -58,6 +58,7 @@ unset($_SESSION['admin_message']);
                     <?php foreach ($statusLabels as $key => $info): ?>
                     <a href="?status=<?php echo $key; ?>" class="btn btn-secondary <?php echo $filter === $key ? 'active' : ''; ?>"><?php echo $info['label']; ?></a>
                     <?php endforeach; ?>
+                    <?php include 'header_user_inc.php'; ?>
                 </div>
             </header>
             <?php if ($message): ?>

@@ -61,6 +61,7 @@ $totalCatQty = array_sum(array_column($categorySales, 'qty'));
                 </div>
                 <div class="admin-actions">
                     <button class="btn btn-primary" aria-label="Exportar relatório em PDF"><i class="fas fa-download"></i> Exportar PDF</button>
+                    <?php include 'header_user_inc.php'; ?>
                 </div>
             </header>
 
