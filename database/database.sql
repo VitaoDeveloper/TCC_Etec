@@ -1,7 +1,6 @@
 SET NAMES utf8mb4;
 
-DROP DATABASE IF EXISTS e5_royaltech;
-CREATE DATABASE e5_royaltech;
+CREATE DATABASE IF NOT EXISTS e5_royaltech;
 USE e5_royaltech;
 
 CREATE TABLE IF NOT EXISTS e5_users (
@@ -66,6 +65,10 @@ CREATE TABLE IF NOT EXISTS e5_orders (
   shipping_city VARCHAR(80) NULL,
   shipping_state VARCHAR(40) NULL,
   shipping_postal_code VARCHAR(10) NULL,
+  tracking_code VARCHAR(100) NULL,
+  comprovante_filename VARCHAR(60) NULL,
+  email_status ENUM('sent','failed','skipped') NULL,
+  email_error TEXT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_orders_user FOREIGN KEY (user_id) REFERENCES e5_users(id)
@@ -244,3 +247,6 @@ INSERT INTO e5_wishlist (user_id, product_id) VALUES
 (1, 7),
 (2, 9),
 (3, 1);
+
+INSERT INTO e5_settings (setting_key, setting_value) VALUES
+('comprovante_counter', '0');
