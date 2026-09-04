@@ -104,15 +104,21 @@ include '../../components/header.php';
             </div>
         </div>
         <?php endif; ?>
-        <div style="margin-top:20px; display:flex; gap:12px; flex-wrap:wrap;">
+<div style="margin-top:20px; display:flex; gap:12px; flex-wrap:wrap;">
             <a href="orders.php" class="ml-btn"><i class="fas fa-arrow-left"></i> Voltar</a>
             <?php if ($order['status'] === 'pending'): ?>
             <form method="post" style="display:inline" onsubmit="return confirm('Tem certeza que deseja cancelar este pedido?')">
-                <?php csrf_field(); ?>
+                <?php echo csrf_field(); ?>
                 <input type="hidden" name="action" value="cancel">
                 <button type="submit" class="ml-btn ml-btn-danger"><i class="fas fa-times-circle"></i> Cancelar Pedido</button>
             </form>
             <?php endif; ?>
+            <a href="../download-comprovante.php?id=<?php echo (int)$order['id']; ?>" class="ml-btn ml-btn-sm" target="_blank"><i class="fas fa-file-pdf"></i> Baixar Comprovante</a>
+            <form method="post" action="comprovante-resend.php" style="display:inline" onsubmit="return confirm('Reenviar o comprovante por e-mail?')">
+                <?php echo csrf_field(); ?>
+                <input type="hidden" name="order_id" value="<?php echo (int)$order['id']; ?>">
+                <button type="submit" class="ml-btn ml-btn-sm" style="background:#6c757d;"><i class="fas fa-redo"></i> Reenviar por E-mail</button>
+            </form>
         </div>
     </div>
 </div></section>

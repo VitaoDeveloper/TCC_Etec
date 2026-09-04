@@ -14,6 +14,7 @@ require_once $base_path . 'database/connection.php';
 require_once $base_path . 'includes/cart_functions.php';
 require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../includes/mail.php';
+require_once __DIR__ . '/../../includes/comprovante_functions.php';
 
 $userId = (int) $_SESSION['user_id'];
 $items = cartGetItems($pdo, $userId);
@@ -159,6 +160,20 @@ if ($isConfirming) {
 
             $pdo->commit();
             $orderCreated = true;
+
+            // Gerar comprovante PDF
+            $compResult = gerarComprovante($orderId);
+
+            // Enviar e-mail com comprovante (não bloqueia se falhar)
+            $userEmail = $user['email'];
+            if ($userEmail) {
+                $emailSent = sendComprovanteEmail($orderId, $userEmail, $compResult['filename'] ?? '');
+                $emailStatus = $emailSent ? 'sent' : 'failed';
+                salvarStatusEmail($orderId, $emailStatus);
+            } else {
+                $emailStatus = 'skipped';
+                salvarStatusEmail($orderId, $emailStatus);
+            }
 
             $itemsHtml = '';
             foreach ($items as $it) {

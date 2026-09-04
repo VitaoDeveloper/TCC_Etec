@@ -4,6 +4,8 @@ include 'auth_check.php';
 include '../../database/connection.php';
 require_once __DIR__ . '/../../includes/status_labels.php';
 require_once __DIR__ . '/../../includes/image_helpers.php';
+require_once __DIR__ . '/../../includes/csrf.php';
+require_once __DIR__ . '/../../includes/comprovante_functions.php';
 
 $orderId = (int) ($_GET['id'] ?? 0);
 $order = $pdo->prepare('SELECT o.*, u.name AS user_name, u.email AS user_email, u.postal_code, u.street, u.number, u.complement
@@ -53,6 +55,26 @@ $sinfo = $statusLabels[$order['status']] ?? ['label' => $order['status'], 'class
                         <tr><td style="color:var(--color-gray); padding:6px 0;">Total</td><td style="text-align:right; font-weight:700; color:var(--color-primary);">R$ <?php echo number_format((float)$order['total'], 2, ',', '.'); ?></td></tr>
                         <tr><td style="color:var(--color-gray); padding:6px 0;">Frete</td><td style="text-align:right;"><?php echo htmlspecialchars($order['shipping_method'] ?? '—', ENT_QUOTES, 'UTF-8'); ?> <?php echo $order['shipping_cost'] > 0 ? '(R$ ' . number_format((float)$order['shipping_cost'], 2, ',', '.') . ')' : '(Grátis)'; ?></td></tr>
                         <tr><td style="color:var(--color-gray); padding:6px 0;">Pagamento</td><td style="text-align:right;"><?php echo htmlspecialchars($payLabel[$order['payment_method']] ?? $order['payment_method'] ?? '—', ENT_QUOTES, 'UTF-8'); ?> | <?php echo htmlspecialchars($order['payment_status'] ?? '—', ENT_QUOTES, 'UTF-8'); ?></td></tr>
+                            <tr>
+                                <td style="color:var(--color-gray); padding:6px 0; font-size:0.85rem;">Comprovante</td>
+                                <td>
+                                    <?php
+                                    $compPath = getComprovantePath($order['id']);
+                                    $hasPdf = $compPath && file_exists($compPath);
+                                    ?>
+                                    <?php if ($hasPdf): ?>
+                                        <a href="../download-comprovante.php?id=<?php echo (int)$order['id']; ?>" class="ml-btn" style="padding:4px 10px; font-size:0.75rem;"><i class="fas fa-file-pdf"></i> Baixar</a>
+                                    <?php else: ?>
+                                        <span style="color:var(--color-gray);">Não gerado</span>
+                                    <?php endif; ?>
+                                    <a href="../download-comprovante.php?id=<?php echo (int)$order['id']; ?>" class="ml-btn ml-btn-sm" style="padding:4px 10px; font-size:0.75rem; color:#fff; text-decoration:none;" target="_blank"><i class="fas fa-file-pdf"></i> Visualizar</a>
+                                    <form method="post" action="comprovante-resend.php" style="display:inline" onsubmit="return confirm('Reenviar o comprovante por e-mail?')">
+                                        <?php echo csrf_field(); ?>
+                                        <input type="hidden" name="order_id" value="<?php echo (int)$order['id']; ?>">
+                                        <button type="submit" class="ml-btn ml-btn-sm" style="padding:4px 10px; font-size:0.75rem; background:#6c757d; color:#fff; text-decoration:none; border:none; cursor:pointer;"><i class="fas fa-redo"></i> Reenviar</button>
+                                    </form>
+                                </td>
+                            </tr>
                     </table>
                 </div>
                 <div class="admin-table-container" style="padding:25px;">
