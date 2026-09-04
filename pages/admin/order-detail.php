@@ -26,6 +26,21 @@ $items = $items->fetchAll();
 
 $payLabel = ['pix' => 'Pix', 'boleto' => 'Boleto', 'credit' => 'Cartão', 'delivery' => 'Entrega'];
 $sinfo = $statusLabels[$order['status']] ?? ['label' => $order['status'], 'class' => ''];
+
+// Validação manual de pagamento: admin confirma que o pagamento foi recebido.
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'confirm_payment') {
+    csrf_require_valid();
+    if ($order['payment_status'] !== 'paid') {
+        $pdo->prepare('UPDATE e5_orders SET payment_status = :status WHERE id = :id')
+            ->execute([':status' => 'paid', ':id' => $orderId]);
+        $_SESSION['admin_message'] = 'Pagamento confirmado.';
+    }
+    header('Location: order-detail.php?id=' . $orderId);
+    exit;
+}
+
+$adminMessage = $_SESSION['admin_message'] ?? null;
+unset($_SESSION['admin_message']);
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -46,6 +61,30 @@ $sinfo = $statusLabels[$order['status']] ?? ['label' => $order['status'], 'class
                 </div>
                 <span class="status-badge <?php echo $sinfo['class']; ?>"><?php echo $sinfo['label']; ?></span>
             </header>
+
+            <?php if ($adminMessage): ?>
+            <div class="auth-feedback auth-feedback-success"><?php echo htmlspecialchars($adminMessage, ENT_QUOTES, 'UTF-8'); ?></div>
+            <?php endif; ?>
+
+            <div class="ml-card" style="padding:15px; margin-bottom:20px; display:flex; align-items:center; gap:15px; flex-wrap:wrap; justify-content:space-between;">
+                <div>
+                    <strong>Pagamento:</strong>
+                    <?php echo htmlspecialchars($payLabel[$order['payment_method']] ?? $order['payment_method'], ENT_QUOTES, 'UTF-8'); ?>
+                    &mdash;
+                    <?php if ($order['payment_status'] === 'paid'): ?>
+                    <span class="status-badge status-active">Pago</span>
+                    <?php else: ?>
+                    <span class="status-badge status-pending">Aguardando pagamento</span>
+                    <?php endif; ?>
+                </div>
+                <?php if ($order['payment_status'] !== 'paid'): ?>
+                <form method="POST" style="margin:0;" onsubmit="return confirm('Confirmar o recebimento do pagamento deste pedido?')">
+                    <?php echo csrf_field(); ?>
+                    <input type="hidden" name="action" value="confirm_payment">
+                    <button type="submit" class="btn" style="background:#28a745; color:#fff; border:none; padding:8px 16px; border-radius:5px; cursor:pointer;"><i class="fas fa-check-circle"></i> Confirmar Pagamento</button>
+                </form>
+                <?php endif; ?>
+            </div>
 
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:25px; margin-bottom:30px;">
                 <div class="admin-table-container" style="padding:25px;">
