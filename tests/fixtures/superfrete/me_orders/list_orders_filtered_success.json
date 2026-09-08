@@ -1,0 +1,270 @@
+{
+    "data": [
+        {
+            "order_id": "vnyoREXJ0HuG4O3bzdJg",
+            "status": "canceled",
+            "carrier": "correios",
+            "tracking": null,
+            "price": {
+                "total": 48.1,
+                "discount": 16.28,
+                "without_discount": 64.38
+            },
+            "delivery": {
+                "min": 1,
+                "max": 1
+            },
+            "from": {
+                "name": "Royal Tech",
+                "phone": "12978149392",
+                "document": "49698132805",
+                "postal_code": "01310100",
+                "address": "Av Paulista",
+                "number": "1000",
+                "complement": null,
+                "state": "SP",
+                "city": "Sao Paulo",
+                "district": "Bela Vista"
+            },
+            "to": {
+                "name": "Cliente Teste",
+                "phone": "11999999999",
+                "email": "cliente@teste.com.br",
+                "document": "11144477735",
+                "postal_code": "20020050",
+                "address": "Rua B",
+                "number": "2",
+                "complement": null,
+                "state": "RJ",
+                "city": "Rio de Janeiro",
+                "district": "Centro"
+            },
+            "pudo": {
+                "unit": null,
+                "postal_code": null,
+                "address": null,
+                "number": null,
+                "complement": null,
+                "state": null,
+                "city": null,
+                "district": null
+            },
+            "created_at": "2026-09-08T14:09:09.000Z",
+            "updated_at": "2026-09-08T14:10:07.786Z"
+        },
+        {
+            "order_id": "Zz6KFL8N2KTKSAjFY5BF",
+            "status": "canceled",
+            "carrier": "correios",
+            "tracking": null,
+            "price": {
+                "total": 16.43,
+                "discount": 11.07,
+                "without_discount": 27.5
+            },
+            "delivery": {
+                "min": 7,
+                "max": 7
+            },
+            "from": {
+                "name": "Loja Royal Tech",
+                "phone": "12978149392",
+                "document": "49698132805",
+                "postal_code": "01310100",
+                "address": "Av Paulista",
+                "number": "1000",
+                "complement": null,
+                "state": "SP",
+                "city": "Sao Paulo",
+                "district": "Bela Vista"
+            },
+            "to": {
+                "name": "Cliente Cancel",
+                "phone": null,
+                "email": null,
+                "document": "11144477735",
+                "postal_code": "20020050",
+                "address": "Rua A",
+                "number": "1",
+                "complement": null,
+                "state": "RJ",
+                "city": "Y",
+                "district": "X"
+            },
+            "pudo": {
+                "unit": null,
+                "postal_code": null,
+                "address": null,
+                "number": null,
+                "complement": null,
+                "state": null,
+                "city": null,
+                "district": null
+            },
+            "created_at": "2026-09-08T12:44:47.000Z",
+            "updated_at": "2026-09-08T13:44:57.091Z"
+        },
+        {
+            "order_id": "ygUevjmAalzjPLtxe9HN",
+            "status": "canceled",
+            "carrier": "correios",
+            "tracking": null,
+            "price": {
+                "total": 16.43,
+                "discount": 11.07,
+                "without_discount": 27.5
+            },
+            "delivery": {
+                "min": 7,
+                "max": 7
+            },
+            "from": {
+                "name": "Loja Royal Tech",
+                "phone": "12978149392",
+                "document": "49698132805",
+                "postal_code": "01310100",
+                "address": "Av Paulista",
+                "number": "1000",
+                "complement": null,
+                "state": "SP",
+                "city": "Sao Paulo",
+                "district": "Bela Vista"
+            },
+            "to": {
+                "name": "Cliente Checkout",
+                "phone": null,
+                "email": null,
+                "document": "11144477735",
+                "postal_code": "20020050",
+                "address": "Rua B",
+                "number": "2",
+                "complement": null,
+                "state": "RJ",
+                "city": "Z",
+                "district": "Y"
+            },
+            "pudo": {
+                "unit": null,
+                "postal_code": null,
+                "address": null,
+                "number": null,
+                "complement": null,
+                "state": null,
+                "city": null,
+                "district": null
+            },
+            "created_at": "2026-09-08T13:38:45.000Z",
+            "updated_at": "2026-09-08T13:38:54.437Z"
+        },
+        {
+            "order_id": "nvWiIHq2TyYgoxb8wc1U",
+            "status": "canceled",
+            "carrier": "correios",
+            "tracking": null,
+            "price": {
+                "total": 16.43,
+                "discount": 11.07,
+                "without_discount": 27.5
+            },
+            "delivery": {
+                "min": 7,
+                "max": 7
+            },
+            "from": {
+                "name": "Loja Royal Tech",
+                "phone": "12978149392",
+                "document": "49698132805",
+                "postal_code": "01310100",
+                "address": "Av Paulista",
+                "number": "1000",
+                "complement": null,
+                "state": "SP",
+                "city": "Sao Paulo",
+                "district": "Bela Vista"
+            },
+            "to": {
+                "name": "Cliente Cancel",
+                "phone": null,
+                "email": null,
+                "document": "11144477735",
+                "postal_code": "20020050",
+                "address": "Rua A",
+                "number": "1",
+                "complement": null,
+                "state": "RJ",
+                "city": "Y",
+                "district": "X"
+            },
+            "pudo": {
+                "unit": null,
+                "postal_code": null,
+                "address": null,
+                "number": null,
+                "complement": null,
+                "state": null,
+                "city": null,
+                "district": null
+            },
+            "created_at": "2026-09-08T13:38:33.000Z",
+            "updated_at": "2026-09-08T13:38:49.044Z"
+        },
+        {
+            "order_id": "xEOdrkLngciGelkTe3sA",
+            "status": "canceled",
+            "carrier": "correios",
+            "tracking": null,
+            "price": {
+                "total": 16.43,
+                "discount": 11.07,
+                "without_discount": 27.5
+            },
+            "delivery": {
+                "min": 7,
+                "max": 7
+            },
+            "from": {
+                "name": "Loja Royal Tech",
+                "phone": "12978149392",
+                "document": "49698132805",
+                "postal_code": "01310100",
+                "address": "Av Paulista",
+                "number": "1000",
+                "complement": null,
+                "state": "SP",
+                "city": "Sao Paulo",
+                "district": "Bela Vista"
+            },
+            "to": {
+                "name": "Cliente Checkout",
+                "phone": null,
+                "email": null,
+                "document": "11144477735",
+                "postal_code": "20020050",
+                "address": "Rua B",
+                "number": "2",
+                "complement": null,
+                "state": "RJ",
+                "city": "Z",
+                "district": "Y"
+            },
+            "pudo": {
+                "unit": null,
+                "postal_code": null,
+                "address": null,
+                "number": null,
+                "complement": null,
+                "state": null,
+                "city": null,
+                "district": null
+            },
+            "created_at": "2026-09-08T13:05:40.000Z",
+            "updated_at": "2026-09-08T13:05:52.858Z"
+        }
+    ],
+    "meta": {
+        "total": 11,
+        "per_page": 5,
+        "page": 1,
+        "last_page": 3
+    }
+}

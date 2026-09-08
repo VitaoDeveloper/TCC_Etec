@@ -9,9 +9,13 @@ function cartGetItems($pdo, $userId) {
     $stmt = $pdo->prepare('
         SELECT c.product_id, c.quantity,
                p.name, p.price, p.old_price, p.brand, p.stock,
+               p.package_size_id, p.weight_kg, p.height_cm, p.width_cm, p.length_cm,
+               ps.height_cm AS preset_height_cm, ps.width_cm AS preset_width_cm,
+               ps.length_cm AS preset_length_cm, ps.max_weight_kg AS preset_max_weight_kg,
                (SELECT pi.image_path FROM e5_product_images pi WHERE pi.product_id = p.id ORDER BY pi.is_primary DESC, pi.id ASC LIMIT 1) AS image_path
         FROM e5_cart c
         INNER JOIN e5_products p ON p.id = c.product_id
+        LEFT JOIN e5_package_sizes ps ON ps.id = p.package_size_id
         WHERE c.user_id = :uid
         ORDER BY c.created_at DESC
     ');

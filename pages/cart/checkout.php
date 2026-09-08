@@ -10,11 +10,15 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
+require_once $base_path . 'vendor/autoload.php';
 require_once $base_path . 'database/connection.php';
 require_once $base_path . 'includes/cart_functions.php';
 require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../includes/mail.php';
 require_once __DIR__ . '/../../includes/comprovante_functions.php';
+
+use TCC\SuperFreteClient;
+use TCC\Exception\SuperFreteException;
 
 $userId = (int) $_SESSION['user_id'];
 $items = cartGetItems($pdo, $userId);
@@ -33,7 +37,87 @@ foreach ($items as $item) {
     $subtotal += (float) $item['price'] * (int) $item['quantity'];
 }
 
-// ponytail: simple CEP-based shipping, no external API call
+// Cotação REAL de frete via API SuperFrete (/api/v0/calculator).
+// Usa products[] para a API calcular a caixa ideal e o preço por CEP.
+// Cada item usa a embalagem cadastrada no admin: se o produto tem um
+// tamanho pré-definido (e5_package_sizes), usa as medidas dele; senão
+// usa as medidas personalizadas do produto (com fallback para caixa padrão).
+function superfreteCalcShipping(string $cep, array $items): array
+{
+    $cep = SuperFreteClient::normalizePostalCode($cep);
+    if (strlen($cep) !== 8) {
+        throw new RuntimeException('CEP inválido para cotação');
+    }
+
+    $client = new SuperFreteClient($_ENV);
+
+    $products = [];
+    foreach ($items as $item) {
+        $qty = max(1, (int) $item['quantity']);
+        $usePreset = !empty($item['package_size_id']);
+
+        $hasCustom = fn (mixed $v): bool => trim((string) ($v ?? '')) !== '' && (float) $v > 0;
+
+        $height = $usePreset ? (float) ($item['preset_height_cm'] ?? 15.0)
+                            : ($hasCustom($item['height_cm'] ?? null) ? (float) $item['height_cm'] : 15.0);
+        $width  = $usePreset ? (float) ($item['preset_width_cm'] ?? 10.0)
+                            : ($hasCustom($item['width_cm'] ?? null) ? (float) $item['width_cm'] : 10.0);
+        $length = $usePreset ? (float) ($item['preset_length_cm'] ?? 20.0)
+                            : ($hasCustom($item['length_cm'] ?? null) ? (float) $item['length_cm'] : 20.0);
+        $weight = $hasCustom($item['weight_kg'] ?? null) ? (float) $item['weight_kg']
+                     : ($usePreset ? (float) ($item['preset_max_weight_kg'] ?? 0.5) : 0.5);
+
+        $products[] = [
+            'quantity' => $qty,
+            'height'   => $height,
+            'width'    => $width,
+            'length'   => $length,
+            'weight'   => $weight,
+        ];
+    }
+
+    $result = $client->calculateShipping([
+        'from'     => [
+            'postal_code' => SuperFreteClient::normalizePostalCode($_ENV['SUPERFRETE_ORIGIN_POSTAL_CODE'] ?? '01310100'),
+        ],
+        'to'       => ['postal_code' => $cep],
+        'services' => '1,2', // PAC + SEDEX (Correios)
+        'options'  => [
+            'own_hand' => false,
+            'receipt'  => false,
+            'insurance_value' => 0,
+            'use_insurance_value' => false,
+        ],
+        'products' => $products,
+    ]);
+
+    $options = [];
+    foreach ($result as $row) {
+        if (empty($row['name']) || !empty($row['error']) || ($row['has_error'] ?? false)) {
+            continue; // serviço indisponível para o trecho
+        }
+        $key = strtolower((string) $row['name']);
+        if (!in_array($key, ['pac', 'sedex'], true)) {
+            continue; // UI atual só exibe PAC e SEDEX
+        }
+        $min = $row['delivery_range']['min'] ?? $row['delivery_time'] ?? '';
+        $max = $row['delivery_range']['max'] ?? $row['delivery_time'] ?? '';
+        $days = ($min === '') ? '' : (($min === $max) ? "$min dia útil" : "$min-$max dias úteis");
+        $options[$key] = [
+            'method' => $row['name'],
+            'cost'   => (float) $row['price'],
+            'days'   => $days,
+        ];
+    }
+
+    if ($options === []) {
+        throw new RuntimeException('Nenhuma opção de frete disponível para o CEP informado');
+    }
+
+    return $options;
+}
+
+// Fallback local (simulado) — só usado se a API SuperFrete falhar/indisponível.
 function calcShipping($cep) {
     $cep = preg_replace('/\D/', '', $cep);
     if (strlen($cep) !== 8) return null;
@@ -57,14 +141,25 @@ function calcShipping($cep) {
 }
 
 $shippingOptions = null;
+$shippingQuoteError = false;
 $selectedShipping = $_POST['shipping_method'] ?? ($_GET['shipping_method'] ?? 'pac');
 $shippingCost = 0.00;
 $shippingCep = $_POST['shipping_cep'] ?? ($user['postal_code'] ?? '');
+$freeThreshold = (float) (store_config('free_shipping_threshold') ?? 500);
 
 if (!empty($shippingCep)) {
-    $shippingOptions = calcShipping($shippingCep);
-    if ($shippingOptions && isset($shippingOptions[$selectedShipping])) {
-        $shippingCost = $subtotal >= 500 ? 0.00 : (float) $shippingOptions[$selectedShipping]['cost'];
+    try {
+        $shippingOptions = superfreteCalcShipping($shippingCep, $items);
+    } catch (Throwable $e) {
+        // API indisponível/sem token/erro → usa a regra local para não travar o checkout
+        $shippingQuoteError = true;
+        $shippingOptions = calcShipping($shippingCep);
+    }
+    if ($shippingOptions) {
+        if (!isset($shippingOptions[$selectedShipping])) {
+            $selectedShipping = array_key_first($shippingOptions);
+        }
+        $shippingCost = $subtotal >= $freeThreshold ? 0.00 : (float) $shippingOptions[$selectedShipping]['cost'];
     }
 }
 
@@ -252,10 +347,18 @@ include $base_path . 'components/header.php';
                         </div>
                         <button type="submit" form="checkoutForm" class="ml-btn" name="calc_shipping" value="1"><i class="fas fa-search"></i> Calcular</button>
                     </div>
-                    <?php if ($shippingOptions): ?>
+<?php if ($shippingQuoteError): ?>
+                        <div class="auth-feedback auth-feedback-error" style="margin-top:12px;">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <strong>Ops, estamos passando por complicações técnicas.</strong>
+                            Não foi possível calcular o frete online agora — já estamos cuidando disso e a cotação deve voltar em instantes.
+                            Enquanto isso, exibimos abaixo um <em>valor estimado</em> para você conseguir seguir com o pedido. Tente novamente mais tarde para confirmar o valor real.
+                        </div>
+                    <?php endif; ?>
+                        <?php if ($shippingOptions): ?>
                     <div class="shipping-options">
                         <?php foreach ($shippingOptions as $key => $opt):
-                            $optCost = $subtotal >= 500 ? 0.00 : (float) $opt['cost'];
+                            $optCost = $subtotal >= $freeThreshold ? 0.00 : (float) $opt['cost'];
                         ?>
                         <label class="shipping-option <?php echo $selectedShipping === $key ? 'selected' : ''; ?>">
                             <input type="radio" name="shipping_method" form="checkoutForm" value="<?php echo $key; ?>" <?php echo $selectedShipping === $key ? 'checked' : ''; ?>>
@@ -270,8 +373,8 @@ include $base_path . 'components/header.php';
                     <?php elseif (!empty($shippingCep)): ?>
                     <p style="color: var(--ml-text-muted); margin-top: 10px;">CEP não encontrado. Verifique o número.</p>
                     <?php endif; ?>
-                    <?php if ($subtotal >= 500): ?>
-                    <p class="free-shipping-badge"><i class="fas fa-gift"></i> Frete Grátis! Compras acima de R$ 500,00.</p>
+                    <?php if ($subtotal >= $freeThreshold): ?>
+                    <p class="free-shipping-badge"><i class="fas fa-gift"></i> Frete Grátis! Compras acima de R$ <?php echo number_format($freeThreshold, 2, ',', '.'); ?>.</p>
                     <?php endif; ?>
                 </div>
 
@@ -323,7 +426,7 @@ include $base_path . 'components/header.php';
                     </div>
                     <?php if ($shippingOptions): $shipDays = $shippingOptions[$selectedShipping]['days'] ?? ''; ?>
                     <div class="ml-summary-line">
-                        <span>Frete <?php echo htmlspecialchars($selectedShipping === 'pac' ? 'PAC' : 'Sedex', ENT_QUOTES, 'UTF-8'); ?></span>
+                        <span>Frete <?php echo htmlspecialchars($shippingOptions[$selectedShipping]['method'] ?? '', ENT_QUOTES, 'UTF-8'); ?></span>
                         <span><?php echo $shippingCost > 0 ? 'R$ ' . number_format($shippingCost, 2, ',', '.') : '<span style="color:var(--ml-green);">Grátis</span>'; ?></span>
                     </div>
                     <div style="font-size: 0.8rem; color: var(--ml-text-muted); text-align: right; padding: 2px 0 6px;">Previsão: <?php echo htmlspecialchars($shipDays, ENT_QUOTES, 'UTF-8'); ?></div>

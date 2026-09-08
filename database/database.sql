@@ -27,6 +27,25 @@ CREATE TABLE IF NOT EXISTS e5_categories (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS e5_package_sizes (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(60) NOT NULL UNIQUE,
+  height_cm DECIMAL(5,1) NOT NULL,
+  width_cm DECIMAL(5,1) NOT NULL,
+  length_cm DECIMAL(5,1) NOT NULL,
+  max_weight_kg DECIMAL(5,2) NOT NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+INSERT IGNORE INTO e5_package_sizes (name, height_cm, width_cm, length_cm, max_weight_kg) VALUES
+('Micro', 10.0, 10.0, 10.0, 0.50),
+('Pequena', 15.0, 10.0, 20.0, 1.00),
+('Média', 25.0, 15.0, 25.0, 3.00),
+('Grande', 30.0, 25.0, 30.0, 8.00),
+('Extra Grande', 45.0, 35.0, 35.0, 12.00);
+
 CREATE TABLE IF NOT EXISTS e5_products (
   id INT PRIMARY KEY AUTO_INCREMENT,
   category_id INT NOT NULL,
@@ -38,9 +57,15 @@ CREATE TABLE IF NOT EXISTS e5_products (
   old_price DECIMAL(10,2) NULL,
   stock INT NOT NULL DEFAULT 0,
   is_featured TINYINT(1) NOT NULL DEFAULT 0,
+  package_size_id INT NULL,
+  weight_kg DECIMAL(5,2) NULL,
+  height_cm DECIMAL(5,1) NULL,
+  width_cm DECIMAL(5,1) NULL,
+  length_cm DECIMAL(5,1) NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  CONSTRAINT fk_products_category FOREIGN KEY (category_id) REFERENCES e5_categories(id)
+  CONSTRAINT fk_products_category FOREIGN KEY (category_id) REFERENCES e5_categories(id),
+  CONSTRAINT fk_products_package_size FOREIGN KEY (package_size_id) REFERENCES e5_package_sizes(id)
 );
 
 CREATE TABLE IF NOT EXISTS e5_product_images (
@@ -250,3 +275,31 @@ INSERT INTO e5_wishlist (user_id, product_id) VALUES
 
 INSERT INTO e5_settings (setting_key, setting_value) VALUES
 ('comprovante_counter', '0');
+
+-- =====================================================================
+-- INTEGRAÇÕES / SUPERFRETE
+-- =====================================================================
+
+-- =====================================================================
+-- superfrete_webhook_log
+-- Tabela de IDEMPOTÊNCIA para webhooks recebidos da SuperFrete.
+-- A SuperFrete reenvia o mesmo evento em caso de timeout/falha
+-- (timeout 30s, retry a cada 15 min, até 5x).
+-- Se o event_id já existir, responder HTTP 200 sem reprocessar.
+-- =====================================================================
+CREATE TABLE IF NOT EXISTS superfrete_webhook_log (
+    id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    event_id      VARCHAR(128) NOT NULL,
+    event_type    VARCHAR(64)  NOT NULL,
+    order_id      VARCHAR(128) DEFAULT NULL,
+    payload_hash  CHAR(64)     NOT NULL,
+    processed_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_event_id (event_id),
+    KEY idx_order_id (order_id),
+    KEY idx_created_at (created_at)
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_unicode_ci
+  COMMENT='Log de idempotência (event_id + payload_hash) para webhooks SuperFrete';

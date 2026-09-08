@@ -1,0 +1,18 @@
+{
+    "id": "FQvQPoeSW83QC24fl6ww",
+    "name": "TCC RoyalTech Webhook Atualizado",
+    "url": "https:\/\/example.com\/webhook\/superfrete",
+    "events": [
+        "order.created",
+        "order.released",
+        "order.generated",
+        "order.posted",
+        "order.delivered",
+        "order.cancelled"
+    ],
+    "is_active": true,
+    "updated_at": {
+        "_seconds": 1788876635,
+        "_nanoseconds": 960000000
+    }
+}

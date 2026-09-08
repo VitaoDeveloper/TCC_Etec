@@ -9,6 +9,7 @@ $navItems = [
     'dashboard'  => ['href' => 'index.php',     'icon' => 'fa-tachometer-alt', 'label' => 'Dashboard'],
     'products'   => ['href' => 'products.php',   'icon' => 'fa-box',           'label' => 'Produtos'],
     'categories' => ['href' => 'categories.php', 'icon' => 'fa-tags',          'label' => 'Categorias'],
+    'package-sizes' => ['href' => 'package-sizes.php', 'icon' => 'fa-box-open', 'label' => 'Embalagens'],
     'orders'     => ['href' => 'orders.php',     'icon' => 'fa-shopping-cart', 'label' => 'Pedidos'],
     'customers'  => ['href' => 'customers.php',  'icon' => 'fa-users',         'label' => 'Clientes'],
     'contacts'   => ['href' => 'contacts.php',   'icon' => 'fa-envelope',      'label' => 'Contatos'],
