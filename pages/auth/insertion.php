@@ -21,16 +21,33 @@ $name = trim((string) filter_input(INPUT_POST, 'name'));
 $email = trim((string) filter_input(INPUT_POST, 'email'));
 $username = trim((string) filter_input(INPUT_POST, 'username'));
 $password = (string) filter_input(INPUT_POST, 'password');
+$cpfRaw = preg_replace('/\D/', '', (string) filter_input(INPUT_POST, 'cpf'));
 $postalCode = trim((string) filter_input(INPUT_POST, 'postalcode'));
 $street = trim((string) filter_input(INPUT_POST, 'street'));
 $numberRaw = trim((string) filter_input(INPUT_POST, 'number'));
 $number = preg_match('/^\d{1,6}$/', $numberRaw) ? (int) $numberRaw : 0;
 $complement = trim((string) filter_input(INPUT_POST, 'complement')) ?: null;
 
+function cpfValid(string $cpf): bool
+{
+    $cpf = preg_replace('/\D/', '', $cpf);
+    if (strlen($cpf) !== 11 || preg_match('/^(\d)\1{10}$/', $cpf)) return false;
+    for ($t = 9; $t < 11; $t++) {
+        $sum = 0;
+        for ($i = 0; $i < $t; $i++) {
+            $sum += (int) $cpf[$i] * (($t + 1) - $i);
+        }
+        $digit = ((10 * $sum) % 11) % 10;
+        if ((int) $cpf[$t] !== $digit) return false;
+    }
+    return true;
+}
+
 $_SESSION['auth_old'] = [
     'name' => $name,
     'email' => $email,
     'username' => $username,
+    'cpf' => $cpfRaw !== '' ? preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $cpfRaw) : '',
     'postalcode' => $postalCode,
     'street' => $street,
     'number' => $number > 0 ? (string) $number : '',
@@ -40,6 +57,7 @@ $_SESSION['auth_old'] = [
 $errors = [];
 if (mb_strlen($name) < 3) $errors[] = 'Nome completo deve conter pelo menos 3 caracteres.';
 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = 'E-mail inválido.';
+if ($cpfRaw === '' || !cpfValid($cpfRaw)) $errors[] = 'CPF inválido. Verifique o número digitado.';
 if (!preg_match('/^[a-zA-Z0-9._-]{4,}$/', $username)) $errors[] = 'Nome de usuário deve ter ao menos 4 caracteres e conter apenas letras, números, ponto, traço ou underline.';
 if (strlen($password) < 8) $errors[] = 'Senha deve ter no mínimo 8 caracteres.';
 if (!preg_match('/^\d{5}-?\d{3}$/', $postalCode)) $errors[] = 'CEP inválido. Use o formato 00000-000.';
@@ -52,7 +70,7 @@ if (!empty($errors)) {
     exit;
 }
 
-$sql = 'INSERT INTO e5_users (name, email, username, password, postal_code, street, number, complement) VALUES (:name, :email, :username, :password, :postal_code, :street, :number, :complement)';
+$sql = 'INSERT INTO e5_users (name, email, username, password, cpf, postal_code, street, number, complement) VALUES (:name, :email, :username, :password, :cpf, :postal_code, :street, :number, :complement)';
 
 try {
     $stmt = $pdo->prepare($sql);
@@ -61,6 +79,7 @@ try {
         ':email' => $email,
         ':username' => $username,
         ':password' => password_hash($password, PASSWORD_DEFAULT),
+        ':cpf' => $cpfRaw,
         ':postal_code' => $postalCode,
         ':street' => $street,
         ':number' => $number,

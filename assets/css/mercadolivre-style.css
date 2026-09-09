@@ -2317,3 +2317,396 @@ body.royal-glow::after {
     background: rgba(255, 97, 97, 0.12);
     border-color: var(--ml-red);
 }
+
+/* ========================================
+   CHECKOUT ESTILO MERCADO LIVRE
+   ======================================== */
+
+/* Preço original riscado (frete / total) */
+.ml-old-price {
+    color: var(--ml-text-muted);
+    text-decoration: line-through;
+}
+.ml-total-old {
+    font-size: 0.85rem;
+    font-weight: 400;
+    margin-right: 6px;
+}
+.ml-ship-free-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Abas Entrega / Retirada (PARTE F) */
+.ml-delivery-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+}
+.ml-delivery-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: var(--ml-bg);
+    border: 1px solid var(--ml-border);
+    border-radius: 6px;
+    color: var(--ml-text-secondary);
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s, background 0.2s;
+    font-family: var(--font-primary);
+}
+.ml-delivery-tab input {
+    display: none;
+}
+.ml-delivery-tab:hover {
+    color: var(--ml-text);
+    border-color: var(--ml-text-secondary);
+}
+.ml-delivery-tab.active {
+    color: var(--ml-accent);
+    border-color: var(--ml-accent);
+    background: rgba(212, 175, 55, 0.08);
+}
+
+/* Caixa de retirada na loja */
+.ml-pickup-box {
+    background: var(--ml-green-bg);
+    border: 1px solid var(--ml-green);
+    border-radius: 8px;
+    padding: 16px;
+}
+.ml-pickup-head {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+}
+.ml-pickup-icon {
+    width: 42px;
+    height: 42px;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--ml-green);
+    color: var(--ml-text);
+    border-radius: 8px;
+    font-size: 1.1rem;
+}
+.ml-pickup-free {
+    color: var(--ml-green);
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-top: 8px;
+}
+.ml-pickup-free i {
+    margin-right: 4px;
+}
+
+/* Preview do endereço resolvido via ViaCEP (PARTE A) */
+.ml-address-preview {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    padding: 10px 14px;
+    background: var(--ml-green-bg);
+    border: 1px solid var(--ml-green);
+    border-radius: 6px;
+    color: var(--ml-green);
+    font-size: 0.88rem;
+}
+.ml-address-preview i {
+    flex-shrink: 0;
+}
+
+/* ========================================
+   RESUMO DA COMPRA — colagem de miniaturas (PARTE B)
+   ======================================== */
+.ml-collage {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+}
+.ml-collage-thumbs {
+    position: relative;
+    width: 78px;
+    height: 52px;
+    flex-shrink: 0;
+}
+.ml-collage-thumb {
+    position: absolute;
+    width: 52px;
+    height: 52px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 2px solid var(--ml-bg-card);
+    background: var(--ml-bg);
+}
+.ml-collage-thumb:nth-child(2) { left: 14px; }
+.ml-collage-thumb:nth-child(3) { left: 28px; }
+.ml-collage-more {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 26px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--ml-bg);
+    border: 1px solid var(--ml-border);
+    border-radius: 50%;
+    color: var(--ml-text-secondary);
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+.ml-collage-info {
+    flex: 1;
+    min-width: 0;
+}
+.ml-collage-title {
+    font-weight: 600;
+    color: var(--ml-text);
+    font-size: 0.95rem;
+    margin-bottom: 4px;
+}
+.ml-collage-toggle {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--ml-accent);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: var(--font-primary);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.ml-collage-toggle:hover {
+    text-decoration: underline;
+}
+.ml-collage-details {
+    margin-top: 14px;
+    border-top: 1px solid var(--ml-border);
+    padding-top: 6px;
+}
+.ml-collage-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 0;
+    border-bottom: 1px dashed var(--ml-border);
+}
+.ml-collage-item:last-child {
+    border-bottom: none;
+}
+.ml-collage-item-icon {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    background: var(--ml-bg);
+    color: var(--ml-accent);
+    font-size: 0.8rem;
+    flex-shrink: 0;
+}
+.ml-collage-item-name {
+    flex: 1;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--ml-text);
+    line-height: 1.3;
+}
+.ml-collage-item-name small {
+    color: var(--ml-text-muted);
+}
+.ml-collage-item-price {
+    font-size: 0.85rem;
+    color: var(--ml-text);
+    font-weight: 600;
+    white-space: nowrap;
+}
+.ml-summary-divider {
+    border: none;
+    border-top: 1px solid var(--ml-border);
+    margin: 14px 0 10px;
+}
+
+/* Campo/link "Inserir código do cupom" (PARTE C) */
+.ml-coupon-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    margin: 10px 0;
+    padding: 10px 12px;
+    background: transparent;
+    border: 1px dashed var(--ml-border);
+    border-radius: 6px;
+    color: var(--ml-text-secondary);
+    font-size: 0.88rem;
+    font-family: var(--font-primary);
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.2s, color 0.2s;
+}
+.ml-coupon-toggle:hover {
+    border-color: var(--ml-accent);
+    color: var(--ml-accent);
+}
+.ml-coupon-row {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+    margin: 10px 0;
+}
+.ml-coupon-row .auth-input-wrap {
+    flex: 1;
+}
+.ml-coupon-applied-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 0.85rem;
+    padding: 8px 0 4px;
+}
+.ml-coupon-remove {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--ml-text-secondary);
+    font-size: 0.82rem;
+    cursor: pointer;
+    font-family: var(--font-primary);
+}
+.ml-coupon-remove:hover {
+    color: var(--ml-red);
+    text-decoration: underline;
+}
+
+/* Mensagem "Você economizou" em destaque verde (PARTE C) */
+.ml-savings-box {
+    margin-top: 10px;
+    padding: 10px 14px;
+    background: var(--ml-green-bg);
+    border: 1px solid var(--ml-green);
+    border-radius: 6px;
+    color: var(--ml-green);
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.ml-savings-box i {
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+.ml-savings-box strong {
+    font-weight: 700;
+}
+
+/* ========================================
+   CARTÕES SALVOS (PARTE D)
+   ======================================== */
+.ml-saved-cards {
+    margin-top: 16px;
+}
+.ml-cards-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--ml-text);
+    margin-bottom: 8px;
+}
+.ml-cards-label i {
+    color: var(--ml-accent);
+    margin-right: 4px;
+}
+.ml-card-option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: var(--ml-bg);
+    border: 1px solid var(--ml-border);
+    border-radius: 6px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+.ml-card-option:hover,
+.ml-card-option.selected {
+    border-color: var(--ml-accent);
+}
+.ml-card-option input[type="radio"] {
+    accent-color: var(--ml-accent);
+    flex-shrink: 0;
+}
+.ml-card-icon {
+    font-size: 1.6rem;
+    color: var(--ml-text-secondary);
+    flex-shrink: 0;
+    width: 28px;
+    text-align: center;
+}
+.ml-card-num {
+    flex: 1;
+    color: var(--ml-text);
+    font-size: 0.92rem;
+    letter-spacing: 0.5px;
+}
+.ml-card-install {
+    color: var(--ml-green);
+    font-size: 0.82rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.ml-card-install i {
+    margin-right: 2px;
+}
+.ml-cards-more-link {
+    background: none;
+    border: none;
+    padding: 6px 0;
+    color: var(--ml-accent);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: var(--font-primary);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.ml-cards-more-link:hover {
+    text-decoration: underline;
+}
+.ml-card-extra[hidden] {
+    display: none;
+}
+
+/* ========================================
+   FATURAMENTO (PARTE E)
+   ======================================== */
+.ml-billing-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+@media (max-width: 576px) {
+    .ml-card-install {
+        display: none;
+    }
+    .ml-collage {
+        flex-wrap: wrap;
+    }
+}

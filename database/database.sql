@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS e5_users (
   id INT PRIMARY KEY AUTO_INCREMENT,
   name VARCHAR(80) NOT NULL,
   email VARCHAR(120) UNIQUE NOT NULL,
+  cpf VARCHAR(14) NULL,
   username VARCHAR(40) UNIQUE NOT NULL,
   password VARCHAR(255) NOT NULL,
   role ENUM('customer','admin') NOT NULL DEFAULT 'customer',
@@ -85,6 +86,8 @@ CREATE TABLE IF NOT EXISTS e5_orders (
   shipping_method VARCHAR(50) NULL,
   shipping_cost DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   payment_method VARCHAR(50) NULL,
+  coupon_code VARCHAR(50) NULL,
+  payment_card_last_four CHAR(4) NULL,
   payment_status ENUM('pending','paid','refunded') NOT NULL DEFAULT 'pending',
   shipping_neighborhood VARCHAR(80) NULL,
   shipping_city VARCHAR(80) NULL,
@@ -174,6 +177,44 @@ CREATE TABLE IF NOT EXISTS e5_settings (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+-- =====================================================================
+-- CHECKOUT ESTILO MERCADO LIVRE
+-- =====================================================================
+
+-- Cartões salvos do cliente (bloco Pagamento, cartão de crédito)
+CREATE TABLE IF NOT EXISTS e5_saved_cards (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  user_id INT NOT NULL,
+  card_brand VARCHAR(20) NOT NULL DEFAULT 'others',
+  holder_name VARCHAR(80) NOT NULL,
+  last_four CHAR(4) NOT NULL,
+  exp_month TINYINT UNSIGNED NOT NULL,
+  exp_year SMALLINT UNSIGNED NOT NULL,
+  max_installments TINYINT UNSIGNED NOT NULL DEFAULT 12,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_saved_cards_user FOREIGN KEY (user_id) REFERENCES e5_users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Cupons de desconto (campo "Inserir código do cupom")
+-- type: percent | fixed
+CREATE TABLE IF NOT EXISTS e5_coupons (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  code VARCHAR(50) NOT NULL UNIQUE,
+  type ENUM('percent','fixed') NOT NULL DEFAULT 'percent',
+  value DECIMAL(10,2) NOT NULL,
+  min_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  max_discount DECIMAL(10,2) NULL,
+  valid_from DATE NULL,
+  valid_until DATE NULL,
+  active TINYINT(1) NOT NULL DEFAULT 1,
+  -- customer_scope: all = todos | new = cliente novo (sem pedidos) | vip = alto ticket (>= gasto mínimo)
+  customer_scope ENUM('all','new','vip') NOT NULL DEFAULT 'all',
+  max_uses INT NOT NULL DEFAULT 0,
+  used_count INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 -- ======================================================================
 -- REGISTROS DE EXEMPLO (SEED) -- senha padrão: password123 (hash bcrypt)
 -- ======================================================================
@@ -189,6 +230,9 @@ INSERT INTO e5_users (name, email, username, password, role, postal_code, street
 ('Pedro Martins', 'pedro.martins@email.com', 'pedro.martins', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'customer', '80080-000', 'Av. Batel', 200, 'Apto 33'),
 ('Beatriz Nunes', 'beatriz.nunes@email.com', 'beatriz.nunes', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'customer', '90090-000', 'Av. Ipiranga', 500, NULL),
 ('admin', 'admin@royaltech.com', 'admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', '01310-100', 'Av. Paulista', 1, 'Sede');
+
+-- CPF demo (bloco Faturamento do checkout) — os demais usuários podem preencher no perfil
+UPDATE e5_users SET cpf = '52998224725' WHERE name = 'Maria Silva' AND cpf IS NULL;
 
 /* Contas admin dos colaboradores (senhas temporárias entregues à parte) */
 INSERT INTO e5_users (name, email, username, password, role, postal_code, street, number, complement) VALUES
@@ -274,7 +318,8 @@ INSERT INTO e5_wishlist (user_id, product_id) VALUES
 (3, 1);
 
 INSERT INTO e5_settings (setting_key, setting_value) VALUES
-('comprovante_counter', '0');
+('comprovante_counter', '0'),
+('vip_spend_threshold', '2000');
 
 -- =====================================================================
 -- INTEGRAÇÕES / SUPERFRETE

@@ -64,6 +64,39 @@ include $base_path . 'components/header.php';
 
             <div class="ml-summary-card">
                 <h3>Resumo</h3>
+                <?php if (count($items) > 1): ?>
+                <div class="ml-collage" style="margin-bottom: 14px;">
+                    <div class="ml-collage-thumbs">
+                        <?php $ci = 0; foreach ($items as $item):
+                            if ($ci >= 3) continue;
+                            $img = renderProductImage((string) ($item['image_path'] ?? ''), $base_path);
+                        ?>
+                        <img class="ml-collage-thumb" style="z-index: <?php echo 10 - $ci; ?>;" src="<?php echo htmlspecialchars($img, ENT_QUOTES, 'UTF-8'); ?>" alt="<?php echo htmlspecialchars($item['name'], ENT_QUOTES, 'UTF-8'); ?>">
+                        <?php $ci++; endforeach; ?>
+                        <?php if (count($items) > 3): ?>
+                        <span class="ml-collage-more">+<?php echo count($items) - 3; ?></span>
+                        <?php endif; ?>
+                    </div>
+                    <div class="ml-collage-info">
+                        <div class="ml-collage-title"><?php echo count($items); ?> <?php echo count($items) === 1 ? 'produto' : 'produtos'; ?> no carrinho</div>
+                        <button type="button" class="ml-collage-toggle" onclick="toggleCartDetails()"><i class="fas fa-chevron-down"></i> Mostrar detalhes</button>
+                    </div>
+                    <div class="ml-collage-details" id="cartCollageDetails" hidden>
+                        <?php foreach ($items as $item): ?>
+                        <div class="ml-collage-item">
+                            <i class="fas fa-box-open ml-collage-item-icon"></i>
+                            <span class="ml-collage-item-name"><?php echo htmlspecialchars($item['name'], ENT_QUOTES, 'UTF-8'); ?> <small>x<?php echo (int) $item['quantity']; ?></small></span>
+                            <span class="ml-collage-item-price">R$ <?php echo number_format((float)$item['price'] * (int)$item['quantity'], 2, ',', '.'); ?></span>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <hr class="ml-summary-divider">
+                </div>
+                <?php endif; ?>
+                <div class="ml-summary-line">
+                    <span>Subtotal</span>
+                    <span>R$ <?php echo number_format($total, 2, ',', '.'); ?></span>
+                </div>
                 <div class="ml-summary-line total">
                     <span>Total</span>
                     <span>R$ <?php echo number_format($total, 2, ',', '.'); ?></span>
@@ -77,6 +110,14 @@ include $base_path . 'components/header.php';
 </div></section>
 
 <script>
+function toggleCartDetails() {
+    const el = document.getElementById('cartCollageDetails');
+    const btn = document.querySelector('.ml-collage-toggle');
+    if (!el) return;
+    el.hidden = !el.hidden;
+    if (btn) btn.innerHTML = el.hidden ? '<i class="fas fa-chevron-down"></i> Mostrar detalhes' : '<i class="fas fa-chevron-up"></i> Ocultar detalhes';
+}
+
 function updateCartQty(productId, qty) {
     fetch('<?php echo $base_path; ?>pages/cart/update.php', {
         method: 'POST',

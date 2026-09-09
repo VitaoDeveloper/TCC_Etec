@@ -10,6 +10,7 @@ $navItems = [
     'products'   => ['href' => 'products.php',   'icon' => 'fa-box',           'label' => 'Produtos'],
     'categories' => ['href' => 'categories.php', 'icon' => 'fa-tags',          'label' => 'Categorias'],
     'package-sizes' => ['href' => 'package-sizes.php', 'icon' => 'fa-box-open', 'label' => 'Embalagens'],
+    'coupons'    => ['href' => 'coupons.php',     'icon' => 'fa-tag',           'label' => 'Cupons'],
     'orders'     => ['href' => 'orders.php',     'icon' => 'fa-shopping-cart', 'label' => 'Pedidos'],
     'customers'  => ['href' => 'customers.php',  'icon' => 'fa-users',         'label' => 'Clientes'],
     'contacts'   => ['href' => 'contacts.php',   'icon' => 'fa-envelope',      'label' => 'Contatos'],
