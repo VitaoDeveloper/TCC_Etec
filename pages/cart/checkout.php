@@ -334,7 +334,11 @@ if ($isConfirming) {
     foreach ($items as $item) {
         $check = validateStock($pdo, (int) $item['product_id'], (int) $item['quantity']);
         if (!$check['ok']) {
-            $errorMessage = $check['msg'] . ' Remova o item do carrinho.';
+            $errorMessage = ($item['name'] ?? 'Produto') . ': ' . $check['msg'] . ' Remova o item do carrinho ou reduza a quantidade.';
+            break;
+        }
+        if ((int) $item['stock'] < (int) $item['quantity']) {
+            $errorMessage = ($item['name'] ?? 'Produto') . ': apenas ' . (int) $item['stock'] . ' unidade(s) em estoque, mas você pediu ' . (int) $item['quantity'] . '. Reduza a quantidade no carrinho.';
             break;
         }
     }

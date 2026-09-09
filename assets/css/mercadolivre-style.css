@@ -1868,6 +1868,18 @@ body.royal-glow::after {
     cursor: not-allowed;
 }
 
+.ml-btn-buy-now,
+.ml-btn-buy-now:hover {
+    background: #3483fa;
+    border-color: #3483fa;
+    color: #fff;
+}
+
+.ml-btn-buy-now:hover {
+    background: #2968c8;
+    border-color: #2968c8;
+}
+
 .ml-btn-block {
     width: 100%;
 }
@@ -3644,6 +3656,19 @@ body.royal-glow::after {
 .ml-item-remove:hover {
     color: var(--ml-red);
     transform: scale(1.12);
+}
+.ml-item-wishlist {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--ml-text-muted);
+    padding: 4px 6px;
+    font-size: 0.88rem;
+    transition: transform 0.2s, color 0.2s;
+}
+.ml-item-wishlist:hover {
+    color: #e91e63;
+    transform: scale(1.15);
 }
 .ml-item-price {
     flex-shrink: 0;

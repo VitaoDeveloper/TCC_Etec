@@ -174,6 +174,7 @@ include $base_path . 'components/header.php';
                                     <input type="number" class="cart-qty" value="<?php echo $qty; ?>" min="0" max="<?php echo $stock; ?>" aria-label="Quantidade">
                                     <button type="button" class="cart-qty-btn" data-action="inc" aria-label="Aumentar quantidade">+</button>
                                 </div>
+                                <button type="button" class="ml-item-wishlist" data-product-id="<?php echo (int) $item['product_id']; ?>" title="Mover para favoritos" aria-label="Mover para favoritos"><i class="far fa-heart"></i></button>
                                 <button type="button" class="cart-remove ml-item-remove" title="Remover" aria-label="Remover item do carrinho"><i class="fas fa-trash-alt"></i></button>
                             </div>
                         </div>
@@ -319,9 +320,8 @@ include $base_path . 'components/header.php';
         showMsg._t = setTimeout(() => { el.className = 'ml-coupon-msg'; }, 4000);
     }
 
-    function recalc() {
+function recalc() {
         let items = 0, prodTotal = 0, discountTotal = 0;
-        const itemLines = [];
         $$('.ml-item').forEach(it => {
             const qty = parseInt(it.dataset.qty, 10) || 0;
             const price = parseFloat(it.dataset.price) || 0;
@@ -332,9 +332,7 @@ include $base_path . 'components/header.php';
             const oldEl = it.querySelector('.ml-item-old');
             if (oldEl) oldEl.textContent = 'R$ ' + round2(old * qty).toLocaleString('pt-BR', {minimumFractionDigits: 2});
             it.querySelector('.ml-item-stock').textContent = '+' + Math.max(0, parseInt(it.dataset.stock, 10) - qty) + ' disponíveis';
-            const isChecked = !!(it.querySelector('.item-check') && it.querySelector('.item-check').checked);
-            itemLines.push({pid: it.dataset.productId, price, old, qty, checked: isChecked, total, disc});
-            if (isChecked) {
+            if (it.querySelector('.item-check').checked) {
                 items += qty;
                 prodTotal = round2(prodTotal + total);
                 discountTotal = round2(discountTotal + disc);
@@ -360,8 +358,6 @@ include $base_path . 'components/header.php';
         const coupon = couponEl ? round2(parseFloat(couponEl.dataset.value) || 0) : 0;
         const freight = (prodTotal - discountTotal) >= threshold ? 'Grátis' : 'A calcular';
         const total = round2(Math.max(0, prodTotal - discountTotal - coupon));
-
-        console.debug('[cart:recalc]', {itemLines: itemLines.map(l => ({pid: l.pid, price: l.price, old: l.old, qty: l.qty, checked: l.checked, total: l.total, disc: l.disc})), itemCount: itemLines.length, prodTotal, discountTotal, coupon, couponDataset: couponEl ? couponEl.dataset.value : null, freight, total, threshold});
 
         document.getElementById('sumProducts').textContent = fmt(prodTotal);
         document.getElementById('sumProductsLabel').textContent = 'Produtos (' + items + ')';
@@ -467,6 +463,58 @@ include $base_path . 'components/header.php';
                         }
                     }, 300);
                 }
+            });
+        });
+    });
+
+    // Mover para favoritos
+    $$('.ml-item-wishlist').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const self = this;
+            const row = this.closest('.ml-item');
+            const pid = row.dataset.productId;
+            self.disabled = true;
+            fetch('../wishlist/toggle.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: 'product_id=' + pid
+            }).then(r => r.json()).then(d => {
+                if (!d.success) {
+                    self.disabled = false;
+                    showMsg(d.message || 'Não foi possível favoritar.');
+                    return;
+                }
+                const badge = document.querySelector('.ml-wishlist-link .ml-badge, .wishlist-btn .cart-badge');
+                if (badge) badge.textContent = d.count;
+                return fetch('remove.php', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: 'product_id=' + pid
+                }).then(r => r.json()).then(rd => {
+                    if (!rd.success) {
+                        self.disabled = false;
+                        showMsg(rd.message || 'Erro ao remover do carrinho.');
+                        return;
+                    }
+                    showMsg('Movido para favoritos.');
+                    row.style.transition = 'opacity .3s, transform .3s';
+                    row.style.opacity = '0';
+                    row.style.transform = 'scale(.97)';
+                    setTimeout(() => {
+                        row.remove();
+                        $$('.ml-seller-group').forEach(g => {
+                            if (!g.querySelector('.ml-item')) g.remove();
+                        });
+                        if (!document.querySelector('#mlCartLayout .ml-seller-group')) {
+                            location.reload();
+                        } else {
+                            recalc();
+                        }
+                    }, 300);
+                });
+            }).catch(() => {
+                self.disabled = false;
+                showMsg('Erro ao mover para favoritos.');
             });
         });
     });

@@ -226,6 +226,42 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // ========================================
+    // Buy Now — adiciona ao carrinho e vai direto ao checkout
+    // ========================================
+    document.querySelectorAll('.btn-buy-now').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (!loggedFlag) return;
+
+            var card = this.closest('[data-product-id]');
+            var productId = card ? card.getAttribute('data-product-id') : null;
+            if (!productId) return;
+
+            var self = this;
+            self.classList.add('btn-loading');
+
+            fetch(basePath + 'pages/cart/add.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: new URLSearchParams({product_id: productId, quantity: (parseInt((document.getElementById('pdp-qty') || {}).value, 10) || 1)})
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                self.classList.remove('btn-loading');
+                if (data.success) {
+                    window.location.href = basePath + 'pages/cart/checkout.php';
+                } else if (window.showToast) {
+                    showToast(data.message, 'error');
+                }
+            })
+            .catch(function() {
+                self.classList.remove('btn-loading');
+                if (window.showToast) showToast('Erro ao adicionar ao carrinho.', 'error');
+            });
+        });
+    });
+
+    // ========================================
     // Input Masks (CPF, CEP)
     // ========================================
     document.querySelectorAll('.cpf-mask').forEach(function(el) {

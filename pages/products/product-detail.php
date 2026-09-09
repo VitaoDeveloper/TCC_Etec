@@ -88,6 +88,7 @@ $maxQty = max(1, $stock);
             <button type="button" class="cart-qty-btn" id="pdpQtyInc" aria-label="Aumentar quantidade">+</button>
         </div>
         <button class="ml-btn ml-btn-primary ml-btn-block btn-add-cart js-require-auth" data-auth-target="carrinho" style="padding:14px; font-size:1.05rem;"><i class="fas fa-shopping-bag"></i> Adicionar ao Carrinho</button>
+        <button class="ml-btn ml-btn-buy-now ml-btn-block btn-buy-now js-require-auth" data-auth-target="comprar agora" style="padding:14px; font-size:1.05rem; margin-top:10px;"><i class="fas fa-bolt"></i> Comprar Agora</button>
         <?php else: ?>
         <button class="ml-btn ml-btn-primary ml-btn-block" disabled style="padding:14px; font-size:1.05rem;">Indisponível</button>
         <?php endif; ?>
