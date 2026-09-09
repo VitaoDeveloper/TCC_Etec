@@ -321,6 +321,7 @@ include $base_path . 'components/header.php';
 
     function recalc() {
         let items = 0, prodTotal = 0, discountTotal = 0;
+        const itemLines = [];
         $$('.ml-item').forEach(it => {
             const qty = parseInt(it.dataset.qty, 10) || 0;
             const price = parseFloat(it.dataset.price) || 0;
@@ -331,7 +332,9 @@ include $base_path . 'components/header.php';
             const oldEl = it.querySelector('.ml-item-old');
             if (oldEl) oldEl.textContent = 'R$ ' + round2(old * qty).toLocaleString('pt-BR', {minimumFractionDigits: 2});
             it.querySelector('.ml-item-stock').textContent = '+' + Math.max(0, parseInt(it.dataset.stock, 10) - qty) + ' disponíveis';
-            if (it.querySelector('.item-check').checked) {
+            const isChecked = !!(it.querySelector('.item-check') && it.querySelector('.item-check').checked);
+            itemLines.push({pid: it.dataset.productId, price, old, qty, checked: isChecked, total, disc});
+            if (isChecked) {
                 items += qty;
                 prodTotal = round2(prodTotal + total);
                 discountTotal = round2(discountTotal + disc);
@@ -357,6 +360,8 @@ include $base_path . 'components/header.php';
         const coupon = couponEl ? round2(parseFloat(couponEl.dataset.value) || 0) : 0;
         const freight = (prodTotal - discountTotal) >= threshold ? 'Grátis' : 'A calcular';
         const total = round2(Math.max(0, prodTotal - discountTotal - coupon));
+
+        console.debug('[cart:recalc]', {itemLines: itemLines.map(l => ({pid: l.pid, price: l.price, old: l.old, qty: l.qty, checked: l.checked, total: l.total, disc: l.disc})), itemCount: itemLines.length, prodTotal, discountTotal, coupon, couponDataset: couponEl ? couponEl.dataset.value : null, freight, total, threshold});
 
         document.getElementById('sumProducts').textContent = fmt(prodTotal);
         document.getElementById('sumProductsLabel').textContent = 'Produtos (' + items + ')';
