@@ -1868,16 +1868,35 @@ body.royal-glow::after {
     cursor: not-allowed;
 }
 
-.ml-btn-buy-now,
-.ml-btn-buy-now:hover {
-    background: #3483fa;
-    border-color: #3483fa;
-    color: #fff;
+.ml-pdp-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 14px;
+}
+.ml-pdp-actions .ml-btn {
+    padding: 14px;
+    font-size: 1.05rem;
 }
 
+.ml-btn-buy-now,
 .ml-btn-buy-now:hover {
-    background: #2968c8;
-    border-color: #2968c8;
+    background: linear-gradient(135deg, #3483fa 0%, #2c6fd8 100%);
+    border-color: #2c6fd8;
+    color: #fff;
+    box-shadow: 0 2px 6px rgba(52, 131, 250, 0.28);
+    letter-spacing: 0.01em;
+    transition: background 0.2s, box-shadow 0.2s, transform 0.05s;
+}
+.ml-btn-buy-now:hover {
+    background: linear-gradient(135deg, #2c6fd8 0%, #245cb8 100%);
+    border-color: #245cb8;
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(52, 131, 250, 0.35);
+    transform: translateY(-1px);
+}
+.ml-btn-buy-now:active {
+    transform: translateY(0);
 }
 
 .ml-btn-block {

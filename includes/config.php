@@ -1,5 +1,7 @@
 <?php
 
+define('ASSET_VERSION', '20260909b');
+
 function loadEnv(string $path): void
 {
     if (!file_exists($path)) return;

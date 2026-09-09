@@ -76,6 +76,6 @@
     <div class="toast-container" id="toastContainer"></div>
 
     <!-- Scripts -->
-    <script src="<?php echo $base_path ?? ''; ?>assets/js/script.js?v=<?php echo defined('ASSET_VERSION') ? ASSET_VERSION : '20260908e'; ?>"></script>
+    <script src="<?php echo $base_path ?? ''; ?>assets/js/script.js?v=<?php echo defined('ASSET_VERSION') ? ASSET_VERSION : '20260909b'; ?>"></script>
 </body>
 </html>

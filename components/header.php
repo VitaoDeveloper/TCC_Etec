@@ -54,7 +54,7 @@ if (isset($pdo)) {
 
 require_once dirname(__DIR__) . '/includes/category_icons.php';
 
-$assetVersion = defined('ASSET_VERSION') ? ASSET_VERSION : '20260909a';
+$assetVersion = defined('ASSET_VERSION') ? ASSET_VERSION : '20260909b';
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
