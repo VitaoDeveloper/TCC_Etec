@@ -218,15 +218,24 @@ if ($shippingType === 'entrega' && !empty($shippingCep)) {
 // =====================================================================
 if ($removeCoupon) {
     $couponCode = '';
+    unset($_SESSION['cart_coupon_code']);
 }
+
+// Cupom aplicado no carrinho persiste via sessão quando o form não traz código novo
+if ($couponCode === '' && !$removeCoupon && !empty($_SESSION['cart_coupon_code'])) {
+    $couponCode = mb_strtoupper(trim((string) $_SESSION['cart_coupon_code']));
+}
+
 if ($couponCode !== '') {
-    $couponResult = couponApply($pdo, $couponCode, max(0, $subtotal - $productDiscount), $userId);
+    $couponResult = couponApply($pdo, $couponCode, $subtotal, $userId);
     if ($couponResult['ok']) {
         $appliedCoupon = $couponResult['code'];
         $couponDiscount = (float) $couponResult['discount'];
+        $_SESSION['cart_coupon_code'] = $appliedCoupon;
     } else {
         $couponError = $couponResult['msg'];
         $couponCode = ''; // código inválido → não mantém no campo
+        unset($_SESSION['cart_coupon_code']);
     }
 } elseif (!empty($_POST['coupon_code']) && isset($_POST['apply_coupon'])) {
     $couponError = 'Digite um código de cupom.';
@@ -290,7 +299,7 @@ function cardBrandIcon(string $brand): string
 // =====================================================================
 // VALORES FINAIS
 // =====================================================================
-$promoBase = max(0, $subtotal - $productDiscount);
+$promoBase = $subtotal;
 $afterCoupon = max(0, $promoBase - $couponDiscount);
 $pixDiscount = $paymentMethod === 'pix' ? round($afterCoupon * ($pixPercent / 100), 2) : 0.00;
 
@@ -304,7 +313,7 @@ if ($shippingType === 'retirada') {
 } elseif ($shippingOptions) {
     $shippingMethodLabel = $shippingOptions[$selectedShipping]['method'] ?? 'Correios';
     $shipDays = $shippingOptions[$selectedShipping]['days'] ?? '';
-    $isFree = $subtotal >= $freeThreshold;
+    $isFree = $subtotalOld >= $freeThreshold;
     $shipPaid = $isFree ? 0.00 : $shipOriginalCost;
     $shipSaved = max(0, $shipOriginalCost - $shipPaid);
 }
@@ -607,7 +616,7 @@ include $base_path . 'components/header.php';
                         <?php if ($shippingOptions): ?>
                         <div class="shipping-options">
                             <?php foreach ($shippingOptions as $key => $opt):
-                                $optCost = $subtotal >= $freeThreshold ? 0.00 : (float) $opt['cost'];
+                                $optCost = $subtotalOld >= $freeThreshold ? 0.00 : (float) $opt['cost'];
                             ?>
                             <label class="shipping-option <?php echo $selectedShipping === $key ? 'selected' : ''; ?>">
                                 <input type="radio" name="shipping_method" form="checkoutForm" value="<?php echo $key; ?>" <?php echo $selectedShipping === $key ? 'checked' : ''; ?>>
@@ -631,7 +640,7 @@ include $base_path . 'components/header.php';
                         <?php elseif (!empty($shippingCep) && !$shippingQuoteError): ?>
                         <p style="color: var(--ml-text-muted); margin-top: 10px;">CEP não encontrado. Verifique o número.</p>
                         <?php endif; ?>
-                        <?php if ($subtotal >= $freeThreshold): ?>
+                        <?php if ($subtotalOld >= $freeThreshold): ?>
                         <p class="ml-ship-free-note"><i class="fas fa-check-circle"></i> Frete grátis: compras acima de R$ <?php echo number_format($freeThreshold, 2, ',', '.'); ?></p>
                         <?php endif; ?>
                     <?php endif; ?>
@@ -721,13 +730,6 @@ include $base_path . 'components/header.php';
                         <span>Produtos (<?php echo count($items); ?> <?php echo count($items) === 1 ? 'item' : 'itens'; ?>)</span>
                         <span class="ml-tabnum"><?php echo fmtMoney($subtotal); ?></span>
                     </div>
-
-                    <?php if ($productDiscount > 0): ?>
-                    <div class="ml-summary-line discount">
-                        <span>Desconto do produto</span>
-                        <span class="ml-tabnum">- <?php echo fmtMoney($productDiscount); ?></span>
-                    </div>
-                    <?php endif; ?>
 
                     <div class="ml-summary-line">
                         <span>Frete<?php if ($shippingMethodLabel): ?> <?php echo htmlspecialchars($shippingMethodLabel, ENT_QUOTES, 'UTF-8'); ?><?php endif; ?></span>

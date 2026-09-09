@@ -24,6 +24,7 @@ $freeThreshold = max(1, (float) (store_config('free_shipping_threshold') ?? 500)
 $groups = [];
 $totalItems = 0;
 $subtotal = 0;
+$subtotalOld = 0;
 $productDiscounts = 0;
 foreach ($items as $item) {
     $seller = trim((string) ($item['brand'] ?? ''));
@@ -31,13 +32,15 @@ foreach ($items as $item) {
     $linePrice = (float) $item['price'];
     $qty = (int) $item['quantity'];
     $lineTotal = $linePrice * $qty;
+    $lineOld = max((float) ($item['old_price'] ?? 0), $linePrice);
     $lineDisc = 0;
-    if ((float) ($item['old_price'] ?? 0) > $linePrice) {
-        $lineDisc = ((float) $item['old_price'] - $linePrice) * $qty;
+    if ($lineOld > $linePrice) {
+        $lineDisc = ($lineOld - $linePrice) * $qty;
     }
     $groups[$seller][] = $item + ['line_total' => $lineTotal, 'line_discount' => $lineDisc];
     $totalItems += $qty;
     $subtotal += $lineTotal;
+    $subtotalOld += $lineOld * $qty;
     $productDiscounts += $lineDisc;
 }
 
@@ -50,12 +53,22 @@ if (isset($_SESSION['cart_coupon_code'])) {
         if ($res['ok']) {
             $couponCode = $res['code'];
             $couponDiscount = (float) $res['discount'];
+
+            $stmt = $pdo->prepare('SELECT type, value, max_discount, min_amount FROM e5_coupons WHERE code = :code LIMIT 1');
+            $stmt->execute([':code' => $couponCode]);
+            $couponRow = $stmt->fetch();
+            $_SESSION['cart_coupon_meta'] = $couponRow ? [
+                'type'         => $couponRow['type'],
+                'value'        => (float) $couponRow['value'],
+                'max_discount' => (float) ($couponRow['max_discount'] ?? 0),
+                'min_amount'   => (float) ($couponRow['min_amount'] ?? 0),
+            ] : null;
         }
     }
 }
 
-$freight = ($subtotal - $productDiscounts) >= $freeThreshold ? 'Grátis' : 'A calcular';
-$totalToPay = max(0, $subtotal - $productDiscounts - $couponDiscount);
+$freight = $subtotalOld >= $freeThreshold ? 'Grátis' : 'A calcular';
+$totalToPay = max(0, $subtotal - $couponDiscount);
 
 $cartIds = array_map(fn($i) => (int) $i['product_id'], $items);
 $recommendations = [];
@@ -128,7 +141,8 @@ include $base_path . 'components/header.php';
             <?php foreach ($groups as $seller => $sellerItems):
                 $gSub = array_sum(array_map(fn($i) => $i['line_total'], $sellerItems));
                 $gDisc = array_sum(array_map(fn($i) => $i['line_discount'], $sellerItems));
-                $gFree = ($gSub - $gDisc) >= $freeThreshold;
+                $gSubOld = $gSub + $gDisc;
+                $gFree = $gSubOld >= $freeThreshold;
             ?>
             <div class="ml-seller-group" data-seller="<?php echo htmlspecialchars($seller, ENT_QUOTES, 'UTF-8'); ?>">
                 <div class="ml-seller-head">
@@ -189,15 +203,15 @@ include $base_path . 'components/header.php';
                     <?php endforeach; ?>
                 </div>
 
-                <div class="ml-seller-foot" data-group-total="<?php echo number_format($gSub - $gDisc, 2, '.', ''); ?>"
-                      data-freeship-needed="<?php echo number_format(max(0, $freeThreshold - ($gSub - $gDisc)), 2, '.', ''); ?>">
+                <div class="ml-seller-foot" data-group-total="<?php echo number_format($gSubOld, 2, '.', ''); ?>"
+                      data-freeship-needed="<?php echo number_format(max(0, $freeThreshold - $gSubOld), 2, '.', ''); ?>">
                     <div class="ml-freight-line">
                         <span><i class="fas fa-truck"></i> Frete deste vendedor</span>
                         <span class="ml-freight-value"><?php echo $gFree ? 'Grátis' : 'A calcular'; ?></span>
                     </div>
                     <?php if (!$gFree): ?>
                     <div class="ml-freeship-progress">
-                        <div class="ml-freeship-bar"><span class="ml-freeship-fill" style="width: <?php echo min(100, round((($gSub - $gDisc) / $freeThreshold) * 100)); ?>%;"></span></div>
+                        <div class="ml-freeship-bar"><span class="ml-freeship-fill" style="width: <?php echo min(100, round(($gSubOld / $freeThreshold) * 100)); ?>%;"></span></div>
                         <div class="ml-freeship-note">
                             <i class="fas fa-truck"></i>
                             Aproveite o frete grátis adicionando mais produtos
@@ -220,10 +234,6 @@ include $base_path . 'components/header.php';
                 <div class="ml-summary-row">
                     <span id="sumProductsLabel">Produtos (<?php echo $totalItems; ?>)</span>
                     <span class="ml-tnum" id="sumProducts">R$ <?php echo number_format($subtotal, 2, ',', '.'); ?></span>
-                </div>
-                <div class="ml-summary-row discount" id="rowDiscounts" <?php echo $productDiscounts > 0 ? '' : 'hidden'; ?>>
-                    <span>Descontos</span>
-                    <span class="ml-tnum" id="sumDiscounts">− R$ <?php echo number_format($productDiscounts, 2, ',', '.'); ?></span>
                 </div>
                 <div class="ml-summary-row discount" id="rowCoupon" <?php echo $couponDiscount > 0 ? '' : 'hidden'; ?>>
                     <span>Cupom <?php if ($couponCode !== ''): ?>(<?php echo htmlspecialchars($couponCode, ENT_QUOTES, 'UTF-8'); ?>)<?php endif; ?></span>
@@ -298,7 +308,10 @@ include $base_path . 'components/header.php';
 
     const groupTotal = g => $$('.ml-item', g).reduce((acc, it) => {
         if (!it.querySelector('.item-check').checked) return acc;
-        return acc + (parseInt(it.dataset.qty, 10) || 0) * parseFloat(it.dataset.price);
+        const qty = parseInt(it.dataset.qty, 10) || 0;
+        const price = parseFloat(it.dataset.price) || 0;
+        const old = parseFloat(it.dataset.old) || 0;
+        return acc + qty * Math.max(price, old);
     }, 0);
 
     function updateHeaderBadge(qty) {
@@ -320,8 +333,28 @@ include $base_path . 'components/header.php';
         showMsg._t = setTimeout(() => { el.className = 'ml-coupon-msg'; }, 4000);
     }
 
+    // Recalcula o desconto do cupom no servidor (chamado após mudar quantidade)
+    function recalcCoupon() {
+        const couponEl = document.getElementById('sumCoupon');
+        if (!couponEl) return;
+        fetch('coupon.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: 'action=recalc'
+        }).then(r => r.json()).then(res => {
+            if (!couponEl.isConnected) return;
+            couponEl.dataset.value = res.success && !res.expired ? (res.discount || 0) : 0;
+            if (res.expired && res.success) {
+                const input = document.getElementById('couponInput');
+                if (input) input.value = '';
+                showMsg('Este cupom não se aplica mais ao valor atual do carrinho.');
+            }
+            recalc();
+        }).catch(() => recalc());
+    }
+
 function recalc() {
-        let items = 0, prodTotal = 0, discountTotal = 0;
+        let items = 0, prodTotal = 0, prodTotalOld = 0, discountTotal = 0;
         $$('.ml-item').forEach(it => {
             const qty = parseInt(it.dataset.qty, 10) || 0;
             const price = parseFloat(it.dataset.price) || 0;
@@ -335,6 +368,7 @@ function recalc() {
             if (it.querySelector('.item-check').checked) {
                 items += qty;
                 prodTotal = round2(prodTotal + total);
+                prodTotalOld = round2(prodTotalOld + qty * Math.max(price, old));
                 discountTotal = round2(discountTotal + disc);
             }
         });
@@ -345,27 +379,18 @@ function recalc() {
             const value = g.querySelector('.ml-freight-value');
             const bar = g.querySelector('.ml-freeship-fill');
             if (foot) {
-                const needed = parseFloat(foot.dataset.freeshipNeeded) || 0;
-                if (bar) {
-                    const pct = Math.min(100, Math.round((t / (needed > 0 ? t + needed : t)) * 100));
-                    bar.style.width = pct + '%';
-                }
-                if (value) value.textContent = t >= (t + needed) ? 'Grátis' : 'A calcular';
+                if (bar) bar.style.width = Math.min(100, Math.round((t / threshold) * 100)) + '%';
+                if (value) value.textContent = t >= threshold ? 'Grátis' : 'A calcular';
             }
         });
 
         const couponEl = document.getElementById('sumCoupon');
         const coupon = couponEl ? round2(parseFloat(couponEl.dataset.value) || 0) : 0;
-        const freight = (prodTotal - discountTotal) >= threshold ? 'Grátis' : 'A calcular';
-        const total = round2(Math.max(0, prodTotal - discountTotal - coupon));
+        const freight = prodTotalOld >= threshold ? 'Grátis' : 'A calcular';
+        const total = round2(Math.max(0, prodTotal - coupon));
 
         document.getElementById('sumProducts').textContent = fmt(prodTotal);
         document.getElementById('sumProductsLabel').textContent = 'Produtos (' + items + ')';
-        const dRow = document.getElementById('rowDiscounts');
-        if (discountTotal > 0) {
-            dRow.hidden = false;
-            document.getElementById('sumDiscounts').textContent = '− ' + fmt(discountTotal);
-        } else dRow.hidden = true;
 
         const cRow = document.getElementById('rowCoupon');
         if (coupon > 0) {
@@ -407,7 +432,7 @@ function recalc() {
                 if (d.success) {
                     row.dataset.qty = val;
                     input.value = val;
-                    recalc();
+                    recalcCoupon();
                 } else {
                     showMsg(d.message || 'Não foi possível atualizar.');
                 }
@@ -429,7 +454,7 @@ function recalc() {
             }).then(r => r.json()).then(d => {
                 if (d.success) {
                     row.dataset.qty = val;
-                    recalc();
+                    recalcCoupon();
                 } else {
                     showMsg(d.message || 'Não foi possível atualizar.');
                 }
@@ -459,7 +484,7 @@ function recalc() {
                         if (!document.querySelector('#mlCartLayout .ml-seller-group')) {
                             location.reload();
                         } else {
-                            recalc();
+                            recalcCoupon();
                         }
                     }, 300);
                 }
@@ -508,7 +533,7 @@ function recalc() {
                         if (!document.querySelector('#mlCartLayout .ml-seller-group')) {
                             location.reload();
                         } else {
-                            recalc();
+                            recalcCoupon();
                         }
                     }, 300);
                 });
