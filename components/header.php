@@ -53,6 +53,8 @@ if (isset($pdo)) {
 }
 
 require_once dirname(__DIR__) . '/includes/category_icons.php';
+
+$assetVersion = defined('ASSET_VERSION') ? ASSET_VERSION : '20260909a';
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -66,10 +68,10 @@ require_once dirname(__DIR__) . '/includes/category_icons.php';
     <meta property="og:image" content="<?php echo ($basePath ?? '') . 'assets/img/hero-bg.jpg'; ?>">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Royal Tech">
-    <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/style.css">
-    <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/admin.css">
-    <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/mercadolivre-style.css">
-    <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/auth.css">
+    <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/style.css?v=<?php echo $assetVersion; ?>">
+    <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/admin.css?v=<?php echo $assetVersion; ?>">
+    <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/mercadolivre-style.css?v=<?php echo $assetVersion; ?>">
+    <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/auth.css?v=<?php echo $assetVersion; ?>">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>

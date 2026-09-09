@@ -164,17 +164,21 @@ include '../../components/header.php';
     if (cepController) cepController.abort();
     cepController = new AbortController();
     const myController = cepController;
-    const timeoutId = setTimeout(() => cepController.abort(), 6000);
+    const requestedCep = cep;
+    const timeoutId = setTimeout(() => myController.abort(), 6000);
     showCepFeedback('Consultando CEP...', '');
     fetch('https://viacep.com.br/ws/' + cep + '/json/', { signal: myController.signal })
       .then((response) => response.json())
       .then((data) => {
         clearTimeout(timeoutId);
+        if (myController !== cepController) return;
+        if (cepInput.value.replace(/\D/g, '') !== requestedCep) return;
         if (data.erro) {
           showCepFeedback('CEP não encontrado. Verifique o número digitado — você ainda pode preencher a rua manualmente.', 'error');
+          if (streetInput) streetInput.value = '';
           return;
         }
-        if (data.logradouro && streetInput) streetInput.value = data.logradouro;
+        if (streetInput) streetInput.value = data.logradouro || '';
         const parts = [];
         if (data.bairro) parts.push(data.bairro);
         if (data.localidade) parts.push(data.localidade);

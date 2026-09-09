@@ -235,18 +235,27 @@ if ($couponCode !== '') {
 // =====================================================================
 // MEIOS DE PAGAMENTO + CARTÕES SALVOS
 // =====================================================================
+$pixPercent = max(0, (float) (store_config('pix_discount_percent') ?? 5));
 $paymentMethods = [
-    'pix'    => ['label' => 'Pix', 'icon' => 'fa-pix', 'desc' => 'Aprovação instantânea. Temporada de ofertas!'],
+    'pix'    => ['label' => 'Pix', 'icon' => 'fa-pix', 'desc' => 'Aprovação instantânea. ' . trim(rtrim(rtrim(number_format($pixPercent, 1, ',', '.'), '0'), ',')) . '% de desconto.'],
     'boleto' => ['label' => 'Boleto', 'icon' => 'fa-barcode', 'desc' => 'Vencimento em 3 dias úteis.'],
-    'credit' => ['label' => 'Cartão de Crédito', 'icon' => 'fa-credit-card', 'desc' => 'Parcele em até 12x.'],
+    'credit' => ['label' => 'Cartão de Crédito', 'icon' => 'fa-credit-card', 'desc' => 'Parcele em até 12x sem juros.'],
     'delivery' => ['label' => 'Pagar na Entrega', 'icon' => 'fa-money-bill-wave', 'desc' => 'Pague ao receber (dinheiro ou cartão).'],
 ];
 
-$pixPercent = max(0, (float) (store_config('pix_discount_percent') ?? 5));
+// "Pagar na Entrega" só se aplica à retirada/loja; oculta no modo Entrega
+if ($shippingType === 'entrega') {
+    unset($paymentMethods['delivery']);
+    if (!isset($paymentMethods[$paymentMethod])) {
+        $paymentMethod = 'pix';
+    }
+}
 
 $savedCards = $pdo->prepare('SELECT * FROM e5_saved_cards WHERE user_id = :uid AND is_active = 1 ORDER BY id ASC');
 $savedCards->execute([':uid' => $userId]);
 $savedCards = $savedCards->fetchAll();
+
+$installmentsHint = $savedCards ? (int) max(array_column($savedCards, 'max_installments')) : 12;
 
 if ($paymentMethod === 'credit' && $savedCards) {
     $validIds = array_column($savedCards, 'id');
@@ -490,21 +499,40 @@ include $base_path . 'components/header.php';
         <?php endif; ?>
 
         <div class="checkout-grid">
-            <div class="checkout-left">
+<div class="checkout-left">
 
                 <!-- ============================================================
-                     ETAPA 1 — ENTREGA / RETIRADA
+                     PRODUTOS DA COMPRA (miniaturas no topo da coluna)
                 ============================================================ -->
-                <div class="ml-card">
-                    <div class="ml-step-head">
-                        <span class="ml-step-num">1</span>
-                        <h3><i class="fas fa-truck"></i> Entrega</h3>
+                <div class="ml-card ml-checkout-block ml-products-card<?php echo count($items) === 1 ? ' single-product' : ''; ?>">
+                    <div class="ml-collage">
+                        <div class="ml-collage-thumbs">
+                            <?php foreach (array_slice($items, 0, 4) as $i => $item):
+                                $img = renderProductImage((string) ($item['image_path'] ?? ''), $base_path);
+                            ?>
+                            <img class="ml-collage-thumb" src="<?php echo htmlspecialchars($img, ENT_QUOTES, 'UTF-8'); ?>" alt="<?php echo htmlspecialchars($item['name'], ENT_QUOTES, 'UTF-8'); ?>">
+                            <?php endforeach; ?>
+                            <?php if (count($items) > 4): ?>
+                            <span class="ml-collage-more">+<?php echo count($items) - 4; ?></span>
+                            <?php endif; ?>
+                        </div>
+                        <div class="ml-collage-info">
+                            <p class="ml-collage-title"><?php echo count($items); ?> <?php echo count($items) === 1 ? 'produto' : 'produtos'; ?> na sua compra</p>
+                            <button type="button" class="ml-collage-toggle" data-toggle-details><i class="fas fa-chevron-down"></i> <span>Mostrar detalhes</span></button>
+                        </div>
                     </div>
+                </div>
+
+                <!-- ============================================================
+                     FORMA DE ENTREGA
+                ============================================================ -->
+                <div class="ml-card ml-checkout-block">
+                    <h3 class="ml-block-title"><i class="fas fa-truck"></i> Forma de entrega</h3>
 
                     <div class="ml-delivery-tabs">
                         <label class="ml-delivery-tab <?php echo $shippingType === 'entrega' ? 'active' : ''; ?>">
                             <input type="radio" name="shipping_type" form="checkoutForm" value="entrega" <?php echo $shippingType === 'entrega' ? 'checked' : ''; ?>>
-                            <i class="fas fa-truck"></i> Envio ao Domicílio
+                            <i class="fas fa-truck"></i> Frete
                         </label>
                         <label class="ml-delivery-tab <?php echo $shippingType === 'retirada' ? 'active' : ''; ?>">
                             <input type="radio" name="shipping_type" form="checkoutForm" value="retirada" <?php echo $shippingType === 'retirada' ? 'checked' : ''; ?>>
@@ -526,17 +554,42 @@ include $base_path . 'components/header.php';
                             </div>
                         </div>
                     <?php else: ?>
-                        <label class="auth-label" for="shipping_cep">CEP de entrega</label>
-                        <div style="display: flex; gap: 10px; align-items: stretch;">
-                            <div class="auth-input-wrap" style="flex: 1;">
-                                <input type="text" id="shipping_cep" name="shipping_cep" form="checkoutForm" value="<?php echo htmlspecialchars($shippingCep, ENT_QUOTES, 'UTF-8'); ?>" placeholder="00000-000" maxlength="9" autocomplete="postal-code" oninput="this.value=this.value.replace(/\D/g,'').replace(/(\d{5})(\d)/,'$1-$2')">
+
+                        <div class="ml-address-card" id="addressCard">
+                            <div class="ml-address-body">
+                                <strong class="ml-address-name"><?php echo htmlspecialchars($user['name'], ENT_QUOTES, 'UTF-8'); ?></strong>
+                                <div class="ml-address-line">
+                                    <i class="fas fa-map-pin" aria-hidden="true"></i>
+                                    <div class="ml-address-text">
+                                        <p class="ml-address-street" id="deliveryAddressStreet">
+                                            <?php if (!empty($user['street'])): ?>
+                                                <?php echo htmlspecialchars($user['street'], ENT_QUOTES, 'UTF-8'); ?>, <?php echo (int) ($user['number'] ?? 0); ?><?php if ($user['complement']): ?> - <?php echo htmlspecialchars($user['complement'], ENT_QUOTES, 'UTF-8'); ?><?php endif; ?>
+                                            <?php else: ?>
+                                                Informe um endereço de entrega
+                                            <?php endif; ?>
+                                        </p>
+                                        <p class="ml-address-region" id="deliveryAddressRegion">
+                                            <?php if ($shipAddress['neighborhood'] !== ''): ?>
+                                                <?php echo htmlspecialchars($shipAddress['neighborhood'] . ' - ' . $shipAddress['city'] . ' - ' . $shipAddress['state'], ENT_QUOTES, 'UTF-8'); ?>
+                                            <?php else: ?>
+                                                CEP: <span id="deliveryAddressCep"><?php echo htmlspecialchars($shippingCep !== '' ? $shippingCep : ($user['postal_code'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></span>
+                                            <?php endif; ?>
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
-                            <button type="submit" form="checkoutForm" class="ml-btn" name="calc_shipping" value="1"><i class="fas fa-search"></i> Calcular</button>
+                            <button type="button" class="ml-address-edit" id="addressEditBtn"><i class="fas fa-pen"></i> Alterar endereço</button>
                         </div>
-                        <div class="cep-feedback" id="cepFeedback" hidden></div>
-                        <div class="ml-address-preview" id="cepAddressPreview" hidden>
-                            <i class="fas fa-map-marker-alt"></i>
-                            <span id="cepAddressPreviewText"></span>
+
+                        <div class="ml-cep-edit" id="cepEdit" <?php echo $shippingOptions ? 'hidden' : ''; ?>>
+                            <label class="auth-label" for="shipping_cep">CEP de entrega</label>
+                            <div style="display: flex; gap: 10px; align-items: stretch;">
+                                <div class="auth-input-wrap" style="flex: 1;">
+                                    <input type="text" id="shipping_cep" name="shipping_cep" form="checkoutForm" value="<?php echo htmlspecialchars($shippingCep, ENT_QUOTES, 'UTF-8'); ?>" placeholder="00000-000" maxlength="9" autocomplete="postal-code" oninput="this.value=this.value.replace(/\D/g,'').replace(/(\d{5})(\d)/,'$1-$2')">
+                                </div>
+                                <button type="submit" form="checkoutForm" class="ml-btn" name="calc_shipping" value="1"><i class="fas fa-search"></i> Calcular</button>
+                            </div>
+                            <div class="cep-feedback" id="cepFeedback" hidden></div>
                         </div>
                         <?php if ($shippingQuoteError): ?>
                             <div class="auth-feedback auth-feedback-error" style="margin-top:12px;">
@@ -546,6 +599,7 @@ include $base_path . 'components/header.php';
                                 Enquanto isso, exibimos abaixo um <em>valor estimado</em> para você conseguir seguir com o pedido. Tente novamente mais tarde para confirmar o valor real.
                             </div>
                         <?php endif; ?>
+
                         <?php if ($shippingOptions): ?>
                         <div class="shipping-options">
                             <?php foreach ($shippingOptions as $key => $opt):
@@ -553,46 +607,51 @@ include $base_path . 'components/header.php';
                             ?>
                             <label class="shipping-option <?php echo $selectedShipping === $key ? 'selected' : ''; ?>">
                                 <input type="radio" name="shipping_method" form="checkoutForm" value="<?php echo $key; ?>" <?php echo $selectedShipping === $key ? 'checked' : ''; ?>>
-                                <div class="shipping-option-content">
-                                    <strong><?php echo htmlspecialchars($opt['method'], ENT_QUOTES, 'UTF-8'); ?></strong>
-                                    <span class="shipping-days"><?php echo htmlspecialchars($opt['days'], ENT_QUOTES, 'UTF-8'); ?></span>
+                                <span class="shipping-opt-icon"><i class="fas <?php echo $key === 'sedex' ? 'fa-truck-fast' : 'fa-box'; ?>"></i></span>
+                                <span class="shipping-option-content">
+                                    <span class="shipping-meta">
+                                        <strong><?php echo htmlspecialchars($opt['method'], ENT_QUOTES, 'UTF-8'); ?></strong>
+                                        <span class="shipping-days"><?php echo htmlspecialchars($opt['days'], ENT_QUOTES, 'UTF-8'); ?></span>
+                                    </span>
                                     <span class="shipping-cost">
                                         <?php if ($optCost > 0): ?>
                                             <?php echo fmtMoney($optCost); ?>
                                         <?php else: ?>
-                                            <span class="ml-ship-free-row"><span class="ml-old-price"><?php echo fmtMoney($opt['cost']); ?></span> <strong style="color:var(--ml-green);">Grátis</strong></span>
+                                            <span class="ml-ship-free-row"><span class="ml-old-price"><?php echo fmtMoney($opt['cost']); ?></span> <strong class="ml-ship-free-text">Grátis</strong></span>
                                         <?php endif; ?>
                                     </span>
-                                </div>
+                                </span>
                             </label>
                             <?php endforeach; ?>
                         </div>
-                        <?php elseif (!empty($shippingCep)): ?>
+                        <?php elseif (!empty($shippingCep) && !$shippingQuoteError): ?>
                         <p style="color: var(--ml-text-muted); margin-top: 10px;">CEP não encontrado. Verifique o número.</p>
                         <?php endif; ?>
                         <?php if ($subtotal >= $freeThreshold): ?>
-                        <p class="free-shipping-badge"><i class="fas fa-gift"></i> Frete Grátis! Compras acima de R$ <?php echo number_format($freeThreshold, 2, ',', '.'); ?>.</p>
+                        <p class="ml-ship-free-note"><i class="fas fa-check-circle"></i> Frete grátis: compras acima de R$ <?php echo number_format($freeThreshold, 2, ',', '.'); ?></p>
                         <?php endif; ?>
-                        <?php endif; ?>
+                    <?php endif; ?>
                 </div>
 
                 <!-- ============================================================
-                     ETAPA 2 — PAGAMENTO (ML-style: cartões salvos + Pix 5% OFF)
+                     MEIOS DE PAGAMENTO
                 ============================================================ -->
-                <div class="ml-card">
-                    <div class="ml-step-head">
-                        <span class="ml-step-num">2</span>
-                        <h3><i class="fas fa-credit-card"></i> Pagamento</h3>
-                    </div>
+                <div class="ml-card ml-checkout-block">
+                    <h3 class="ml-block-title"><i class="fas fa-credit-card"></i> Meios de pagamento</h3>
                     <div class="payment-options">
-                        <?php foreach ($paymentMethods as $key => $pm): ?>
+                        <?php foreach ($paymentMethods as $key => $pm):
+                            $pmIcon = $key === 'pix' ? 'fa-brands fa-pix' : 'fa-solid ' . $pm['icon'];
+                        ?>
                         <label class="payment-option <?php echo $paymentMethod === $key ? 'selected' : ''; ?>">
                             <input type="radio" name="payment_method" form="checkoutForm" value="<?php echo $key; ?>" <?php echo $paymentMethod === $key ? 'checked' : ''; ?>>
-                            <div class="payment-option-content">
-                                <strong><?php echo htmlspecialchars($pm['label'], ENT_QUOTES, 'UTF-8'); ?></strong>
+                            <span class="payment-icon"><i class="<?php echo $pmIcon; ?>"></i></span>
+                            <span class="payment-option-content">
+                                <span class="payment-name"><?php echo htmlspecialchars($pm['label'], ENT_QUOTES, 'UTF-8'); ?></span>
                                 <span class="payment-desc"><?php echo htmlspecialchars($pm['desc'], ENT_QUOTES, 'UTF-8'); ?></span>
-                                <?php if ($key === 'pix' && $pixPercent > 0): ?><span class="pix-discount"><?php echo rtrim(rtrim(number_format($pixPercent, 1, ',', '.'), '0'), ','); ?>% OFF</span><?php endif; ?>
-                            </div>
+                                <?php if ($key === 'pix' && $pixPercent > 0): ?>
+                                    <span class="payment-badge ml-badge-gold"><?php echo trim(rtrim(rtrim(number_format($pixPercent, 1, ',', '.'), '0'), ',')); ?>% OFF</span>
+                                <?php endif; ?>
+                            </span>
                         </label>
                         <?php endforeach; ?>
                     </div>
@@ -623,48 +682,22 @@ include $base_path . 'components/header.php';
                 </div>
 
                 <!-- ============================================================
-                     ETAPA 3 — ENDEREÇO DE ENTREGA
+                     FATURAMENTO
                 ============================================================ -->
-                <?php if ($shippingType === 'entrega'): ?>
-                <div class="ml-card">
-                    <div class="ml-step-head">
-                        <span class="ml-step-num">3</span>
-                        <h3><i class="fas fa-map-marker-alt"></i> Endereço de Entrega</h3>
-                    </div>
-                    <p><strong><?php echo htmlspecialchars($user['name'], ENT_QUOTES, 'UTF-8'); ?></strong></p>
-                    <p style="color: var(--ml-text-secondary);" id="deliveryAddressStreet">
-                        <?php echo htmlspecialchars($user['street'] ?? '', ENT_QUOTES, 'UTF-8'); ?>, <?php echo (int)($user['number'] ?? 0); ?><?php if ($user['complement']): ?> - <?php echo htmlspecialchars($user['complement'], ENT_QUOTES, 'UTF-8'); ?><?php endif; ?>
-                    </p>
-                    <p style="color: var(--ml-text-secondary); margin-bottom: 4px;">
-                        CEP: <span id="deliveryAddressCep"><?php echo htmlspecialchars($user['postal_code'] ?? '', ENT_QUOTES, 'UTF-8'); ?></span>
-                    </p>
-                    <p style="color: var(--ml-text-muted); font-size: 0.85rem;" id="deliveryAddressRegion">
-                        <?php echo htmlspecialchars($shipAddress['neighborhood'] !== '' ? ($shipAddress['neighborhood'] . ' - ' . $shipAddress['city'] . ' - ' . $shipAddress['state']) : '', ENT_QUOTES, 'UTF-8'); ?>
-                    </p>
-                    <a href="../auth/profile.php" class="ml-btn" style="font-size: 0.85rem; padding: 8px 16px; margin-top: 10px;"><i class="fas fa-edit"></i> Alterar Endereço</a>
-                </div>
-                <?php endif; ?>
-
-                <!-- ============================================================
-                     ETAPA 4 — FATURAMENTO
-                ============================================================ -->
-                <div class="ml-card">
-                    <div class="ml-step-head">
-                        <span class="ml-step-num"><?php echo $shippingType === 'entrega' ? '4' : '3'; ?></span>
-                        <h3><i class="fas fa-file-invoice"></i> Faturamento</h3>
-                    </div>
+                <div class="ml-card ml-checkout-block">
+                    <h3 class="ml-block-title"><i class="fas fa-file-invoice"></i> Faturamento</h3>
                     <div class="ml-billing-row">
                         <div>
                             <strong><?php echo htmlspecialchars($user['name'], ENT_QUOTES, 'UTF-8'); ?></strong>
                             <p style="color: var(--ml-text-secondary); font-size: 0.9rem; margin-top: 2px;">
                                 <?php if (!empty($user['cpf'])): ?>
-                                    CPF: <span id="billingCpf"><?php echo htmlspecialchars(formatCpf($user['cpf']), ENT_QUOTES, 'UTF-8'); ?></span>
+                                    CPF: <span id="billingCpf" class="ml-tabnum"><?php echo htmlspecialchars(formatCpf($user['cpf']), ENT_QUOTES, 'UTF-8'); ?></span>
                                 <?php else: ?>
                                     CPF: <em style="color: var(--ml-text-muted);">não informado</em>
                                 <?php endif; ?>
                             </p>
                         </div>
-                        <a href="../auth/profile.php" class="ml-btn" style="font-size: 0.82rem; padding: 8px 14px;"><i class="fas fa-edit"></i> Alterar</a>
+                        <a href="../auth/profile.php" class="ml-link-gold"><i class="fas fa-pen"></i> Alterar</a>
                     </div>
                 </div>
             </div>
@@ -673,60 +706,33 @@ include $base_path . 'components/header.php';
                 <div class="ml-summary-card">
 
                     <!-- ==================================================
-                         RESUMO DA COMPRA — colagem de miniaturas (PARTE B)
+                         RESUMO DA COMPRA — breakdown de preços + botão
                     ================================================== -->
-                    <div class="ml-collage">
-                        <div class="ml-collage-thumbs">
-                            <?php foreach (array_slice($items, 0, 3) as $i => $item):
-                                $img = renderProductImage((string) ($item['image_path'] ?? ''), $base_path);
-                            ?>
-                            <img class="ml-collage-thumb" style="z-index: <?php echo 10 - $i; ?>;" src="<?php echo htmlspecialchars($img, ENT_QUOTES, 'UTF-8'); ?>" alt="<?php echo htmlspecialchars($item['name'], ENT_QUOTES, 'UTF-8'); ?>">
-                            <?php endforeach; ?>
-                            <?php if (count($items) > 3): ?>
-                            <span class="ml-collage-more">+<?php echo count($items) - 3; ?></span>
-                            <?php endif; ?>
-                        </div>
-                        <div class="ml-collage-info">
-                            <p class="ml-collage-title"><?php echo count($items); ?> <?php echo count($items) === 1 ? 'produto' : 'produtos'; ?> na sua compra</p>
-                            <button type="button" class="ml-collage-toggle" data-target="checkoutDetails"><i class="fas fa-chevron-down"></i> <span>Mostrar detalhes</span></button>
-                        </div>
-                    </div>
-
-                    <div class="ml-collage-details" id="checkoutDetails" hidden>
-                        <?php foreach ($items as $item): ?>
-                        <div class="ml-collage-item">
-                            <i class="fas fa-box-open ml-collage-item-icon"></i>
-                            <span class="ml-collage-item-name"><?php echo htmlspecialchars($item['name'], ENT_QUOTES, 'UTF-8'); ?> <small>x<?php echo (int) $item['quantity']; ?></small></span>
-                            <span class="ml-collage-item-price"><?php echo fmtMoney((float) $item['price'] * (int) $item['quantity']); ?></span>
-                        </div>
-                        <?php endforeach; ?>
-                    </div>
-
-                    <hr class="ml-summary-divider">
+                    <h3 class="ml-summary-title">Resumo da Compra</h3>
 
                     <!-- ==================================================
-                         BREAKDOWN DE PREÇO (PARTE C)
+                         BREAKDOWN DE PREÇO
                     ================================================== -->
                     <div class="ml-summary-line">
-                        <span>Subtotal de produtos (<?php echo count($items); ?> <?php echo count($items) === 1 ? 'item' : 'itens'; ?>)</span>
-                        <span><?php echo fmtMoney($subtotal); ?></span>
+                        <span>Produtos (<?php echo count($items); ?> <?php echo count($items) === 1 ? 'item' : 'itens'; ?>)</span>
+                        <span class="ml-tabnum"><?php echo fmtMoney($subtotal); ?></span>
                     </div>
 
                     <?php if ($productDiscount > 0): ?>
                     <div class="ml-summary-line discount">
                         <span>Desconto do produto</span>
-                        <span>- <?php echo fmtMoney($productDiscount); ?></span>
+                        <span class="ml-tabnum">- <?php echo fmtMoney($productDiscount); ?></span>
                     </div>
                     <?php endif; ?>
 
                     <div class="ml-summary-line">
                         <span>Frete<?php if ($shippingMethodLabel): ?> <?php echo htmlspecialchars($shippingMethodLabel, ENT_QUOTES, 'UTF-8'); ?><?php endif; ?></span>
-                        <span>
+                        <span class="ml-tabnum">
                             <?php if ($shipPaid > 0): ?>
                                 <?php echo fmtMoney($shipPaid); ?>
                             <?php else: ?>
                                 <?php if ($shipOriginalCost > 0): ?><span class="ml-old-price"><?php echo fmtMoney($shipOriginalCost); ?></span> <?php endif; ?>
-                                <strong style="color: var(--ml-green);">Grátis</strong>
+                                <strong class="ml-ship-free-text">Grátis</strong>
                             <?php endif; ?>
                         </span>
                     </div>
@@ -734,11 +740,11 @@ include $base_path . 'components/header.php';
                     <div style="font-size: 0.8rem; color: var(--ml-text-muted); text-align: right; padding: 2px 0 6px;">Previsão: <?php echo htmlspecialchars($shipDays, ENT_QUOTES, 'UTF-8'); ?></div>
                     <?php endif; ?>
 
-                    <!-- Cupom (PARTE C) -->
+                    <!-- Cupom -->
                     <?php if ($appliedCoupon !== ''): ?>
                         <div class="ml-summary-line discount">
                             <span><i class="fas fa-tag"></i> Cupom <?php echo htmlspecialchars($appliedCoupon, ENT_QUOTES, 'UTF-8'); ?></span>
-                            <span>- <?php echo fmtMoney($couponDiscount); ?></span>
+                            <span class="ml-tabnum">- <?php echo fmtMoney($couponDiscount); ?></span>
                         </div>
                         <div class="ml-coupon-applied-row">
                             <span style="color: var(--ml-green);"><i class="fas fa-check-circle"></i> Cupom aplicado com sucesso!</span>
@@ -760,37 +766,36 @@ include $base_path . 'components/header.php';
                     <?php if ($pixDiscount > 0): ?>
                     <div class="ml-summary-line discount">
                         <span>Desconto Pix (<?php echo rtrim(rtrim(number_format($pixPercent, 1, ',', '.'), '0'), ','); ?>%)</span>
-                        <span>- <?php echo fmtMoney($pixDiscount); ?></span>
+                        <span class="ml-tabnum">- <?php echo fmtMoney($pixDiscount); ?></span>
                     </div>
                     <?php endif; ?>
 
                     <div class="ml-summary-line total">
                         <span>Total</span>
-                        <span>
+                        <span class="ml-summary-total-right ml-tabnum">
                             <?php if ($totalSaved > 0): ?>
                                 <span class="ml-old-price ml-total-old"><?php echo fmtMoney($originalTotal); ?></span>
                             <?php endif; ?>
-                            <?php echo fmtMoney($grandTotal); ?>
+                            <span class="ml-total-final"><?php echo fmtMoney($grandTotal); ?></span>
                         </span>
                     </div>
 
                     <?php if ($totalSaved > 0): ?>
                     <div class="ml-savings-box">
-                        <i class="fas fa-piggy-bank"></i>
-                        Você economizou <strong><?php echo fmtMoney($totalSaved); ?></strong> nesta compra
+                        <i class="fas fa-tag"></i>
+                        Você economizou <strong class="ml-tabnum"><?php echo fmtMoney($totalSaved); ?></strong> nesta compra
                     </div>
                     <?php endif; ?>
 
                     <?php if ($paymentMethod === 'credit' && $grandTotal > 0 && !$savedCards): ?>
                     <div style="font-size: 0.85rem; color: var(--ml-text-secondary); text-align: center; padding-top: 10px; border-top: 1px solid var(--ml-border); margin-top: 8px;">
-                        ou <strong><?php echo $installmentCount; ?>x de R$ <?php echo number_format($installmentValue, 2, ',', '.'); ?></strong> sem juros
+                        ou <strong class="ml-tabnum"><?php echo $installmentCount; ?>x de R$ <?php echo number_format($installmentValue, 2, ',', '.'); ?></strong> sem juros
                     </div>
                     <?php endif; ?>
 
                     <form method="POST" id="checkoutForm">
                         <?php echo csrf_field(); ?>
                         <input type="hidden" name="shipping_cep" value="<?php echo htmlspecialchars($shippingCep, ENT_QUOTES, 'UTF-8'); ?>">
-                        <input type="hidden" name="shipping_type" value="<?php echo $shippingType; ?>">
                         <input type="hidden" name="coupon_code" value="<?php echo htmlspecialchars($appliedCoupon, ENT_QUOTES, 'UTF-8'); ?>">
                         <input type="hidden" name="card_id" value="<?php echo $selectedCardId; ?>">
                         <input type="hidden" name="ship_neighborhood" value="<?php echo htmlspecialchars($shipAddress['neighborhood'], ENT_QUOTES, 'UTF-8'); ?>">
@@ -800,14 +805,57 @@ include $base_path . 'components/header.php';
                         <input type="hidden" name="ship_number" value="<?php echo htmlspecialchars($shipAddress['number'], ENT_QUOTES, 'UTF-8'); ?>">
                         <input type="hidden" name="ship_complement" value="<?php echo htmlspecialchars($shipAddress['complement'], ENT_QUOTES, 'UTF-8'); ?>">
                         <p style="margin-bottom: 15px; font-size: 0.85rem; color: var(--ml-text-muted);"><i class="fas fa-info-circle"></i> Ao finalizar, você concorda com nossos termos de compra.</p>
-                        <button type="submit" name="confirm_order" class="ml-btn ml-btn-primary ml-btn-block" style="padding: 14px; font-size: 1.05rem;"><i class="fas fa-check"></i> Confirmar Pedido</button>
-                        <a href="cart.php" class="ml-btn ml-btn-block" style="margin-top: 10px;"><i class="fas fa-arrow-left"></i> Voltar ao Carrinho</a>
+                        <button type="submit" name="confirm_order" class="ml-pay-btn"><i class="fas fa-lock"></i> Pagar e finalizar</button>
                     </form>
+                    <a href="cart.php" class="ml-btn-back"><i class="fas fa-arrow-left"></i> Voltar ao Carrinho</a>
                 </div>
             </div>
         </div>
 
+            <!-- ============================================================
+                 MODAL "Mostrar detalhes" da compra
+            ============================================================ -->
+            <div class="ml-modal" id="detailsModal" hidden>
+                <div class="ml-modal-overlay" data-close-modal></div>
+                <div class="ml-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="detailsModalTitle">
+                    <button type="button" class="ml-modal-close" data-close-modal aria-label="Fechar"><i class="fas fa-times"></i></button>
+                    <h3 class="ml-modal-title" id="detailsModalTitle">Detalhes dos produtos</h3>
+                    <p class="ml-modal-subtitle"><?php echo count($items); ?> <?php echo count($items) === 1 ? 'produto' : 'produtos'; ?> em 1 envio</p>
+                    <div class="ml-modal-body">
+                        <div class="ml-modal-ship">
+                            <h4 class="ml-modal-ship-title"><i class="fas fa-box"></i> Envio 1</h4>
+                            <?php foreach ($items as $item):
+                                $imgM = renderProductImage((string) ($item['image_path'] ?? ''), $base_path);
+                                $colorM = trim((string) ($item['color'] ?? ''));
+                            ?>
+                            <div class="ml-modal-item">
+                                <img class="ml-modal-item-thumb" src="<?php echo htmlspecialchars($imgM, ENT_QUOTES, 'UTF-8'); ?>" alt="<?php echo htmlspecialchars($item['name'], ENT_QUOTES, 'UTF-8'); ?>">
+                                <div class="ml-modal-item-info">
+                                    <p class="ml-modal-item-name"><?php echo htmlspecialchars($item['name'], ENT_QUOTES, 'UTF-8'); ?></p>
+                                    <p class="ml-modal-item-meta">Quantidade: <?php echo (int) $item['quantity']; ?><?php if ($colorM !== ''): ?> – Cor: <?php echo htmlspecialchars($colorM, ENT_QUOTES, 'UTF-8'); ?><?php endif; ?></p>
+                                </div>
+                                <span class="ml-modal-item-price ml-tabnum"><?php echo fmtMoney((float) $item['price'] * (int) $item['quantity']); ?></span>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         <script>
+        // =============================================================
+        // Card de endereço — abre/edita o CEP
+        // =============================================================
+        var addressCard = document.getElementById('addressCard');
+        var addressEditBtn = document.getElementById('addressEditBtn');
+        function toggleCepEdit() {
+            if (!cepEdit) return;
+            cepEdit.hidden = !cepEdit.hidden;
+            if (!cepEdit.hidden && cepInput) { cepInput.focus(); cepInput.select(); }
+        }
+        if (addressEditBtn) addressEditBtn.addEventListener('click', function(e) { e.stopPropagation(); toggleCepEdit(); });
+        if (addressCard) addressCard.addEventListener('click', function() { if (cepEdit) cepEdit.hidden = false; });
+
         // =============================================================
         // Auto-submit ao trocar meio de entrega / pagamento
         // =============================================================
@@ -825,8 +873,7 @@ include $base_path . 'components/header.php';
         // =============================================================
         var cepInput = document.getElementById('shipping_cep');
         var cepFeedback = document.getElementById('cepFeedback');
-        var cepPreview = document.getElementById('cepAddressPreview');
-        var cepPreviewText = document.getElementById('cepAddressPreviewText');
+        var cepEdit = document.getElementById('cepEdit');
         var cepTimer = null;
         var cepController = null;
         var fallbackAddress = {
@@ -883,29 +930,33 @@ include $base_path . 'components/header.php';
             var cep = (cepInput.value || '').replace(/\D/g, '');
             if (cep.length !== 8) {
                 hideCepFeedback();
-                if (cepPreview) cepPreview.hidden = true;
                 return;
             }
             if (cepController) cepController.abort();
             cepController = new AbortController();
             var myController = cepController;
-            var timeoutId = setTimeout(function() { cepController.abort(); }, 6000);
+            var requestedCep = cep;
+            var timeoutId = setTimeout(function() { myController.abort(); }, 6000);
             showCepFeedback('Consultando CEP...', '');
             fetch('https://viacep.com.br/ws/' + cep + '/json/', { signal: myController.signal })
                 .then(function(r) { return r.json(); })
                 .then(function(data) {
                     clearTimeout(timeoutId);
+                    if (myController !== cepController) return;
+                    if ((cepInput.value || '').replace(/\D/g, '') !== requestedCep) return;
                     if (data.erro) {
                         showCepFeedback('CEP não encontrado. Verifique o número digitado.', 'error');
-                        if (cepPreview) cepPreview.hidden = true;
                         return;
                     }
                     fillCepHidden(data);
                     updateDeliveryAddress(data);
                     showCepFeedback('Endereço encontrado: ' + [data.logradouro, data.bairro, data.localidade].filter(Boolean).join(', ') + (data.uf ? ' - ' + data.uf : ''), 'ok');
-                    if (cepPreview && cepPreviewText) {
-                        cepPreviewText.textContent = [data.logradouro, data.bairro, data.localidade, data.uf].filter(Boolean).join(', ');
-                        cepPreview.hidden = false;
+                    if (cepEdit) cepEdit.hidden = true;
+                    var noOptions = !document.querySelector('.shipping-options');
+                    var entregaRadio = document.querySelector('input[name="shipping_type"][value="entrega"]');
+                    if (noOptions && entregaRadio && entregaRadio.checked) {
+                        var f = document.getElementById('checkoutForm');
+                        if (f) setTimeout(function() { f.submit(); }, 60);
                     }
                 })
                 .catch(function(err) {
@@ -931,25 +982,30 @@ include $base_path . 'components/header.php';
         }
 
         // =============================================================
-        // "Mostrar detalhes" da compra (PARTE B)
+        // "Mostrar detalhes" da compra — abre o modal de detalhes
         // =============================================================
-        document.querySelectorAll('.ml-collage-toggle').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                var target = document.getElementById(this.dataset.target);
-                var icon = this.querySelector('i');
-                var span = this.querySelector('span');
-                if (!target) return;
-                if (target.hidden) {
-                    target.hidden = false;
-                    span.textContent = 'Ocultar detalhes';
-                    if (icon) icon.classList.replace('fa-chevron-down', 'fa-chevron-up');
-                } else {
-                    target.hidden = true;
-                    span.textContent = 'Mostrar detalhes';
-                    if (icon) icon.classList.replace('fa-chevron-up', 'fa-chevron-down');
-                }
-            });
+        var detailsModal = document.getElementById('detailsModal');
+        function openDetailsModal() {
+            if (!detailsModal) return;
+            detailsModal.hidden = false;
+            document.body.style.overflow = 'hidden';
+        }
+        function closeDetailsModal() {
+            if (!detailsModal) return;
+            detailsModal.hidden = true;
+            document.body.style.overflow = '';
+        }
+        document.querySelectorAll('.ml-collage-toggle[data-toggle-details]').forEach(function(btn) {
+            btn.addEventListener('click', openDetailsModal);
         });
+        if (detailsModal) {
+            detailsModal.querySelectorAll('[data-close-modal]').forEach(function(el) {
+                el.addEventListener('click', closeDetailsModal);
+            });
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && !detailsModal.hidden) closeDetailsModal();
+            });
+        }
 
         // =============================================================
         // Cupom (PARTE C) — mostrar/ocultar o campo
@@ -957,11 +1013,31 @@ include $base_path . 'components/header.php';
         var couponToggle = document.getElementById('couponToggle');
         var couponRow = document.getElementById('couponRow');
         if (couponToggle && couponRow) {
-            couponToggle.addEventListener('click', function() {
-                couponRow.hidden = !couponRow.hidden;
+            var couponCodeInput = couponRow.querySelector('input');
+            var couponClosePending = false;
+            function couponSetVisible(visible) {
+                couponRow.hidden = !visible;
                 var icon = couponToggle.querySelector('i');
-                if (icon) icon.classList.toggle('fa-rotate-180');
+                if (icon) icon.style.transform = visible ? 'rotate(180deg)' : '';
+                if (visible && couponCodeInput) couponCodeInput.focus();
+            }
+            couponToggle.addEventListener('click', function() {
+                if (couponClosePending) { couponClosePending = false; return; }
+                couponSetVisible(couponRow.hidden);
             });
+            document.addEventListener('click', function(e) {
+                couponClosePending = false;
+                if (couponRow.hidden) return;
+                if (couponRow.contains(e.target) || couponToggle.contains(e.target)) return;
+                couponSetVisible(false);
+            });
+            if (couponCodeInput) {
+                couponCodeInput.addEventListener('blur', function(e) {
+                    if (couponCodeInput.value.trim() !== '') return;
+                    couponSetVisible(false);
+                    if (e.relatedTarget === couponToggle) couponClosePending = true;
+                });
+            }
         }
 
         // =============================================================
