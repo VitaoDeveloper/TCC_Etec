@@ -1,0 +1,48 @@
+[
+    {
+        "id": 1,
+        "name": "PAC",
+        "error": "Serviço indisponível para o trecho informado",
+        "company": {
+            "id": 1,
+            "name": "Correios",
+            "picture": "https:\/\/storage.googleapis.com\/sandbox-api-superfrete.appspot.com\/logos\/correios.png"
+        }
+    },
+    {
+        "id": 2,
+        "name": "SEDEX",
+        "price": 43.34,
+        "discount": "12.76",
+        "currency": "R$",
+        "delivery_time": 1,
+        "delivery_range": {
+            "min": 1,
+            "max": 1
+        },
+        "packages": [
+            {
+                "price": 43.34,
+                "discount": "12.76",
+                "format": "box",
+                "dimensions": {
+                    "height": "15",
+                    "width": "16",
+                    "length": "24"
+                },
+                "weight": "1.1",
+                "insurance_value": 0
+            }
+        ],
+        "additional_services": {
+            "receipt": false,
+            "own_hand": false
+        },
+        "company": {
+            "id": 1,
+            "name": "Correios",
+            "picture": "https:\/\/storage.googleapis.com\/sandbox-api-superfrete.appspot.com\/logos\/correios.png"
+        },
+        "has_error": false
+    }
+]

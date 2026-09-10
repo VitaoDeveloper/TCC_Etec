@@ -20,7 +20,7 @@ function getNextComprovanteNumber(): string
     return 'COMP-' . str_pad((string) $counter, 6, '0', STR_PAD_LEFT);
 }
 
-function buildComprovanteHtml(int $orderId): string
+function buildComprovanteHtml(int $orderId, ?string $counter = null): string
 {
     if (!isset($GLOBALS['pdo'])) {
         include_once __DIR__ . '/../database/connection.php';
@@ -59,7 +59,7 @@ function buildComprovanteHtml(int $orderId): string
     $discount = ($order['payment_method'] === 'pix') ? round($subtotal * 0.05, 2) : 0;
     $grandTotal = $subtotal + $shippingCost - $discount;
 
-    $counter = getNextComprovanteNumber();
+$counter = $counter ?? getNextComprovanteNumber();
 
     return '<!DOCTYPE html>
 <html lang="pt-BR">
@@ -220,8 +220,8 @@ function gerarComprovante(int $orderId): array
             }
         }
 
-        $html = buildComprovanteHtml($orderId);
-        $counter = getNextComprovanteNumber();
+$counter = getNextComprovanteNumber();
+        $html = buildComprovanteHtml($orderId, $counter);
         $filename = $counter . '.pdf';
         $filepath = COMPROVANTE_DIR . $filename;
 

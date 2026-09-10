@@ -32,6 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = trim((string) ($_POST['name'] ?? ''));
     $email = trim((string) ($_POST['email'] ?? ''));
     $username = trim((string) ($_POST['username'] ?? ''));
+    $cpfRaw = preg_replace('/\D/', '', (string) ($_POST['cpf'] ?? ''));
     $postalCode = trim((string) ($_POST['postal_code'] ?? ''));
     $street = trim((string) ($_POST['street'] ?? ''));
     $number = (int) ($_POST['number'] ?? 0);
@@ -39,10 +40,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $currentPass = (string) ($_POST['current_password'] ?? '');
     $newPass = (string) ($_POST['new_password'] ?? '');
 
+    function profileCpfValid(string $cpf): bool
+    {
+        $cpf = preg_replace('/\D/', '', $cpf);
+        if (strlen($cpf) !== 11 || preg_match('/^(\d)\1{10}$/', $cpf)) return false;
+        for ($t = 9; $t < 11; $t++) {
+            $sum = 0;
+            for ($i = 0; $i < $t; $i++) {
+                $sum += (int) $cpf[$i] * (($t + 1) - $i);
+            }
+            $digit = ((10 * $sum) % 11) % 10;
+            if ((int) $cpf[$t] !== $digit) return false;
+        }
+        return true;
+    }
+
     if ($name === '' || $email === '' || $username === '') {
         $errorMessage = 'Nome, e-mail e usuário são obrigatórios.';
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $errorMessage = 'E-mail inválido.';
+    } elseif ($cpfRaw === '' || !profileCpfValid($cpfRaw)) {
+        $errorMessage = 'CPF inválido. Verifique o número digitado.';
     } else {
         try {
             $stmtCheck = $pdo->prepare('SELECT id FROM e5_users WHERE (email = :email OR username = :username) AND id != :id LIMIT 1');
@@ -50,8 +68,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($stmtCheck->fetch()) {
                 $errorMessage = 'E-mail ou usuário já em uso.';
             } else {
-                $sql = 'UPDATE e5_users SET name = :name, email = :email, username = :username, postal_code = :postal_code, street = :street, number = :number, complement = :complement WHERE id = :id';
-                $params = [':name' => $name, ':email' => $email, ':username' => $username, ':postal_code' => $postalCode, ':street' => $street, ':number' => $number, ':complement' => $complement ?: null, ':id' => $userId];
+                $sql = 'UPDATE e5_users SET name = :name, email = :email, username = :username, cpf = :cpf, postal_code = :postal_code, street = :street, number = :number, complement = :complement WHERE id = :id';
+                $params = [':name' => $name, ':email' => $email, ':username' => $username, ':cpf' => $cpfRaw, ':postal_code' => $postalCode, ':street' => $street, ':number' => $number, ':complement' => $complement ?: null, ':id' => $userId];
 
                 if ($newPass !== '') {
                     if (!password_verify($currentPass, $user['password'])) {
@@ -59,7 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     } elseif (strlen($newPass) < 6) {
                         $errorMessage = 'Nova senha deve ter no mínimo 6 caracteres.';
                     } else {
-                        $sql = 'UPDATE e5_users SET name = :name, email = :email, username = :username, postal_code = :postal_code, street = :street, number = :number, complement = :complement, password = :password WHERE id = :id';
+                        $sql = 'UPDATE e5_users SET name = :name, email = :email, username = :username, cpf = :cpf, postal_code = :postal_code, street = :street, number = :number, complement = :complement, password = :password WHERE id = :id';
                         $params[':password'] = password_hash($newPass, PASSWORD_DEFAULT);
                     }
                 }
@@ -70,6 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $user['name'] = $name;
                     $user['email'] = $email;
                     $user['username'] = $username;
+                    $user['cpf'] = $cpfRaw;
                     $user['postal_code'] = $postalCode;
                     $user['street'] = $street;
                     $user['number'] = $number;
@@ -94,6 +113,7 @@ include '../../components/header.php';
     <form method="POST" class="ml-card">
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:0 15px;">
             <div class="auth-field"><label class="auth-label" for="name">Nome</label><input type="text" id="name" name="name" value="<?php echo htmlspecialchars($user['name'], ENT_QUOTES, 'UTF-8'); ?>" required></div>
+            <div class="auth-field"><label class="auth-label" for="cpf_profile">CPF</label><div class="auth-input-wrap"><input type="text" id="cpf_profile" name="cpf" placeholder="000.000.000-00" maxlength="14" inputmode="numeric" value="<?php echo htmlspecialchars(($user['cpf'] ?? '') !== '' ? preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', (string) $user['cpf']) : '', ENT_QUOTES, 'UTF-8'); ?>" required oninput="this.value=this.value.replace(/\D/g,'').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})\.(\d{3})(\d)/,'$1.$2.$3').replace(/(\d{3})\.(\d{3})\.(\d{3})(\d)/,'$1.$2.$3-$4')"></div></div>
             <div class="auth-field"><label class="auth-label" for="email">E-mail</label><input type="email" id="email" name="email" value="<?php echo htmlspecialchars($user['email'], ENT_QUOTES, 'UTF-8'); ?>" required></div>
             <div class="auth-field"><label class="auth-label" for="username">Usuário</label><input type="text" id="username" name="username" value="<?php echo htmlspecialchars($user['username'], ENT_QUOTES, 'UTF-8'); ?>" required></div>
             <div class="auth-field"><label class="auth-label" for="postal_code">CEP</label><div class="auth-input-wrap"><input type="text" id="postal_code" class="cep-mask" pattern="[0-9]{5}-?[0-9]{3}" inputmode="numeric" name="postal_code" value="<?php echo htmlspecialchars($user['postal_code'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" required></div><div class="cep-feedback" id="cepFeedback" hidden></div></div>
@@ -144,17 +164,21 @@ include '../../components/header.php';
     if (cepController) cepController.abort();
     cepController = new AbortController();
     const myController = cepController;
-    const timeoutId = setTimeout(() => cepController.abort(), 6000);
+    const requestedCep = cep;
+    const timeoutId = setTimeout(() => myController.abort(), 6000);
     showCepFeedback('Consultando CEP...', '');
     fetch('https://viacep.com.br/ws/' + cep + '/json/', { signal: myController.signal })
       .then((response) => response.json())
       .then((data) => {
         clearTimeout(timeoutId);
+        if (myController !== cepController) return;
+        if (cepInput.value.replace(/\D/g, '') !== requestedCep) return;
         if (data.erro) {
           showCepFeedback('CEP não encontrado. Verifique o número digitado — você ainda pode preencher a rua manualmente.', 'error');
+          if (streetInput) streetInput.value = '';
           return;
         }
-        if (data.logradouro && streetInput) streetInput.value = data.logradouro;
+        if (streetInput) streetInput.value = data.logradouro || '';
         const parts = [];
         if (data.bairro) parts.push(data.bairro);
         if (data.localidade) parts.push(data.localidade);

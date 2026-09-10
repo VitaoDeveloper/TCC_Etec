@@ -1,0 +1,9 @@
+{
+  "limitation": "CHECKOUT REQUIRE SALDO NA CARTEIRA — NÃO TESTÁVEL SEM RECARGA. Limitação reportada explicitamente, não presumida como sucesso.",
+  "actual_body": {
+    "message": "Sem saldo na carteira! Utilize o app para recarregar a carteira ou pagar a etiqueta com cartão de crédito.",
+    "error": "Sem saldo na carteira! Utilize o app para recarregar a carteira ou pagar a etiqueta com cartão de crédito."
+  },
+  "http_status": 409,
+  "grpc_code": "unknown"
+}

@@ -1,0 +1,50 @@
+{
+    "from": {
+        "name": "Royal Tech",
+        "address": "Av Paulista",
+        "number": "1000",
+        "district": "Bela Vista",
+        "city": "Sao Paulo",
+        "state_abbr": "SP",
+        "postal_code": "01310100",
+        "document": "49698132805"
+    },
+    "to": {
+        "name": "Cliente Teste",
+        "address": "Rua B",
+        "number": "2",
+        "district": "Centro",
+        "city": "Rio de Janeiro",
+        "state_abbr": "RJ",
+        "postal_code": "20020050",
+        "email": "cliente@teste.com.br",
+        "phone": "11999999999",
+        "document": "11144477735"
+    },
+    "service": 2,
+    "products": [
+        {
+            "name": "Notebook Gamer",
+            "quantity": 1,
+            "unitary_value": 350
+        },
+        {
+            "name": "Mouse Gamer",
+            "quantity": 2,
+            "unitary_value": 45.5
+        }
+    ],
+    "volumes": {
+        "height": 15,
+        "width": 16,
+        "length": 24,
+        "weight": 1.1
+    },
+    "options": {
+        "insurance_value": 441,
+        "receipt": false,
+        "own_hand": false,
+        "non_comercial": false
+    },
+    "platform": "RoyalTech"
+}

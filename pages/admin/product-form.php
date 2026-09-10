@@ -7,7 +7,7 @@ require_once __DIR__ . '/../../includes/image_helpers.php';
 $activePage = 'products';
 
 $productId = (int) ($_GET['id'] ?? 0);
-$product = ['category_id' => '', 'name' => '', 'description' => '', 'brand' => '', 'price' => '', 'old_price' => '', 'stock' => 0, 'is_featured' => 0];
+$product = ['category_id' => '', 'name' => '', 'description' => '', 'brand' => '', 'price' => '', 'old_price' => '', 'stock' => 0, 'is_featured' => 0, 'package_size_id' => '', 'weight_kg' => '', 'height_cm' => '', 'width_cm' => '', 'length_cm' => ''];
 $errorMessage = null;
 $currentImagePath = '';
 
@@ -35,6 +35,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errorMessage = 'Preencha corretamente categoria, nome e preço do produto.';
     } else {
         $slugBase = strtolower(trim(preg_replace('/[^a-zA-Z0-9]+/', '-', $name), '-'));
+        $packageSizeId = (int) ($_POST['package_size_id'] ?? 0);
+        $weightKg = trim((string) ($_POST['weight_kg'] ?? ''));
+        $heightCm = trim((string) ($_POST['height_cm'] ?? ''));
+        $widthCm = trim((string) ($_POST['width_cm'] ?? ''));
+        $lengthCm = trim((string) ($_POST['length_cm'] ?? ''));
         $payload = [
             ':category_id' => $categoryId,
             ':name' => $name,
@@ -44,15 +49,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':old_price' => $_POST['old_price'] !== '' ? (float) $_POST['old_price'] : null,
             ':stock' => max(0, (int) $_POST['stock']),
             ':is_featured' => isset($_POST['is_featured']) ? 1 : 0,
+            ':package_size_id' => $packageSizeId > 0 ? $packageSizeId : null,
+            ':weight_kg' => ($weightKg !== '' && (float) $weightKg >= 0) ? (float) $weightKg : null,
+            ':height_cm' => ($heightCm !== '' && (float) $heightCm > 0) ? (float) $heightCm : null,
+            ':width_cm' => ($widthCm !== '' && (float) $widthCm > 0) ? (float) $widthCm : null,
+            ':length_cm' => ($lengthCm !== '' && (float) $lengthCm > 0) ? (float) $lengthCm : null,
         ];
 
         try {
             if ($productId > 0) {
                 $payload[':id'] = $productId;
-                $sql = 'UPDATE e5_products SET category_id=:category_id, name=:name, description=:description, brand=:brand, price=:price, old_price=:old_price, stock=:stock, is_featured=:is_featured WHERE id=:id';
+                $sql = 'UPDATE e5_products SET category_id=:category_id, name=:name, description=:description, brand=:brand, price=:price, old_price=:old_price, stock=:stock, is_featured=:is_featured, package_size_id=:package_size_id, weight_kg=:weight_kg, height_cm=:height_cm, width_cm=:width_cm, length_cm=:length_cm WHERE id=:id';
             } else {
                 $payload[':slug'] = $slugBase . '-' . time();
-                $sql = 'INSERT INTO e5_products (category_id, name, slug, description, brand, price, old_price, stock, is_featured) VALUES (:category_id, :name, :slug, :description, :brand, :price, :old_price, :stock, :is_featured)';
+                $sql = 'INSERT INTO e5_products (category_id, name, slug, description, brand, price, old_price, stock, is_featured, package_size_id, weight_kg, height_cm, width_cm, length_cm) VALUES (:category_id, :name, :slug, :description, :brand, :price, :old_price, :stock, :is_featured, :package_size_id, :weight_kg, :height_cm, :width_cm, :length_cm)';
             }
 
             $stmt = $pdo->prepare($sql);
@@ -136,6 +146,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $categories = $pdo->query('SELECT id, name FROM e5_categories ORDER BY name')->fetchAll();
+$packageSizes = $pdo->query('SELECT id, name, height_cm, width_cm, length_cm, max_weight_kg FROM e5_package_sizes WHERE is_active = 1 ORDER BY max_weight_kg ASC, name ASC')->fetchAll();
 ?><!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -222,6 +233,51 @@ $categories = $pdo->query('SELECT id, name FROM e5_categories ORDER BY name')->f
                     <hr style="border:none; border-top:1px solid var(--color-border); margin:20px 0;">
 
                     <div class="admin-form-group">
+                        <label for="package_size_id">Embalagem pré-definida <small>(opcional)</small></label>
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <select id="package_size_id" name="package_size_id" style="flex:1;">
+                                <option value="">Personalizado (informar medidas abaixo)</option>
+                                <?php foreach ($packageSizes as $ps): ?>
+                                <option value="<?php echo (int) $ps['id']; ?>"
+                                    data-height="<?php echo (float) $ps['height_cm']; ?>"
+                                    data-width="<?php echo (float) $ps['width_cm']; ?>"
+                                    data-length="<?php echo (float) $ps['length_cm']; ?>"
+                                    data-weight="<?php echo (float) $ps['max_weight_kg']; ?>"
+                                    <?php echo (int) ($product['package_size_id'] ?? 0) === (int) $ps['id'] ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($ps['name'], ENT_QUOTES, 'UTF-8'); ?>
+                                    (<?php echo rtrim(rtrim((string) $ps['width_cm'], '0'), '.'); ?> x <?php echo rtrim(rtrim((string) $ps['height_cm'], '0'), '.'); ?> x <?php echo rtrim(rtrim((string) $ps['length_cm'], '0'), '.'); ?> cm, até <?php echo (float) $ps['max_weight_kg']; ?> kg)
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <a href="package-sizes.php" class="btn btn-secondary">Gerenciar embalagens</a>
+                        </div>
+                        <small style="color:var(--color-gray);">Se escolher uma embalagem pré-definida, as medidas usadas no cálculo de frete são as dela. Caso contrário, o sistema usa as medidas personalizadas abaixo.</small>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:20px;" id="pkg-custom-dims">
+                        <div class="admin-form-group">
+                            <label for="height_cm">Altura (cm)</label>
+                            <input type="number" id="height_cm" name="height_cm" step="0.1" min="0" placeholder="15" value="<?php echo htmlspecialchars((string) ($product['height_cm'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
+                        </div>
+                        <div class="admin-form-group">
+                            <label for="width_cm">Largura (cm)</label>
+                            <input type="number" id="width_cm" name="width_cm" step="0.1" min="0" placeholder="10" value="<?php echo htmlspecialchars((string) ($product['width_cm'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
+                        </div>
+                        <div class="admin-form-group">
+                            <label for="length_cm">Comprimento (cm)</label>
+                            <input type="number" id="length_cm" name="length_cm" step="0.1" min="0" placeholder="20" value="<?php echo htmlspecialchars((string) ($product['length_cm'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
+                        </div>
+                    </div>
+
+                    <div class="admin-form-group">
+                        <label for="weight_kg">Peso unitário (kg) <small>(opcional)</small></label>
+                        <input type="number" id="weight_kg" name="weight_kg" step="0.01" min="0" placeholder="0,50" value="<?php echo htmlspecialchars((string) ($product['weight_kg'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
+                        <small style="color:var(--color-gray);">Com embalagem pré-definida, se o peso ficar vazio usamos o peso máximo dela. Sem embalagem, o peso é obrigatório para um frete correto — mesmo assim, sem registro o sistema usa o valor padrão de 0,5 kg.</small>
+                    </div>
+
+                    <hr style="border:none; border-top:1px solid var(--color-border); margin:20px 0;">
+
+                    <div class="admin-form-group">
                         <label for="image_path">Caminho da imagem</label>
                         <input type="text" id="image_path" name="image_path" data-auto-path="<?php echo $currentImagePath === '' ? '1' : '0'; ?>" placeholder="/assets/img/products/meu-produto.jpg" value="<?php echo htmlspecialchars($currentImagePath, ENT_QUOTES, 'UTF-8'); ?>">
                         <small style="color:var(--color-gray);">Informe apenas o nome do arquivo (ex: produto.jpg) que o sistema completa o caminho. Usado quando nenhum arquivo é enviado no upload abaixo.</small>
@@ -271,6 +327,19 @@ $categories = $pdo->query('SELECT id, name FROM e5_categories ORDER BY name')->f
 
       nameInput.addEventListener('input', refreshPath);
       refreshPath();
+    })();
+    </script>
+    <script>
+    (function () {
+      const presetSelect = document.getElementById('package_size_id');
+      const dimInputs = document.querySelectorAll('#pkg-custom-dims input');
+      if (!presetSelect || !dimInputs.length) return;
+      const updateDims = () => {
+        const isPreset = presetSelect.value !== '';
+        dimInputs.forEach((input) => { input.disabled = isPreset; });
+      };
+      presetSelect.addEventListener('change', updateDims);
+      updateDims();
     })();
     </script>
 </body>

@@ -1,5 +1,7 @@
 <?php
 
+define('ASSET_VERSION', '20260909b');
+
 function loadEnv(string $path): void
 {
     if (!file_exists($path)) return;
@@ -34,6 +36,7 @@ function store_defaults(): array
         'pix_key' => '',
         'boleto_days' => '3',
         'free_shipping_threshold' => '500',
+        'vip_spend_threshold' => '2000',
     ];
 }
 

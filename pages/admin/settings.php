@@ -10,7 +10,9 @@ $defaults = [
     'store_currency'=>'BRL','store_description'=>'','social_facebook'=>'','social_instagram'=>'',
     'social_twitter'=>'','social_youtube'=>'','store_logo'=>'','store_favicon'=>'',
     'pix_key'=>'','boleto_days'=>'3',
+    'pix_discount_percent'=>'5',
     'free_shipping_threshold'=>'500',
+    'vip_spend_threshold'=>'2000',
 ];
 
 $tab = (string) ($_GET['tab'] ?? 'store');
@@ -173,6 +175,10 @@ function sel($key, $val) { global $settings; return ($settings[$key] ?? '') === 
                         <h4 style="margin-bottom:25px;">Configurações de Pagamento</h4>
                         <div class="admin-form-group"><label for="pix_key">Chave Pix</label><input type="text" id="pix_key" name="pix_key" value="<?php echo val('pix_key'); ?>" placeholder="CNPJ, CPF, e-mail, telefone ou chave aleatória"></div>
                         <div class="admin-form-group"><label for="boleto_days">Vencimento do Boleto (dias)</label><input type="number" id="boleto_days" name="boleto_days" value="<?php echo val('boleto_days'); ?>" min="1" max="30"></div>
+                        <div class="admin-form-group"><label for="pix_discount_percent">Desconto Pix (%)</label><input type="number" id="pix_discount_percent" name="pix_discount_percent" value="<?php echo val('pix_discount_percent'); ?>" min="0" max="100" step="0.5"></div>
+                        <p style="color:var(--color-gray); font-size:0.85rem; margin-top:-10px;">Desconto aplicado quando o cliente paga com Pix. Deixe 0 para não dar desconto.</p>
+                        <div class="admin-form-group"><label for="vip_spend_threshold">Gasto mínimo p/ Cliente VIP (R$)</label><input type="number" id="vip_spend_threshold" name="vip_spend_threshold" value="<?php echo val('vip_spend_threshold'); ?>" min="0" step="0.01"></div>
+                        <p style="color:var(--color-gray); font-size:0.85rem; margin-top:-10px;">Acumulado de pedidos que classifica o cliente como VIP. Usado pelos cupons de segmento "VIP".</p>
                     </div>
 
                     <!-- Frete -->
