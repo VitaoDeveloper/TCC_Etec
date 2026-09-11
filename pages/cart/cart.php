@@ -303,6 +303,12 @@ include $base_path . 'components/header.php';
     const fmt = v => 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
     const $ = s => document.querySelector(s);
     const $$ = (s, ctx) => Array.from((ctx || document).querySelectorAll(s));
+    const csrfHeaders = function() {
+        var m = document.querySelector('meta[name="csrf-token"]');
+        var h = {'Content-Type': 'application/x-www-form-urlencoded'};
+        if (m && m.getAttribute('content')) h['X-CSRF-Token'] = m.getAttribute('content');
+        return h;
+    };
     const cartLayout = document.getElementById('mlCartLayout');
     const threshold = cartLayout ? parseFloat(cartLayout.dataset.freeshipThreshold) || 500 : 500;
 
@@ -339,7 +345,7 @@ include $base_path . 'components/header.php';
         if (!couponEl) return;
         fetch('coupon.php', {
             method: 'POST',
-            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            headers: csrfHeaders(),
             body: 'action=recalc'
         }).then(r => r.json()).then(res => {
             if (!couponEl.isConnected) return;
@@ -426,7 +432,7 @@ function recalc() {
             const pid = row.dataset.productId;
             fetch('update.php', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                headers: csrfHeaders(),
                 body: 'product_id=' + pid + '&quantity=' + val
             }).then(r => r.json()).then(d => {
                 if (d.success) {
@@ -449,7 +455,7 @@ function recalc() {
             const pid = row.dataset.productId;
             fetch('update.php', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                headers: csrfHeaders(),
                 body: 'product_id=' + pid + '&quantity=' + val
             }).then(r => r.json()).then(d => {
                 if (d.success) {
@@ -469,7 +475,7 @@ function recalc() {
             const pid = row.dataset.productId;
             fetch('remove.php', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                headers: csrfHeaders(),
                 body: 'product_id=' + pid
             }).then(r => r.json()).then(d => {
                 if (d.success) {
@@ -501,7 +507,7 @@ function recalc() {
             self.disabled = true;
             fetch('../wishlist/toggle.php', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                headers: csrfHeaders(),
                 body: 'product_id=' + pid
             }).then(r => r.json()).then(d => {
                 if (!d.success) {
@@ -513,7 +519,7 @@ function recalc() {
                 if (badge) badge.textContent = d.count;
                 return fetch('remove.php', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    headers: csrfHeaders(),
                     body: 'product_id=' + pid
                 }).then(r => r.json()).then(rd => {
                     if (!rd.success) {
@@ -565,7 +571,7 @@ function recalc() {
         if (!code) { showMsg('Digite um código de cupom.'); return; }
         fetch('coupon.php', {
             method: 'POST',
-            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            headers: csrfHeaders(),
             body: 'code=' + encodeURIComponent(code)
         }).then(r => r.json()).then(d => {
             if (d.success) {

@@ -19,6 +19,8 @@ if ($productId <= 0) {
 
 require_once __DIR__ . '/../../database/connection.php';
 require_once __DIR__ . '/../../includes/cart_functions.php';
+require_once __DIR__ . '/../../includes/csrf.php';
+csrf_require_valid_ajax();
 
 if ($quantity > 0) {
     $check = validateStock($pdo, $productId, $quantity);

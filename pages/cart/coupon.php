@@ -11,6 +11,8 @@ if (!isset($_SESSION['user_id'])) {
 require_once __DIR__ . '/../../database/connection.php';
 require_once __DIR__ . '/../../includes/cart_functions.php';
 require_once __DIR__ . '/../../includes/coupon_functions.php';
+require_once __DIR__ . '/../../includes/csrf.php';
+csrf_require_valid_ajax();
 
 $userId = (int) $_SESSION['user_id'];
 

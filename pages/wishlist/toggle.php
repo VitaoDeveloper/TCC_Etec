@@ -17,6 +17,8 @@ if ($productId <= 0) {
 
 require_once __DIR__ . '/../../database/connection.php';
 require_once __DIR__ . '/../../includes/wishlist_functions.php';
+require_once __DIR__ . '/../../includes/csrf.php';
+csrf_require_valid_ajax();
 
 $stmt = $pdo->prepare('SELECT id FROM e5_products WHERE id = :id LIMIT 1');
 $stmt->execute([':id' => $productId]);

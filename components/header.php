@@ -53,6 +53,7 @@ if (isset($pdo)) {
 }
 
 require_once dirname(__DIR__) . '/includes/category_icons.php';
+require_once dirname(__DIR__) . '/includes/csrf.php';
 
 $assetVersion = defined('ASSET_VERSION') ? ASSET_VERSION : '20260909b';
 ?>
@@ -68,6 +69,7 @@ $assetVersion = defined('ASSET_VERSION') ? ASSET_VERSION : '20260909b';
     <meta property="og:image" content="<?php echo ($basePath ?? '') . 'assets/img/hero-bg.jpg'; ?>">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Royal Tech">
+    <meta name="csrf-token" content="<?php echo htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8'); ?>">
     <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/style.css?v=<?php echo $assetVersion; ?>">
     <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/admin.css?v=<?php echo $assetVersion; ?>">
     <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/mercadolivre-style.css?v=<?php echo $assetVersion; ?>">
