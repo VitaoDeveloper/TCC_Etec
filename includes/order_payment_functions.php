@@ -19,7 +19,8 @@ function orderGetById($pdo, $orderId) {
 
 function orderGetItems($pdo, $orderId) {
     $stmt = $pdo->prepare(
-        'SELECT oi.*, p.name AS name, p.stock, p.price AS current_price, p.image_path
+        'SELECT oi.*, p.name AS name, p.stock, p.price AS current_price,
+               (SELECT pi.image_path FROM e5_product_images pi WHERE pi.product_id = p.id ORDER BY pi.is_primary DESC, pi.id ASC LIMIT 1) AS image_path
            FROM e5_order_items oi
            INNER JOIN e5_products p ON p.id = oi.product_id
           WHERE oi.order_id = :oid'
