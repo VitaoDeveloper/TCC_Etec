@@ -18,6 +18,7 @@ require_once $base_path . 'includes/image_helpers.php';
 require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../includes/mail.php';
 require_once __DIR__ . '/../../includes/comprovante_functions.php';
+require_once __DIR__ . '/../../includes/order_payment_functions.php';
 
 use TCC\SuperFreteClient;
 use TCC\Exception\SuperFreteException;
@@ -388,21 +389,39 @@ if ($isConfirming) {
                 }
             }
 
-            $stmt = $pdo->prepare('INSERT INTO e5_orders (user_id, status, total, shipping_method, shipping_cost, payment_method, coupon_code, payment_card_last_four, payment_status, shipping_postal_code, shipping_neighborhood, shipping_city, shipping_state) VALUES (:uid, :status, :total, :ship, :shipcost, :pay, :coupon, :card, :paystatus, :cep, :neigh, :city, :state)');
+            // Gerar dados de pagamento (QR Pix, boleto, etc.) ANTES do INSERT para persistir
+            $paymentGen = generatePaymentDetails($paymentMethod, $grandTotal);
+            $paymentDetailsJson = json_encode($paymentGen['info'], JSON_UNESCAPED_UNICODE);
+            $paymentExpiresAt   = $paymentGen['expires_at'];
+
+            // Cartão de crédito: aprovação simulada instantânea
+            if ($paymentMethod === 'credit') {
+                $orderStatus   = 'paid';
+                $orderPayStatus = 'paid';
+                $paymentExpiresAt = null;
+                $paymentDetailsJson = null;
+            } else {
+                $orderStatus   = 'pending';
+                $orderPayStatus = 'pending';
+            }
+
+            $stmt = $pdo->prepare('INSERT INTO e5_orders (user_id, status, total, shipping_method, shipping_cost, payment_method, coupon_code, payment_card_last_four, payment_status, payment_details, payment_expires_at, shipping_postal_code, shipping_neighborhood, shipping_city, shipping_state) VALUES (:uid, :status, :total, :ship, :shipcost, :pay, :coupon, :card, :paystatus, :paydet, :payexp, :cep, :neigh, :city, :state)');
             $stmt->execute([
-                ':uid' => $userId,
-                ':status' => 'pending',
-                ':total' => $grandTotal,
-                ':ship' => $shippingMethodLabel,
-                ':shipcost' => $shipPaid,
-                ':pay' => $paymentMethod,
-                ':coupon' => $appliedCoupon !== '' ? $appliedCoupon : null,
-                ':card' => $selectedCard ? $selectedCard['last_four'] : null,
-                ':paystatus' => 'pending',
-                ':cep' => $shipCepDb,
-                ':neigh' => $shipNeighborhood,
-                ':city' => $shipCity,
-                ':state' => $shipState,
+                ':uid'       => $userId,
+                ':status'    => $orderStatus,
+                ':total'     => $grandTotal,
+                ':ship'      => $shippingMethodLabel,
+                ':shipcost'  => $shipPaid,
+                ':pay'       => $paymentMethod,
+                ':coupon'    => $appliedCoupon !== '' ? $appliedCoupon : null,
+                ':card'      => $selectedCard ? $selectedCard['last_four'] : null,
+                ':paystatus' => $orderPayStatus,
+                ':paydet'    => $paymentDetailsJson,
+                ':payexp'    => $paymentExpiresAt,
+                ':cep'       => $shipCepDb,
+                ':neigh'     => $shipNeighborhood,
+                ':city'      => $shipCity,
+                ':state'     => $shipState,
             ]);
             $orderId = (int) $pdo->lastInsertId();
 
@@ -429,9 +448,9 @@ if ($isConfirming) {
             $stmtItem = $pdo->prepare('INSERT INTO e5_order_items (order_id, product_id, quantity, unit_price) VALUES (:oid, :pid, :qty, :price)');
             foreach ($items as $item) {
                 $stmtItem->execute([
-                    ':oid' => $orderId,
-                    ':pid' => (int) $item['product_id'],
-                    ':qty' => (int) $item['quantity'],
+                    ':oid'   => $orderId,
+                    ':pid'   => (int) $item['product_id'],
+                    ':qty'   => (int) $item['quantity'],
                     ':price' => (float) $item['price'],
                 ]);
                 $stockAffected = decrementStock($pdo, (int) $item['product_id'], (int) $item['quantity']);
@@ -448,35 +467,9 @@ if ($isConfirming) {
 
             cartClear($pdo, $userId);
 
-            if ($paymentMethod === 'pix') {
-                $orderPaymentInfo = [
-                    'method' => 'Pix',
-                    'instructions' => 'Escaneie o QR Code abaixo ou copie o código Pix para pagamento.',
-                    'pix_code' => '00020126580014BR.GOV.BCB.PIX0136' . bin2hex(random_bytes(20)) . '5204000053039865406' . number_format($grandTotal, 2, '', '') . '5802BR5913Royal Tech LTDA6009SAO PAULO62070503***6304' . strtoupper(substr(bin2hex(random_bytes(4)), 0, 4)),
-                    'expires' => date('d/m/Y H:i', strtotime('+30 minutes')),
-                ];
-            } elseif ($paymentMethod === 'boleto') {
-                $orderPaymentInfo = [
-                    'method' => 'Boleto',
-                    'instructions' => 'Pague o boleto em qualquer banco, casa lotérica ou app até o vencimento.',
-                    'boleto_number' => '34191.79001 01043.510047 91020.150008 ' . random_int(100000000, 999999999) . ' ' . random_int(1, 9),
-                    'expires' => date('d/m/Y', strtotime('+3 days')),
-                ];
-            } elseif ($paymentMethod === 'credit') {
-                $orderPaymentInfo = [
-                    'method' => 'Cartão de Crédito',
-                    'instructions' => 'Seu pagamento será processado em até 2 dias úteis.',
-                    'installments' => $installmentCount . 'x de R$ ' . number_format($installmentValue, 2, ',', '.'),
-                ];
-            } else {
-                $orderPaymentInfo = [
-                    'method' => 'Pagamento na Entrega',
-                    'instructions' => 'Pague no momento da entrega. Aceitamos dinheiro, cartão de crédito e débito.',
-                ];
-            }
-
             $pdo->commit();
             $orderCreated = true;
+            $orderPaymentInfo = $paymentGen['info'];
 
             $compResult = gerarComprovante($orderId);
 
@@ -489,6 +482,10 @@ if ($isConfirming) {
                 $emailStatus = 'skipped';
                 salvarStatusEmail($orderId, $emailStatus);
             }
+
+            // Redirecionar para a página de pagamento (fluxo realista com countdown/retry)
+            header('Location: payment.php?id=' . $orderId);
+            exit;
         } catch (Throwable $e) {
             $pdo->rollBack();
             $errorMessage = 'Erro ao processar pedido. Tente novamente.';

@@ -31,8 +31,8 @@ $sinfo = $statusLabels[$order['status']] ?? ['label' => $order['status'], 'class
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'confirm_payment') {
     csrf_require_valid();
     if ($order['payment_status'] !== 'paid') {
-        $pdo->prepare('UPDATE e5_orders SET payment_status = :status WHERE id = :id')
-            ->execute([':status' => 'paid', ':id' => $orderId]);
+        $pdo->prepare('UPDATE e5_orders SET payment_status = :ps, status = CASE WHEN status = "pending" THEN "paid" ELSE status END, payment_expires_at = NULL WHERE id = :id')
+            ->execute([':ps' => 'paid', ':id' => $orderId]);
         $_SESSION['admin_message'] = 'Pagamento confirmado.';
     }
     header('Location: order-detail.php?id=' . $orderId);
@@ -76,11 +76,15 @@ unset($_SESSION['admin_message']);
                     &mdash;
                     <?php if ($order['payment_status'] === 'paid'): ?>
                     <span class="status-badge status-active">Pago</span>
+                    <?php elseif ($order['payment_status'] === 'failed'): ?>
+                    <span class="status-badge status-inactive">Falha no pagamento</span>
+                    <?php elseif ($order['payment_status'] === 'expired'): ?>
+                    <span class="status-badge status-inactive">Expirado</span>
                     <?php else: ?>
                     <span class="status-badge status-pending">Aguardando pagamento</span>
                     <?php endif; ?>
                 </div>
-                <?php if ($order['payment_status'] !== 'paid'): ?>
+                <?php if (in_array($order['payment_status'], ['pending','processing','failed','expired'], true) && $order['status'] !== 'canceled'): ?>
                 <form method="POST" style="margin:0;" onsubmit="return confirm('Confirmar o recebimento do pagamento deste pedido?')">
                     <?php echo csrf_field(); ?>
                     <input type="hidden" name="action" value="confirm_payment">
@@ -96,7 +100,7 @@ unset($_SESSION['admin_message']);
                         <tr><td style="color:var(--color-gray); padding:6px 0;">Data</td><td style="text-align:right;"><?php echo date('d/m/Y H:i', strtotime($order['created_at'])); ?></td></tr>
                         <tr><td style="color:var(--color-gray); padding:6px 0;">Total</td><td style="text-align:right; font-weight:700; color:var(--color-primary);">R$ <?php echo number_format((float)$order['total'], 2, ',', '.'); ?></td></tr>
                         <tr><td style="color:var(--color-gray); padding:6px 0;">Frete</td><td style="text-align:right;"><?php echo htmlspecialchars($order['shipping_method'] ?? '—', ENT_QUOTES, 'UTF-8'); ?> <?php echo $order['shipping_cost'] > 0 ? '(R$ ' . number_format((float)$order['shipping_cost'], 2, ',', '.') . ')' : '(Grátis)'; ?></td></tr>
-                        <tr><td style="color:var(--color-gray); padding:6px 0;">Pagamento</td><td style="text-align:right;"><?php echo htmlspecialchars($payLabel[$order['payment_method']] ?? $order['payment_method'] ?? '—', ENT_QUOTES, 'UTF-8'); ?> | <?php echo htmlspecialchars($order['payment_status'] ?? '—', ENT_QUOTES, 'UTF-8'); ?></td></tr>
+                        <tr><td style="color:var(--color-gray); padding:6px 0;">Pagamento</td><td style="text-align:right;"><?php echo htmlspecialchars($payLabel[$order['payment_method']] ?? $order['payment_method'] ?? '—', ENT_QUOTES, 'UTF-8'); ?> | <?php echo htmlspecialchars($paymentStatusLabels[$order['payment_status']]['label'] ?? $order['payment_status'] ?? '—', ENT_QUOTES, 'UTF-8'); ?></td></tr>
                             <tr>
                                 <td style="color:var(--color-gray); padding:6px 0; font-size:0.85rem;">Comprovante</td>
                                 <td>

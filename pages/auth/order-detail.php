@@ -14,22 +14,15 @@ include '../../database/connection.php';
 require_once $base_path . 'includes/csrf.php';
 require_once $base_path . 'includes/status_labels.php';
 require_once $base_path . 'includes/image_helpers.php';
+require_once $base_path . 'includes/cart_functions.php';
+require_once __DIR__ . '/../../includes/order_payment_functions.php';
 $userId = (int) $_SESSION['user_id'];
 $orderId = (int) ($_GET['id'] ?? 0);
 $message = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'cancel') {
     csrf_require_valid();
-    $stmt = $pdo->prepare('SELECT status FROM e5_orders WHERE id = :id AND user_id = :uid LIMIT 1');
-    $stmt->execute([':id' => $orderId, ':uid' => $userId]);
-    $ord = $stmt->fetch();
-    if ($ord && $ord['status'] === 'pending') {
-        $items = $pdo->prepare('SELECT product_id, quantity FROM e5_order_items WHERE order_id = :oid');
-        $items->execute([':oid' => $orderId]);
-        foreach ($items as $it) {
-            $pdo->prepare('UPDATE e5_products SET stock = stock + :qty WHERE id = :pid')->execute([':qty' => (int)$it['quantity'], ':pid' => (int)$it['product_id']]);
-        }
-        $pdo->prepare("UPDATE e5_orders SET status = 'canceled' WHERE id = :id")->execute([':id' => $orderId]);
+    if (orderCancelCustomer($pdo, $orderId)) {
         $message = 'Pedido cancelado com sucesso.';
     } else {
         $message = 'Não é possível cancelar este pedido.';
@@ -99,7 +92,18 @@ include '../../components/header.php';
                     $payLabels = ['pix'=>'Pix','boleto'=>'Boleto','credit'=>'Cartão de Crédito','delivery'=>'Pagamento na Entrega'];
                     echo htmlspecialchars($payLabels[$order['payment_method']] ?? $order['payment_method'] ?? '—', ENT_QUOTES, 'UTF-8');
                     ?><br>
-                    Status: <?php echo $order['payment_status'] === 'paid' ? '<span style="color:var(--ml-green);">Pago</span>' : '<span style="color:var(--ml-text-muted);">Pendente</span>'; ?>
+                    Status: <?php
+                    $psInfo = $paymentStatusLabels[$order['payment_status']] ?? null;
+                    if ($psInfo) {
+                        $psColor = $order['payment_status'] === 'paid' ? 'var(--ml-green)' : ($order['payment_status'] === 'failed' || $order['payment_status'] === 'expired' ? '#e53935' : 'var(--ml-text-muted)');
+                        echo '<span style="color:' . $psColor . ';">' . htmlspecialchars($psInfo['label'], ENT_QUOTES, 'UTF-8') . '</span>';
+                    } else {
+                        echo '<span style="color:var(--ml-text-muted);">' . htmlspecialchars((string)($order['payment_status'] ?? '—'), ENT_QUOTES, 'UTF-8') . '</span>';
+                    }
+                    ?>
+                    <?php if (($order['payment_status'] === 'failed' || $order['payment_status'] === 'expired') && $order['status'] === 'pending'): ?>
+                        <a href="../cart/payment.php?id=<?php echo (int)$order['id']; ?>" class="ml-btn" style="display:inline-flex; padding:3px 10px; font-size:.78rem; margin-top:6px;"><i class="fas fa-redo"></i> Retomar pagamento</a>
+                    <?php endif; ?>
                 </p>
             </div>
         </div>
