@@ -13,8 +13,10 @@ require_once $base_path . 'database/connection.php';
 require_once $base_path . 'includes/cart_functions.php';
 require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../includes/order_payment_functions.php';
+require_once __DIR__ . '/../../includes/store_logo.php';
 
 $userId = (int) $_SESSION['user_id'];
+$isAdmin = (($_SESSION['user_role'] ?? '') === 'admin');
 $orderId = (int) ($_GET['id'] ?? $_POST['id'] ?? 0);
 $order = orderGetById($pdo, $orderId);
 
@@ -539,6 +541,33 @@ $place($qrSize - 7, 0);
         form.inline { display: inline-flex; }
         .rt-card form { margin: 0; }
 
+        /* Logo substituível */
+        .rt-logo-img, .rt-logo-svg { display: block; }
+        .rt-logo-mark .rt-logo-img, .rt-logo-mark .rt-logo-svg { width: 24px; height: 24px; border-radius: 6px; object-fit: contain; }
+        .rt-icon.brand .rt-logo-img, .rt-icon.brand .rt-logo-svg { width: 36px; height: 36px; border-radius: 9px; object-fit: contain; }
+
+        /* Botão destrutivo + pagar depois */
+        .rt-btn-danger {
+            background: rgba(240,74,70,0.06);
+            color: #ff9b98;
+            border-color: rgba(240,74,70,0.45);
+        }
+        .rt-btn-danger:hover { background: rgba(240,74,70,0.14); border-color: rgba(240,74,70,0.7); color: #ffb4b1; transform: translateY(-1px); }
+        .rt-defer {
+            margin: 16px 0 0;
+            font-size: 0.84rem;
+            color: var(--rt-text-3);
+            line-height: 1.6;
+        }
+        .rt-defer a {
+            color: var(--rt-gold);
+            font-weight: 600;
+            border-bottom: 1px dashed rgba(245,197,66,0.5);
+            transition: color .15s, border-color .15s;
+        }
+        .rt-defer a:hover { color: #ffd75e; border-bottom-color: var(--rt-gold); }
+        .rt-defer i { margin-right: 6px; color: var(--rt-text-3); }
+
         /* ---- Responsivo ------------------------------------------------ */
         @media (max-width: 480px) {
             .rt-card { padding: 30px 18px 24px; border-radius: 18px; }
@@ -555,13 +584,7 @@ $place($qrSize - 7, 0);
 
 <div class="rt-topbar">
     <div class="rt-logo">
-        <span class="rt-logo-mark">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M12 2.6 20 7.3v9.4l-8 4.7-8-4.7V7.3L12 2.6Z" fill="#3a2b00"/>
-                <path d="M12 6.1 17.2 8.9v5.8L12 17.5 6.8 14.7V8.9L12 6.1Z" fill="#ffdf7e"/>
-                <path d="M12 9.2 14.6 10.6v2.4L12 14.4 9.4 13V10.6L12 9.2Z" fill="#2a1f00"/>
-            </svg>
-        </span>
+        <span class="rt-logo-mark"><?= rt_payment_logo() ?></span>
         <span class="rt-logo-text">Royal Tech<small>e-commerce premium</small></span>
     </div>
     <a class="rt-topbar-link" href="../auth/orders.php"><i class="fas fa-list-ul" style="margin-right:6px"></i>Meus Pedidos</a>
@@ -632,6 +655,7 @@ $place($qrSize - 7, 0);
             <button class="rt-btn rt-btn-ghost" name="action" value="cancel" style="width:100%"><i class="fas fa-times"></i> Cancelar Pedido</button>
         </form>
     </div>
+    <p class="rt-defer"><i class="far fa-clock"></i>Prefere pagar depois? <a href="../auth/orders.php">Ver meus pedidos</a></p>
 
 <?php elseif ($paymentStatus === 'expired'): ?>
     <!-- PAGAMENTO EXPIRADO -->
@@ -648,6 +672,7 @@ $place($qrSize - 7, 0);
             <button class="rt-btn rt-btn-ghost" name="action" value="cancel" style="width:100%"><i class="fas fa-times"></i> Cancelar Pedido</button>
         </form>
     </div>
+    <p class="rt-defer"><i class="far fa-clock"></i>Prefere pagar depois? <a href="../auth/orders.php">Ver meus pedidos</a></p>
 
 <?php elseif ($paymentStatus === 'processing'): ?>
     <!-- PROCESSANDO -->
@@ -664,7 +689,7 @@ $place($qrSize - 7, 0);
 
 <?php else: ?>
     <!-- AGUARDANDO PAGAMENTO (pending) — PIX ou Boleto -->
-    <div class="rt-icon gold"><i class="fas fa-<?= $paymentMethod === 'pix' ? 'qrcode' : 'barcode' ?>"></i></div>
+    <div class="rt-icon gold brand"><?= rt_payment_logo() ?></div>
     <h1 class="rt-title">Aguardando Pagamento</h1>
     <p class="rt-sub"><?= htmlspecialchars($paymentInfo['instructions'] ?? $subtitleDefault) ?></p>
 
@@ -704,12 +729,14 @@ $place($qrSize - 7, 0);
     </div>
 
     <div class="rt-actions">
+        <a class="rt-btn rt-btn-ghost" href="../auth/orders.php" style="width:100%"><i class="far fa-clock"></i> Pagar depois — ver meus pedidos</a>
         <form method="POST" class="rt-form">
             <input type="hidden" name="id" value="<?= $orderId ?>"><?= csrf_field() ?>
-            <button class="rt-btn rt-btn-ghost" name="action" value="cancel" style="width:100%"><i class="fas fa-times"></i> Cancelar Pedido</button>
+            <button class="rt-btn rt-btn-danger" name="action" value="cancel" style="width:100%"><i class="fas fa-times"></i> Cancelar Pedido</button>
         </form>
     </div>
 
+    <?php if ($isAdmin): ?>
     <!-- Área de demonstração (apenas ambiente de teste) -->
     <div class="rt-demo">
         <h4><i class="fas fa-flask"></i>Ambiente de Teste — Simulador de Pagamento</h4>
@@ -726,6 +753,7 @@ $place($qrSize - 7, 0);
             </form>
         </div>
     </div>
+    <?php endif; ?>
 
     <?php if ($paymentMethod === 'pix'): ?>
     <script>
