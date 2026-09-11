@@ -401,7 +401,10 @@ if ($isConfirming) {
                     ':qty' => (int) $item['quantity'],
                     ':price' => (float) $item['price'],
                 ]);
-                decrementStock($pdo, (int) $item['product_id'], (int) $item['quantity']);
+                $stockAffected = decrementStock($pdo, (int) $item['product_id'], (int) $item['quantity']);
+                if ($stockAffected <= 0) {
+                    throw new RuntimeException('Estoque insuficiente para "' . $item['name'] . '". Reduza a quantidade.');
+                }
             }
 
             if ($appliedCoupon !== '') {

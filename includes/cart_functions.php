@@ -76,5 +76,6 @@ function validateStock($pdo, $productId, $quantity, $cartQty = 0) {
 
 function decrementStock($pdo, $productId, $quantity) {
     $stmt = $pdo->prepare('UPDATE e5_products SET stock = stock - :qty WHERE id = :pid AND stock >= :qty2');
-    return $stmt->execute([':qty' => $quantity, ':pid' => $productId, ':qty2' => $quantity]);
+    $stmt->execute([':qty' => $quantity, ':pid' => $productId, ':qty2' => $quantity]);
+    return $stmt->rowCount();
 }
