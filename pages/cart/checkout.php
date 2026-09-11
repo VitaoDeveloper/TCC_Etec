@@ -39,6 +39,17 @@ function fmtMoney(float $value): string
 $userId = (int) $_SESSION['user_id'];
 $items = cartGetItems($pdo, $userId);
 
+// =====================================================================
+// SELEÇÃO — o carrinho envia only os itens marcados (checkout parcial).
+// Se nenhum id for enviado (ex.: "Comprar agora"), assume o carrinho todo.
+// =====================================================================
+$selectedFlipped = array_flip(array_filter(array_map('intval', (array) ($_POST['selected'] ?? $_GET['selected'] ?? []))));
+if ($selectedFlipped !== []) {
+    $items = array_values(array_filter($items, function ($it) use ($selectedFlipped) {
+        return isset($selectedFlipped[(int) $it['product_id']]);
+    }));
+}
+
 if (empty($items)) {
     header('Location: cart.php');
     exit;
@@ -848,6 +859,9 @@ include $base_path . 'components/header.php';
 
                     <form method="POST" id="checkoutForm">
                         <?php echo csrf_field(); ?>
+                        <?php foreach ($items as $it): ?>
+                        <input type="hidden" name="selected[]" value="<?php echo (int) $it['product_id']; ?>">
+                        <?php endforeach; ?>
                         <input type="hidden" name="shipping_cep" value="<?php echo htmlspecialchars($shippingCep, ENT_QUOTES, 'UTF-8'); ?>">
                         <input type="hidden" name="coupon_code" value="<?php echo htmlspecialchars($appliedCoupon, ENT_QUOTES, 'UTF-8'); ?>">
                         <input type="hidden" name="card_id" value="<?php echo $selectedCardId; ?>">

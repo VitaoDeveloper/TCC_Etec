@@ -29,6 +29,12 @@ $userId = (int) $_SESSION['user_id'];
 // =====================================================================
 if (isset($_POST['action']) && $_POST['action'] === 'recalc') {
     $items = cartGetItems($pdo, $userId);
+    $selectedFlipped = array_flip(array_filter(array_map('intval', (array) ($_POST['selected'] ?? []))));
+    if ($selectedFlipped !== []) {
+        $items = array_values(array_filter($items, function ($it) use ($selectedFlipped) {
+            return isset($selectedFlipped[(int) $it['product_id']]);
+        }));
+    }
 
     $subtotal = 0;
     foreach ($items as $item) {
@@ -87,6 +93,12 @@ if ($code === '') {
 }
 
 $items = cartGetItems($pdo, $userId);
+$selectedFlipped = array_flip(array_filter(array_map('intval', (array) ($_POST['selected'] ?? []))));
+if ($selectedFlipped !== []) {
+    $items = array_values(array_filter($items, function ($it) use ($selectedFlipped) {
+        return isset($selectedFlipped[(int) $it['product_id']]);
+    }));
+}
 
 $subtotal = 0;
 foreach ($items as $item) {

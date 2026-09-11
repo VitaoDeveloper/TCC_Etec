@@ -263,7 +263,9 @@ include $base_path . 'components/header.php';
                 <i class="fas fa-tag"></i> Você economiza <span class="ml-tnum" id="sumSavings">R$ <?php echo number_format($productDiscounts + $couponDiscount, 2, ',', '.'); ?></span> nesta compra
             </div>
 
-            <a href="checkout.php" class="ml-buy-btn" id="buyBtn"><i class="fas fa-credit-card"></i> Continuar</a>
+            <form method="POST" action="checkout.php" id="checkoutGoForm" style="margin:0;">
+                 <button type="submit" class="ml-buy-btn" id="buyBtn"><i class="fas fa-credit-card"></i> Continuar</button>
+             </form>
             <p class="ml-summary-secure" style="margin-bottom:0;"><i class="fas fa-lock" style="color: var(--ml-accent);"></i> Compra segura com Royal Tech</p>
         </aside>
     </div>
@@ -312,6 +314,12 @@ include $base_path . 'components/header.php';
     const cartLayout = document.getElementById('mlCartLayout');
     const threshold = cartLayout ? parseFloat(cartLayout.dataset.freeshipThreshold) || 500 : 500;
 
+    function getCheckedProducts() {
+        return $$('.ml-item').filter(it => it.querySelector('.item-check').checked)
+                             .map(it => parseInt(it.dataset.productId, 10))
+                             .filter(Boolean);
+    }
+
     const groupTotal = g => $$('.ml-item', g).reduce((acc, it) => {
         if (!it.querySelector('.item-check').checked) return acc;
         const qty = parseInt(it.dataset.qty, 10) || 0;
@@ -339,14 +347,15 @@ include $base_path . 'components/header.php';
         showMsg._t = setTimeout(() => { el.className = 'ml-coupon-msg'; }, 4000);
     }
 
-    // Recalcula o desconto do cupom no servidor (chamado após mudar quantidade)
+    // Recalcula o desconto do cupom no servidor (chamado após mudar quantidade/seleção)
     function recalcCoupon() {
         const couponEl = document.getElementById('sumCoupon');
         if (!couponEl) return;
+        let body = 'action=recalc' + getCheckedProducts().map(id => '&selected[]=' + id).join('');
         fetch('coupon.php', {
             method: 'POST',
             headers: csrfHeaders(),
-            body: 'action=recalc'
+            body: body
         }).then(r => r.json()).then(res => {
             if (!couponEl.isConnected) return;
             couponEl.dataset.value = res.success && !res.expired ? (res.discount || 0) : 0;
@@ -554,9 +563,9 @@ function recalc() {
     const selAll = document.getElementById('selectAllItems');
     if (selAll) selAll.addEventListener('change', function () {
         $$('.item-check').forEach(c => { c.checked = selAll.checked; });
-        recalc();
+        recalcCoupon();
     });
-    $$('.item-check').forEach(c => c.addEventListener('change', recalc));
+    $$('.item-check').forEach(c => c.addEventListener('change', recalcCoupon));
 
     // Coupon
     const couponToggle = document.getElementById('couponToggle');
@@ -569,10 +578,11 @@ function recalc() {
         const input = document.getElementById('couponInput');
         const code = input.value.trim();
         if (!code) { showMsg('Digite um código de cupom.'); return; }
+        let body = 'code=' + encodeURIComponent(code) + getCheckedProducts().map(id => '&selected[]=' + id).join('');
         fetch('coupon.php', {
             method: 'POST',
             headers: csrfHeaders(),
-            body: 'code=' + encodeURIComponent(code)
+            body: body
         }).then(r => r.json()).then(d => {
             if (d.success) {
                 input.value = d.code;
@@ -590,6 +600,25 @@ function recalc() {
     if (apBtn) apBtn.addEventListener('click', applyCoupon);
     const cpIn = document.getElementById('couponInput');
     if (cpIn) cpIn.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); applyCoupon(); } });
+
+    // Ir para o checkout com apenas os produtos selecionados
+    const checkoutGoForm = document.getElementById('checkoutGoForm');
+    if (checkoutGoForm) checkoutGoForm.addEventListener('submit', function(e) {
+        const selected = getCheckedProducts();
+        if (selected.length === 0) {
+            e.preventDefault();
+            showMsg('Selecione ao menos um produto para continuar.');
+            return;
+        }
+        checkoutGoForm.querySelectorAll('input[name="selected[]"]').forEach(el => el.remove());
+        selected.forEach(function(id) {
+            const inp = document.createElement('input');
+            inp.type = 'hidden';
+            inp.name = 'selected[]';
+            inp.value = id;
+            checkoutGoForm.appendChild(inp);
+        });
+    });
 
     recalc();
 })();
