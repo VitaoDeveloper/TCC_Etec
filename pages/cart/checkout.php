@@ -408,7 +408,9 @@ if ($isConfirming) {
             }
 
             if ($appliedCoupon !== '') {
-                couponMarkUsed($pdo, $appliedCoupon);
+                if (!couponMarkUsed($pdo, $appliedCoupon)) {
+                    throw new RuntimeException('Cupom atingiu o limite de usos.');
+                }
             }
 
             cartClear($pdo, $userId);
