@@ -34,6 +34,7 @@ function store_defaults(): array
         'store_logo' => '',
         'store_favicon' => '',
         'pix_key' => '',
+        'pix_discount_percent' => '5',
         'boleto_days' => '3',
         'free_shipping_threshold' => '500',
         'vip_spend_threshold' => '2000',
