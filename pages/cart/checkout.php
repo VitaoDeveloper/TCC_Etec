@@ -187,6 +187,22 @@ $shipAddress = [
     'complement'   => trim((string) ($_POST['ship_complement'] ?? '')),
 ];
 
+// Resolução servidor-side do CEP (caso o ViaCEP do cliente não tenha sido acionado
+// ou o usuário tenha vindo direto no checkout sem digitar o endereço).
+if ($shippingType === 'entrega' && $shipAddress['city'] === '') {
+    $cepDigitsResolve = preg_replace('/\D/', '', (string) $shippingCep);
+    if (strlen($cepDigitsResolve) === 8) {
+        $viaRaw = @file_get_contents('https://viacep.com.br/ws/' . $cepDigitsResolve . '/json/');
+        $viaData = $viaRaw !== false ? json_decode($viaRaw, true) : null;
+        if (is_array($viaData) && empty($viaData['erro'])) {
+            if ($shipAddress['neighborhood'] === '') $shipAddress['neighborhood'] = (string) ($viaData['bairro'] ?? '');
+            if ($shipAddress['city']        === '') $shipAddress['city']        = (string) ($viaData['localidade'] ?? '');
+            if ($shipAddress['state']       === '') $shipAddress['state']       = (string) ($viaData['uf'] ?? '');
+            if ($shipAddress['street']      === '') $shipAddress['street']      = (string) ($viaData['logradouro'] ?? '');
+        }
+    }
+}
+
 $removeCoupon = isset($_POST['remove_coupon']);
 
 $shippingOptions = null;
@@ -356,22 +372,28 @@ if ($isConfirming) {
         $errorMessage = $errorMessage ?: 'Cupom inválido: ' . $couponError;
     }
 
+    if (!$errorMessage && $shippingType === 'entrega') {
+        $cepDigitsVal = preg_replace('/\D/', '', (string) $shippingCep);
+        if (strlen($cepDigitsVal) !== 8) {
+            $errorMessage = $errorMessage ?: 'Informe um CEP válido para entrega.';
+        } elseif ($shipAddress['city'] === '') {
+            $errorMessage = $errorMessage ?: 'Não foi possível localizar o endereço para o CEP informado. Verifique o CEP.';
+        }
+    }
+
     if (!$errorMessage) {
         try {
             $pdo->beginTransaction();
 
-            // Endereço de entrega: ViaCEP (checkout) ou endereço cadastrado
+            // Endereço de entrega: ViaCEP (checkout), resolução servidor-side ou endereço cadastrado
             $shipNeighborhood = $shipAddress['neighborhood'] !== '' ? $shipAddress['neighborhood'] : null;
             $shipCity = $shipAddress['city'] !== '' ? $shipAddress['city'] : null;
             $shipState = $shipAddress['state'] !== '' ? $shipAddress['state'] : null;
             $shipCepDb = null;
             if ($shippingType === 'entrega') {
                 $shipCepDb = preg_replace('/\D/', '', $shippingCep);
-                if (!$shipNeighborhood && !empty($user['street'])) {
+                if ($shipNeighborhood === null && !empty($user['street'])) {
                     $shipNeighborhood = $user['street'];
-                }
-                if (!$shipCity && !empty($user['postal_code'])) {
-                    $shipCity = null;
                 }
             }
 
@@ -392,6 +414,26 @@ if ($isConfirming) {
                 ':state' => $shipState,
             ]);
             $orderId = (int) $pdo->lastInsertId();
+
+            // Salvar endereço de entrega no perfil do usuário (para próximas compras)
+            if ($shippingType === 'entrega' && $shipCepDb !== '') {
+                $updParts = ['postal_code = :cep'];
+                $updParams = [':cep' => $shipCepDb, ':uid' => $userId];
+                if ($shipAddress['street'] !== '') {
+                    $updParts[] = 'street = :street';
+                    $updParams[':street'] = $shipAddress['street'];
+                }
+                $numClean = preg_replace('/\D/', '', $shipAddress['number']);
+                if ($numClean !== '' && (int) $numClean > 0) {
+                    $updParts[] = 'number = :number';
+                    $updParams[':number'] = (int) $numClean;
+                }
+                if ($shipAddress['complement'] !== '') {
+                    $updParts[] = 'complement = :complement';
+                    $updParams[':complement'] = $shipAddress['complement'];
+                }
+                $pdo->prepare('UPDATE e5_users SET ' . implode(', ', $updParts) . ' WHERE id = :uid')->execute($updParams);
+            }
 
             $stmtItem = $pdo->prepare('INSERT INTO e5_order_items (order_id, product_id, quantity, unit_price) VALUES (:oid, :pid, :qty, :price)');
             foreach ($items as $item) {
