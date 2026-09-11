@@ -21,6 +21,13 @@ require_once __DIR__ . '/../../includes/cart_functions.php';
 require_once __DIR__ . '/../../includes/csrf.php';
 csrf_require_valid_ajax();
 
+require_once __DIR__ . '/../../includes/rate_limit.php';
+if (!rate_limit_check('cart_' . $_SESSION['user_id'], 60, 1)) {
+    http_response_code(429);
+    echo json_encode(['success' => false, 'message' => 'Muitas solicitações. Aguarde um momento e tente novamente.']);
+    exit;
+}
+
 cartRemoveItem($pdo, (int)$_SESSION['user_id'], $productId);
 $count = cartGetCount($pdo, (int)$_SESSION['user_id']);
 
