@@ -155,29 +155,6 @@ function superfreteCalcShipping(string $cep, array $items): array
     return $options;
 }
 
-// Fallback local (simulado) — só usado se a API SuperFrete falhar/indisponível.
-function calcShipping($cep) {
-    $cep = preg_replace('/\D/', '', $cep);
-    if (strlen($cep) !== 8) return null;
-    $prefix = (int) substr($cep, 0, 3);
-    if ($prefix >= 10 && $prefix <= 199) {
-        return [
-            'pac' => ['method' => 'PAC', 'cost' => 14.90, 'days' => '5-10 úteis'],
-            'sedex' => ['method' => 'Sedex', 'cost' => 29.90, 'days' => '1-2 úteis'],
-        ];
-    } elseif ($prefix >= 1 && $prefix <= 99) {
-        return [
-            'pac' => ['method' => 'PAC', 'cost' => 9.90, 'days' => '3-7 úteis'],
-            'sedex' => ['method' => 'Sedex', 'cost' => 19.90, 'days' => '1 dia útil'],
-        ];
-    } else {
-        return [
-            'pac' => ['method' => 'PAC', 'cost' => 24.90, 'days' => '7-15 úteis'],
-            'sedex' => ['method' => 'Sedex', 'cost' => 39.90, 'days' => '2-4 úteis'],
-        ];
-    }
-}
-
 // =====================================================================
 // ENTRADA DO FORM
 // =====================================================================
@@ -230,7 +207,8 @@ if ($shippingType === 'entrega' && !empty($shippingCep)) {
         $shippingOptions = superfreteCalcShipping($shippingCep, $items);
     } catch (Throwable $e) {
         $shippingQuoteError = true;
-        $shippingOptions = calcShipping($shippingCep);
+        $shippingOptions = null;
+        error_log('Frete indisponível (Sem fallback): ' . $e->getMessage());
     }
     if ($shippingOptions) {
         if (!isset($shippingOptions[$selectedShipping])) {
@@ -389,6 +367,8 @@ if ($isConfirming) {
             $errorMessage = $errorMessage ?: 'Informe um CEP válido para entrega.';
         } elseif ($shipAddress['city'] === '') {
             $errorMessage = $errorMessage ?: 'Não foi possível localizar o endereço para o CEP informado. Verifique o CEP.';
+        } elseif ($shippingQuoteError) {
+            $errorMessage = $errorMessage ?: 'Estamos passando por problemas ao calcular o frete. Tente novamente em instantes.';
         }
     }
 
@@ -665,9 +645,8 @@ include $base_path . 'components/header.php';
                         <?php if ($shippingQuoteError): ?>
                             <div class="auth-feedback auth-feedback-error" style="margin-top:12px;">
                                 <i class="fas fa-exclamation-triangle"></i>
-                                <strong>Ops, estamos passando por complicações técnicas.</strong>
-                                Não foi possível calcular o frete online agora — já estamos cuidando disso e a cotação deve voltar em instantes.
-                                Enquanto isso, exibimos abaixo um <em>valor estimado</em> para você conseguir seguir com o pedido. Tente novamente mais tarde para confirmar o valor real.
+                                <strong>Estamos passando por problemas ao calcular o frete.</strong>
+                                Não foi possível calcular o valor do frete no momento. Por favor, tente novamente em instantes — já estamos cuidando disso.
                             </div>
                         <?php endif; ?>
 
@@ -872,7 +851,7 @@ include $base_path . 'components/header.php';
                         <input type="hidden" name="ship_number" value="<?php echo htmlspecialchars($shipAddress['number'], ENT_QUOTES, 'UTF-8'); ?>">
                         <input type="hidden" name="ship_complement" value="<?php echo htmlspecialchars($shipAddress['complement'], ENT_QUOTES, 'UTF-8'); ?>">
                         <p style="margin-bottom: 15px; font-size: 0.85rem; color: var(--ml-text-muted);"><i class="fas fa-info-circle"></i> Ao finalizar, você concorda com nossos termos de compra.</p>
-                        <button type="submit" name="confirm_order" class="ml-pay-btn"><i class="fas fa-lock"></i> Pagar e finalizar</button>
+                        <button type="submit" name="confirm_order" class="ml-pay-btn" <?php echo $shippingQuoteError ? 'disabled style="opacity:.6;cursor:not-allowed;"' : ''; ?>><i class="fas fa-lock"></i> Pagar e finalizar</button>
                     </form>
                     <a href="cart.php" class="ml-btn-back"><i class="fas fa-arrow-left"></i> Voltar ao Carrinho</a>
                 </div>
