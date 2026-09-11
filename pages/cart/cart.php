@@ -502,6 +502,8 @@ function recalc() {
                             recalcCoupon();
                         }
                     }, 300);
+                } else {
+                    showMsg(d.message || 'Não foi possível remover este item.');
                 }
             });
         });

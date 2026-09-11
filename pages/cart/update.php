@@ -37,6 +37,15 @@ if ($quantity > 0) {
     }
 }
 
+if ($quantity > 0) {
+    $exists = $pdo->prepare('SELECT id FROM e5_cart WHERE user_id = :uid AND product_id = :pid LIMIT 1');
+    $exists->execute([':uid' => (int)$_SESSION['user_id'], ':pid' => $productId]);
+    if (!$exists->fetch()) {
+        echo json_encode(['success' => false, 'message' => 'Este item não está mais no carrinho.', 'count' => cartGetCount($pdo, (int)$_SESSION['user_id'])]);
+        exit;
+    }
+}
+
 cartUpdateQuantity($pdo, (int)$_SESSION['user_id'], $productId, $quantity);
 $count = cartGetCount($pdo, (int)$_SESSION['user_id']);
 

@@ -28,7 +28,12 @@ if (!rate_limit_check('cart_' . $_SESSION['user_id'], 60, 1)) {
     exit;
 }
 
-cartRemoveItem($pdo, (int)$_SESSION['user_id'], $productId);
+$affected = cartRemoveItem($pdo, (int)$_SESSION['user_id'], $productId);
 $count = cartGetCount($pdo, (int)$_SESSION['user_id']);
+
+if ($affected === 0) {
+    echo json_encode(['success' => false, 'message' => 'Este item não está no carrinho.', 'count' => $count]);
+    exit;
+}
 
 echo json_encode(['success' => true, 'count' => $count]);

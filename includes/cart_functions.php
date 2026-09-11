@@ -40,12 +40,14 @@ function cartUpdateQuantity($pdo, $userId, $productId, $quantity) {
         return cartRemoveItem($pdo, $userId, $productId);
     }
     $stmt = $pdo->prepare('UPDATE e5_cart SET quantity = :qty WHERE user_id = :uid AND product_id = :pid');
-    return $stmt->execute([':uid' => $userId, ':pid' => $productId, ':qty' => $quantity]);
+    $stmt->execute([':uid' => $userId, ':pid' => $productId, ':qty' => $quantity]);
+    return $stmt->rowCount();
 }
 
 function cartRemoveItem($pdo, $userId, $productId) {
     $stmt = $pdo->prepare('DELETE FROM e5_cart WHERE user_id = :uid AND product_id = :pid');
-    return $stmt->execute([':uid' => $userId, ':pid' => $productId]);
+    $stmt->execute([':uid' => $userId, ':pid' => $productId]);
+    return $stmt->rowCount();
 }
 
 function cartGetItemQuantity($pdo, $userId, $productId) {
