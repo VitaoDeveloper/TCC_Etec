@@ -1,6 +1,6 @@
 <?php
 
-define('ASSET_VERSION', '20260909b');
+define('ASSET_VERSION', '20260912c');
 
 function loadEnv(string $path): void
 {
