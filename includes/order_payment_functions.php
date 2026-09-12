@@ -68,11 +68,20 @@ function orderReserveStock($pdo, $orderId) {
 }
 
 // Devolve ao estoque os itens do pedido (chamado quando o pagamento não vem).
+// Idempotente via coluna stock_restored — nunca devolve duas vezes o mesmo pedido.
 function orderRestoreStock($pdo, $orderId) {
+    $order = orderGetById($pdo, $orderId);
+    if (!$order) return false;
+    if (isset($order['stock_restored']) && (int) $order['stock_restored'] === 1) {
+        return false;
+    }
     foreach (orderGetItems($pdo, $orderId) as $item) {
         $pdo->prepare('UPDATE e5_products SET stock = stock + :qty WHERE id = :pid')
             ->execute([':qty' => (int) $item['quantity'], ':pid' => (int) $item['product_id']]);
     }
+    $pdo->prepare('UPDATE e5_orders SET stock_restored = 1 WHERE id = :id')
+        ->execute([':id' => (int) $orderId]);
+    return true;
 }
 
 // Marca o pedido como pago (pagamento aprovado).
@@ -156,7 +165,7 @@ function orderRetryPayment($pdo, $orderId, string $method, float $total): array 
         orderReserveStock($pdo, $orderId);
         $stmt = $pdo->prepare(
             "UPDATE e5_orders
-                SET payment_status = 'pending', payment_details = :det, payment_expires_at = :exp
+                SET payment_status = 'pending', payment_details = :det, payment_expires_at = :exp, stock_restored = 0
               WHERE id = :id AND status = 'pending'"
         );
         $stmt->execute([
@@ -178,15 +187,80 @@ function orderCancelCustomer($pdo, $orderId): bool {
     $order = orderGetById($pdo, $orderId);
     if (!$order || $order['status'] !== 'pending') return false;
 
-    $restoreStock = in_array($order['payment_status'], ['pending', 'processing'], true);
-
     $stmt = $pdo->prepare(
         "UPDATE e5_orders SET status = 'canceled', payment_expires_at = NULL, payment_details = NULL
           WHERE id = :id AND status = 'pending'"
     );
     $stmt->execute([':id' => (int) $orderId]);
-    if ($stmt->rowCount() > 0 && $restoreStock) {
+    if ($stmt->rowCount() > 0) {
         orderRestoreStock($pdo, $orderId);
     }
     return true;
+}
+
+// Gera um código de rastreio simulado no padrão dos Correios (BR + 9 dígitos + BR).
+function generateTrackingCode(float|int $orderId): string {
+    $mid = str_pad((string) ((int) $orderId), 7, '0', STR_PAD_LEFT);
+    return 'BR' . $mid . random_int(100, 999) . 'BR';
+}
+
+// Cancelamento pelo administrador. Restaura estoque (idempotente) e, se o
+// pagamento já foi confirmado, registra estorno (payment_status = 'refunded').
+function orderCancelAdmin($pdo, $orderId, string $adminName = '', string $reason = ''): array {
+    $order = orderGetById($pdo, $orderId);
+    if (!$order) return ['ok' => false, 'message' => 'Pedido não encontrado.'];
+    if ($order['status'] === 'canceled') return ['ok' => false, 'message' => 'Pedido já está cancelado.'];
+
+    $pdo->beginTransaction();
+    try {
+        $stmt = $pdo->prepare(
+            "UPDATE e5_orders
+                SET status = 'canceled',
+                    payment_status = CASE WHEN payment_status = 'paid' THEN 'refunded' ELSE payment_status END,
+                    refund_reason = :reason, refunded_at = NOW(), refunded_by = :admin,
+                    payment_expires_at = NULL, payment_details = NULL
+              WHERE id = :id"
+        );
+        $stmt->execute([
+            ':reason' => $reason !== '' ? $reason : null,
+            ':admin' => $adminName,
+            ':id' => (int) $orderId,
+        ]);
+        orderRestoreStock($pdo, $orderId);
+        $pdo->commit();
+    } catch (Throwable $e) {
+        $pdo->rollBack();
+        return ['ok' => false, 'message' => 'Falha ao cancelar: ' . $e->getMessage()];
+    }
+    return ['ok' => true, 'message' => 'Pedido cancelado' . ($order['payment_status'] === 'paid' ? ' e estornado' : '') . '.'];
+}
+
+// Estorno administrativo de pagamento já confirmado. Restaura estoque
+// (idempotente) e marca payment_status = 'refunded' mantendo o status do pedido.
+function orderRefundAdmin($pdo, $orderId, string $adminName = '', string $reason = ''): array {
+    $order = orderGetById($pdo, $orderId);
+    if (!$order) return ['ok' => false, 'message' => 'Pedido não encontrado.'];
+    if ($order['payment_status'] !== 'paid') {
+        return ['ok' => false, 'message' => 'Só é possível estornar pedidos com pagamento confirmado.'];
+    }
+
+    $pdo->beginTransaction();
+    try {
+        $stmt = $pdo->prepare(
+            "UPDATE e5_orders
+                SET payment_status = 'refunded', refund_reason = :reason, refunded_at = NOW(), refunded_by = :admin
+              WHERE id = :id AND payment_status = 'paid'"
+        );
+        $stmt->execute([
+            ':reason' => $reason !== '' ? $reason : null,
+            ':admin' => $adminName,
+            ':id' => (int) $orderId,
+        ]);
+        orderRestoreStock($pdo, $orderId);
+        $pdo->commit();
+    } catch (Throwable $e) {
+        $pdo->rollBack();
+        return ['ok' => false, 'message' => 'Falha ao estornar: ' . $e->getMessage()];
+    }
+    return ['ok' => true, 'message' => 'Pagamento estornado.'];
 }

@@ -19,6 +19,7 @@ require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../includes/mail.php';
 require_once __DIR__ . '/../../includes/comprovante_functions.php';
 require_once __DIR__ . '/../../includes/order_payment_functions.php';
+require_once __DIR__ . '/../../includes/saved_card_functions.php';
 
 use TCC\SuperFreteClient;
 use TCC\Exception\SuperFreteException;
@@ -202,6 +203,7 @@ $couponDiscount = 0.00;
 $appliedCoupon = '';
 
 $freeThreshold = (float) (store_config('free_shipping_threshold') ?? 500);
+$shippingFallback = false;
 
 if ($shippingType === 'entrega' && !empty($shippingCep)) {
     try {
@@ -209,7 +211,25 @@ if ($shippingType === 'entrega' && !empty($shippingCep)) {
     } catch (Throwable $e) {
         $shippingQuoteError = true;
         $shippingOptions = null;
-        error_log('Frete indisponível (Sem fallback): ' . $e->getMessage());
+        error_log('Frete indisponível (usando fallback): ' . $e->getMessage());
+    }
+    // Fallback: se a cotação em tempo real falhar, usa o valor/prazo configurados
+    // para não bloquear a finalização do pedido (somente para CEP válido).
+    $cepDigitsCheck = preg_replace('/\D/', '', (string) $shippingCep);
+    if ($shippingOptions === null && strlen($cepDigitsCheck) === 8) {
+        $fallbackCost = max(0, (float) (store_config('frete_fallback_cost') ?? 25));
+        $fallbackDays = trim((string) (store_config('frete_fallback_days') ?? ''));
+        $shippingOptions = [
+            'pac' => [
+                'method' => 'PAC (estimativa)',
+                'cost'   => $fallbackCost,
+                'days'   => $fallbackDays,
+                'fallback' => true,
+            ],
+        ];
+        $shippingFallback = true;
+        $shippingQuoteError = false;
+        $selectedShipping = 'pac';
     }
     if ($shippingOptions) {
         if (!isset($shippingOptions[$selectedShipping])) {
@@ -329,8 +349,22 @@ $originalTotal = round($subtotalOld + $shipOriginalCost, 2);
 $totalSaved = round(max(0, $originalTotal - $grandTotal), 2);
 
 // Parcelas (somente crédito)
-$maxInstallments = $selectedCard ? (int) $selectedCard['max_installments'] : 12;
-$installmentCount = $grandTotal > 0 ? min($maxInstallments, max(1, (int) floor($grandTotal / 50))) : 1;
+// Cartão preenchido na hora do checkout (novo cartão) vs. cartão salvo
+$cardNumberRaw = preg_replace('/\D/', '', (string) ($_POST['card_number'] ?? ''));
+$newCardActive = $paymentMethod === 'credit' && $cardNumberRaw !== '';
+
+$maxInstallments = 12;
+if ($selectedCard && !$newCardActive) {
+    $maxInstallments = (int) $selectedCard['max_installments'];
+} elseif ($newCardActive) {
+    $maxInstallments = max(1, min(12, (int) ($_POST['installments'] ?? 12)));
+}
+
+if ($newCardActive) {
+    $installmentCount = max(1, min($maxInstallments, (int) ($_POST['installments'] ?? 12)));
+} else {
+    $installmentCount = $grandTotal > 0 ? min($maxInstallments, max(1, (int) floor($grandTotal / 50))) : 1;
+}
 $installmentValue = $installmentCount > 0 ? round($grandTotal / $installmentCount, 2) : 0;
 
 // =====================================================================
@@ -373,6 +407,14 @@ if ($isConfirming) {
         }
     }
 
+    // CPF de faturamento: obrigatório no crédito, opcional nos demais meios
+    $checkoutCpfRaw = preg_replace('/\D/', '', (string) ($_POST['cpf'] ?? ''));
+    if ($paymentMethod === 'credit' && $checkoutCpfRaw === '') {
+        $errorMessage = $errorMessage ?: 'Informe um CPF válido para faturamento.';
+    } elseif ($checkoutCpfRaw !== '' && strlen($checkoutCpfRaw) !== 11) {
+        $errorMessage = $errorMessage ?: 'CPF de faturamento inválido. Verifique os dígitos.';
+    }
+
     if (!$errorMessage) {
         try {
             $pdo->beginTransaction();
@@ -394,12 +436,29 @@ if ($isConfirming) {
             $paymentDetailsJson = json_encode($paymentGen['info'], JSON_UNESCAPED_UNICODE);
             $paymentExpiresAt   = $paymentGen['expires_at'];
 
+            // Cartão usado no pedido: salvo (selecionado) ou novo (digitado agora)
+            $confirmCardLastFour = $selectedCard ? (string) $selectedCard['last_four'] : null;
+            $confirmCardBrand    = $selectedCard ? (string) ($selectedCard['card_brand'] ?? '') : '';
+            if ($paymentMethod === 'credit' && $cardNumberRaw !== '') {
+                $cardCheck = cardSave($pdo, $userId, $_POST);
+                if (!$cardCheck['ok']) {
+                    throw new RuntimeException($cardCheck['message']);
+                }
+                $confirmCardLastFour = substr($cardNumberRaw, -4);
+                $confirmCardBrand    = cardDetectBrand($cardNumberRaw);
+            }
+
             // Cartão de crédito: aprovação simulada instantânea
             if ($paymentMethod === 'credit') {
                 $orderStatus   = 'paid';
                 $orderPayStatus = 'paid';
                 $paymentExpiresAt = null;
-                $paymentDetailsJson = null;
+                $paymentDetailsJson = json_encode([
+                    'method'         => 'Cartão de Crédito',
+                    'installments'   => $installmentCount . 'x de R$ ' . number_format($installmentValue, 2, ',', '.'),
+                    'card_brand'     => $confirmCardBrand,
+                    'card_last_four' => $confirmCardLastFour,
+                ], JSON_UNESCAPED_UNICODE);
             } else {
                 $orderStatus   = 'pending';
                 $orderPayStatus = 'pending';
@@ -414,7 +473,7 @@ if ($isConfirming) {
                 ':shipcost'  => $shipPaid,
                 ':pay'       => $paymentMethod,
                 ':coupon'    => $appliedCoupon !== '' ? $appliedCoupon : null,
-                ':card'      => $selectedCard ? $selectedCard['last_four'] : null,
+                ':card'      => $confirmCardLastFour,
                 ':paystatus' => $orderPayStatus,
                 ':paydet'    => $paymentDetailsJson,
                 ':payexp'    => $paymentExpiresAt,
@@ -443,6 +502,12 @@ if ($isConfirming) {
                     $updParams[':complement'] = $shipAddress['complement'];
                 }
                 $pdo->prepare('UPDATE e5_users SET ' . implode(', ', $updParts) . ' WHERE id = :uid')->execute($updParams);
+            }
+
+            // Persiste o CPF de faturamento no perfil (se informado e diferente)
+            if ($checkoutCpfRaw !== '' && preg_replace('/\D/', '', (string) ($user['cpf'] ?? '')) !== $checkoutCpfRaw) {
+                $pdo->prepare('UPDATE e5_users SET cpf = :cpf WHERE id = :id')
+                    ->execute([':cpf' => $checkoutCpfRaw, ':id' => $userId]);
             }
 
             $stmtItem = $pdo->prepare('INSERT INTO e5_order_items (order_id, product_id, quantity, unit_price) VALUES (:oid, :pid, :qty, :price)');
@@ -646,6 +711,12 @@ include $base_path . 'components/header.php';
                                 Não foi possível calcular o valor do frete no momento. Por favor, tente novamente em instantes — já estamos cuidando disso.
                             </div>
                         <?php endif; ?>
+                        <?php if ($shippingFallback): ?>
+                            <div class="auth-feedback" style="margin-top:12px; background:#fff8ec; color:#8a5a00;">
+                                <i class="fas fa-info-circle"></i>
+                                <strong>Frete estimado.</strong> A cotação em tempo real está indisponível no momento, então usamos um valor médio. O valor final pode ser ajustado na confirmação do envio.
+                            </div>
+                        <?php endif; ?>
 
                         <?php if ($shippingOptions): ?>
                         <div class="shipping-options">
@@ -703,9 +774,16 @@ include $base_path . 'components/header.php';
                         <?php endforeach; ?>
                     </div>
 
-                    <?php if ($paymentMethod === 'credit'): ?>
-                        <?php if ($savedCards): ?>
-                            <div class="ml-saved-cards">
+                    <?php if ($paymentMethod === 'credit'):
+                        $cardNumberValue = htmlspecialchars(trim((string) ($_POST['card_number'] ?? '')), ENT_QUOTES, 'UTF-8');
+                        $cardHolderValue = htmlspecialchars(trim((string) ($_POST['holder_name'] ?? '')), ENT_QUOTES, 'UTF-8');
+                        $cardMonthValue  = htmlspecialchars(trim((string) ($_POST['exp_month'] ?? '')), ENT_QUOTES, 'UTF-8');
+                        $cardYearValue   = htmlspecialchars(trim((string) ($_POST['exp_year'] ?? '')), ENT_QUOTES, 'UTF-8');
+                        $cardNewMarked   = $newCardActive || ($_POST['card_mode'] ?? '') === 'new';
+                        $cardOpen        = !$savedCards || $cardNewMarked;
+                    ?>
+                        <div class="ml-saved-cards">
+                            <?php if ($savedCards): ?>
                                 <p class="ml-cards-label"><i class="fas fa-wallet"></i> Seus cartões salvos</p>
                                 <?php $visibleCount = min(2, count($savedCards)); ?>
                                 <?php foreach ($savedCards as $i => $card): ?>
@@ -719,12 +797,55 @@ include $base_path . 'components/header.php';
                                 <?php if (count($savedCards) > 2): ?>
                                 <button type="button" class="ml-cards-more-link" id="toggleAllCards"><i class="fas fa-chevron-down" id="toggleAllCardsIcon"></i> <span id="toggleAllCardsText">Mostrar todos os cartões</span></button>
                                 <?php endif; ?>
+                            <?php else: ?>
+                                <p style="color: var(--ml-text-secondary); font-size: 0.9rem; margin: 8px 0 10px;">
+                                    Você ainda não tem cartões salvos — cadastre um cartão abaixo.
+                                </p>
+                            <?php endif; ?>
+
+                            <label class="ml-card-option ml-new-card-toggle <?php echo $cardOpen ? 'selected' : ''; ?>">
+                                <input type="radio" name="card_mode" value="new" form="checkoutForm" <?php echo $cardNewMarked ? 'checked' : ''; ?>>
+                                <i class="ml-card-icon fas fa-plus"></i>
+                                <span class="ml-card-num">Usar outro cartão</span>
+                            </label>
+
+                            <div class="ml-new-card" id="newCardBox" <?php echo $cardOpen ? '' : 'hidden'; ?>>
+                                <div class="ml-new-card-grid">
+                                    <label class="ml-new-card-field ml-new-card-full">
+                                        <span>Número do cartão</span>
+                                        <input type="text" name="card_number" form="checkoutForm" inputmode="numeric" maxlength="19" placeholder="0000 0000 0000 0000" value="<?php echo $cardNumberValue; ?>" oninput="this.value=this.value.replace(/\D/g,'').replace(/(\d{4})(?=\d)/g,'$1 ')">
+                                    </label>
+                                    <label class="ml-new-card-field ml-new-card-full">
+                                        <span>Nome impresso no cartão</span>
+                                        <input type="text" name="holder_name" form="checkoutForm" maxlength="80" placeholder="Como está no cartão" value="<?php echo $cardHolderValue; ?>">
+                                    </label>
+                                    <label class="ml-new-card-field">
+                                        <span>Validade (MM/AAAA)</span>
+                                        <input type="text" name="exp_month" form="checkoutForm" inputmode="numeric" maxlength="2" placeholder="MM" value="<?php echo $cardMonthValue; ?>" oninput="this.value=this.value.replace(/\D/g,'').slice(0,2)">
+                                    </label>
+                                    <label class="ml-new-card-field">
+                                        <span></span>
+                                        <input type="text" name="exp_year" form="checkoutForm" inputmode="numeric" maxlength="4" placeholder="AAAA" value="<?php echo $cardYearValue; ?>" oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)">
+                                    </label>
+                                    <label class="ml-new-card-field">
+                                        <span>Código de segurança</span>
+                                        <input type="text" name="card_cvc" form="checkoutForm" inputmode="numeric" maxlength="4" placeholder="CVC" value="<?php echo htmlspecialchars(trim((string) ($_POST['card_cvc'] ?? '')), ENT_QUOTES, 'UTF-8'); ?>" oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)">
+                                    </label>
+                                    <label class="ml-new-card-field">
+                                        <span>Parcelas</span>
+                                        <select name="installments" form="checkoutForm">
+                                            <?php for ($i = 1; $i <= 12; $i++): ?>
+                                            <option value="<?php echo $i; ?>" <?php echo $i === $installmentCount ? 'selected' : ''; ?>><?php echo $i; ?>x de R$ <?php echo number_format(round($grandTotal / $i, 2), 2, ',', '.'); ?></option>
+                                            <?php endfor; ?>
+                                        </select>
+                                    </label>
+                                    <label class="ml-new-card-field ml-new-card-full ml-new-card-save">
+                                        <input type="checkbox" name="save_card" value="1" form="checkoutForm" <?php echo !empty($_POST['save_card']) ? 'checked' : ''; ?>>
+                                        <span>Salvar este cartão na minha conta para as próximas compras</span>
+                                    </label>
+                                </div>
                             </div>
-                        <?php else: ?>
-                            <p style="color: var(--ml-text-secondary); font-size: 0.9rem; margin-top: 12px;">
-                                Você ainda não tem cartões salvos.
-                            </p>
-                        <?php endif; ?>
+                        </div>
                     <?php endif; ?>
                 </div>
 
@@ -746,6 +867,16 @@ include $base_path . 'components/header.php';
                         </div>
                         <a href="../auth/profile.php" class="ml-link-gold"><i class="fas fa-pen"></i> Alterar</a>
                     </div>
+                    <label class="ml-new-card-field ml-new-card-full" style="margin-top:10px;">
+                        <span>CPF do titular para faturamento e nota fiscal</span>
+                        <?php
+                        $checkoutCpfDisplay = preg_replace('/\D/', '', (string) ($_POST['cpf'] ?? ($user['cpf'] ?? '')));
+                        if (strlen($checkoutCpfDisplay) === 11) {
+                            $checkoutCpfDisplay = preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $checkoutCpfDisplay);
+                        }
+                        ?>
+                        <input type="text" name="cpf" form="checkoutForm" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" value="<?php echo htmlspecialchars($checkoutCpfDisplay, ENT_QUOTES, 'UTF-8'); ?>" oninput="this.value=this.value.replace(/\D/g,'').replace(/^(\d{3})(\d)/,'$1.$2').replace(/^(\d{3})\.(\d{3})(\d)/,'$1.$2.$3').replace(/\.(\d{3})(\d)/,'.$1-$2').slice(0,14)">
+                    </label>
                 </div>
             </div>
 
@@ -827,9 +958,9 @@ include $base_path . 'components/header.php';
                     </div>
                     <?php endif; ?>
 
-                    <?php if ($paymentMethod === 'credit' && $grandTotal > 0 && !$savedCards): ?>
+                    <?php if ($paymentMethod === 'credit' && $grandTotal > 0): ?>
                     <div style="font-size: 0.85rem; color: var(--ml-text-secondary); text-align: center; padding-top: 10px; border-top: 1px solid var(--ml-border); margin-top: 8px;">
-                        ou <strong class="ml-tabnum"><?php echo $installmentCount; ?>x de R$ <?php echo number_format($installmentValue, 2, ',', '.'); ?></strong> sem juros
+                        <strong class="ml-tabnum"><?php echo $installmentCount; ?>x de R$ <?php echo number_format($installmentValue, 2, ',', '.'); ?></strong> sem juros
                     </div>
                     <?php endif; ?>
 
@@ -885,6 +1016,87 @@ include $base_path . 'components/header.php';
                 </div>
             </div>
 
+        <style>
+        /* ---- Novo cartão no checkout ---- */
+        .ml-new-card-toggle { opacity: .92; margin-top: 4px; }
+        .ml-new-card-toggle.selected { border-style: dashed; background: rgba(255, 167, 38, 0.04); }
+        .ml-new-card {
+            margin-top: 4px;
+            padding: 14px;
+            background: var(--ml-bg);
+            border: 1px solid var(--ml-border);
+            border-left: 3px solid var(--ml-accent);
+            border-radius: 8px;
+        }
+        .ml-new-card[hidden] { display: none; }
+        .ml-new-card-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .ml-new-card-field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--ml-text);
+        }
+        .ml-new-card-field input,
+        .ml-new-card-field select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--ml-border);
+            border-radius: 6px;
+            background: #fff;
+            color: var(--ml-text);
+            font-size: 0.92rem;
+            font-family: var(--font-primary);
+            transition: border-color 0.2s;
+        }
+        .ml-new-card-field input:focus,
+        .ml-new-card-field select:focus {
+            outline: none;
+            border-color: var(--ml-accent);
+            box-shadow: 0 0 0 2px rgba(255, 167, 38, 0.15);
+        }
+        .ml-new-card-full { grid-column: 1 / -1; }
+        .ml-new-card-save { flex-direction: row; align-items: center; font-weight: 500; }
+        .ml-new-card-save input { width: auto; accent-color: var(--ml-accent); }
+        .ml-new-card-field input[type="checkbox"] { width: auto; }
+        @media (max-width: 480px) {
+            .ml-new-card-grid { grid-template-columns: 1fr; }
+            .ml-new-card-full { grid-column: auto; }
+        }
+        </style>
+        <script>
+        // =============================================================
+        // "Usar outro cartão" — revela/oculta o formulário de novo cartão
+        // =============================================================
+        (function () {
+            var modeNew = document.querySelector('input[name="card_mode"][value="new"]');
+            var box = document.getElementById('newCardBox');
+            var savedInputs = document.querySelectorAll('input[name="card_id"]');
+            if (!modeNew || !box) return;
+            function sync() {
+                var open = modeNew.checked;
+                box.hidden = !open;
+                var toggle = modeNew.closest('.ml-new-card-toggle');
+                if (toggle) toggle.classList.toggle('selected', open);
+                savedInputs.forEach(function (el) {
+                    if (el.checked) {
+                        var row = el.closest('.ml-card-option');
+                        if (row) row.classList.toggle('selected', !open);
+                    }
+                });
+            }
+            modeNew.addEventListener('change', sync);
+            savedInputs.forEach(function (el) {
+                el.addEventListener('change', function () { modeNew.checked = false; sync(); });
+            });
+            sync();
+        })();
+        </script>
         <script>
         // =============================================================
         // Card de endereço — abre/edita o CEP

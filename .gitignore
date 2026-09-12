@@ -4,5 +4,6 @@ test
 vendor
 assets/img/*/*
 storage/*
+assets/uploads/*
 .phpunit.cache/
 .phpunit.result.cache

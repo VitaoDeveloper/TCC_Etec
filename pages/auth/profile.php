@@ -14,6 +14,8 @@ if (!isset($_SESSION['user_id'])) {
 require_once __DIR__ . '/../../includes/csrf.php';
 include '../../database/connection.php';
 require_once __DIR__ . '/../../includes/image_helpers.php';
+require_once __DIR__ . '/../../includes/address_functions.php';
+require_once __DIR__ . '/../../includes/saved_card_functions.php';
 $userId = (int) $_SESSION['user_id'];
 
 $stmt = $pdo->prepare('SELECT * FROM e5_users WHERE id = :id LIMIT 1');
@@ -31,9 +33,10 @@ $errorMessage = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_require_valid();
+    $form = (string) ($_POST['form'] ?? 'profile');
 
     // Upload de avatar
-    if (($_POST['form'] ?? '') === 'avatar') {
+    if ($form === 'avatar') {
         if (isset($_FILES['avatar']) && $_FILES['avatar']['error'] === UPLOAD_ERR_OK) {
             $allowed = ['image/jpeg' => '.jpg', 'image/png' => '.png', 'image/webp' => '.webp'];
             $mime = (string) ($_FILES['avatar']['type'] ?? '');
@@ -67,6 +70,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $errorMessage = 'Nenhuma imagem recebida para alterar a foto.';
         }
+    } elseif ($form === 'address') {
+        $addressId = !empty($_POST['address_id']) ? (int) $_POST['address_id'] : null;
+        if (in_array(($_POST['intent'] ?? ''), ['new', 'edit'], true) || $addressId !== null) {
+            $result = userAddressSave($pdo, $userId, $_POST, $addressId);
+            if ($result['ok']) {
+                $successMessage = $result['message'];
+            } else {
+                $errorMessage = $result['message'];
+            }
+        }
+    } elseif ($form === 'delete_address') {
+        $result = userAddressDelete($pdo, $userId, (int) ($_POST['address_id'] ?? 0));
+        $result['ok'] ? $successMessage = $result['message'] : $errorMessage = $result['message'];
+    } elseif ($form === 'set_default_address') {
+        $result = userAddressSetDefault($pdo, $userId, (int) ($_POST['address_id'] ?? 0));
+        $result['ok'] ? $successMessage = $result['message'] : $errorMessage = $result['message'];
+    } elseif ($form === 'card') {
+        $result = cardSave($pdo, $userId, $_POST);
+        $result['ok'] ? $successMessage = $result['message'] : $errorMessage = $result['message'];
+    } elseif ($form === 'delete_card') {
+        $result = cardDelete($pdo, $userId, (int) ($_POST['card_id'] ?? 0));
+        $result['ok'] ? $successMessage = $result['message'] : $errorMessage = $result['message'];
     } else {
         // Salvar dados do perfil
         $name = trim((string) ($_POST['name'] ?? ''));
@@ -77,6 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $street = trim((string) ($_POST['street'] ?? ''));
         $number = (int) ($_POST['number'] ?? 0);
         $complement = trim((string) ($_POST['complement'] ?? ''));
+        $phone = preg_replace('/\D/', '', (string) ($_POST['phone'] ?? ''));
         $currentPass = (string) ($_POST['current_password'] ?? '');
         $newPass = (string) ($_POST['new_password'] ?? '');
         $notifyEmail = isset($_POST['notify_email']) ? 1 : 0;
@@ -103,6 +129,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $errorMessage = 'E-mail inválido.';
             } elseif ($cpfRaw === '' || !profileCpfValid($cpfRaw)) {
                 $errorMessage = 'CPF inválido. Verifique o número digitado.';
+            } elseif ($phone !== '' && (strlen($phone) < 10 || strlen($phone) > 11)) {
+                $errorMessage = 'Telefone inválido. Informe DDD + número (10 ou 11 dígitos).';
             } else {
                 try {
                     $stmtCheck = $pdo->prepare('SELECT id FROM e5_users WHERE (email = :email OR username = :username) AND id != :id LIMIT 1');
@@ -110,8 +138,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ($stmtCheck->fetch()) {
                         $errorMessage = 'E-mail ou usuário já em uso.';
                     } else {
-                        $sql = 'UPDATE e5_users SET name = :name, email = :email, username = :username, cpf = :cpf, postal_code = :postal_code, street = :street, number = :number, complement = :complement, notify_email = :ne, notify_whatsapp = :nw WHERE id = :id';
-                        $params = [':name' => $name, ':email' => $email, ':username' => $username, ':cpf' => $cpfRaw, ':postal_code' => $postalCode, ':street' => $street, ':number' => $number, ':complement' => $complement ?: null, ':ne' => $notifyEmail, ':nw' => $notifyWhatsapp, ':id' => $userId];
+                        $sql = 'UPDATE e5_users SET name = :name, email = :email, username = :username, cpf = :cpf, phone = :phone, postal_code = :postal_code, street = :street, number = :number, complement = :complement, notify_email = :ne, notify_whatsapp = :nw WHERE id = :id';
+                        $params = [':name' => $name, ':email' => $email, ':username' => $username, ':cpf' => $cpfRaw, ':phone' => $phone !== '' ? $phone : null, ':postal_code' => $postalCode, ':street' => $street, ':number' => $number, ':complement' => $complement ?: null, ':ne' => $notifyEmail, ':nw' => $notifyWhatsapp, ':id' => $userId];
 
                         if ($newPass !== '') {
                             if (!password_verify($currentPass, $user['password'])) {
@@ -119,7 +147,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             } elseif (strlen($newPass) < 6) {
                                 $errorMessage = 'Nova senha deve ter no mínimo 6 caracteres.';
                             } else {
-                                $sql = 'UPDATE e5_users SET name = :name, email = :email, username = :username, cpf = :cpf, postal_code = :postal_code, street = :street, number = :number, complement = :complement, password = :password, notify_email = :ne, notify_whatsapp = :nw WHERE id = :id';
+                                $sql = 'UPDATE e5_users SET name = :name, email = :email, username = :username, cpf = :cpf, phone = :phone, postal_code = :postal_code, street = :street, number = :number, complement = :complement, password = :password, notify_email = :ne, notify_whatsapp = :nw WHERE id = :id';
                                 $params[':password'] = password_hash($newPass, PASSWORD_DEFAULT);
                             }
                         }
@@ -131,6 +159,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $user['email'] = $email;
                             $user['username'] = $username;
                             $user['cpf'] = $cpfRaw;
+                            $user['phone'] = $phone !== '' ? $phone : null;
                             $user['postal_code'] = $postalCode;
                             $user['street'] = $street;
                             $user['number'] = $number;
@@ -167,25 +196,62 @@ $cpfFormatted = ($user['cpf'] ?? '') !== ''
     ? preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', (string) $user['cpf'])
     : '';
 
+$phoneDigits = preg_replace('/\D/', '', (string) ($user['phone'] ?? ''));
+$phoneFormatted = '';
+if (strlen($phoneDigits) === 11) {
+    $phoneFormatted = preg_replace('/(\d{2})(\d{5})(\d{4})/', '($1) $2-$3', $phoneDigits);
+} elseif (strlen($phoneDigits) === 10) {
+    $phoneFormatted = preg_replace('/(\d{2})(\d{4})(\d{4})/', '($1) $2-$3', $phoneDigits);
+}
+
 $avatarPath = $base_path . (!empty($user['avatar_path'])
     ? $user['avatar_path']
     : 'assets/img/placeholder-avatar.svg');
 
 $isAdminProfile = (($_SESSION['user_role'] ?? '') === 'admin');
 
-$savedAddresses = [];
-$savedCards = [];
-try {
-    $stmtA = $pdo->prepare('SELECT * FROM e5_user_addresses WHERE user_id = :u ORDER BY is_default DESC, id DESC');
-    $stmtA->execute([':u' => $userId]);
-    $savedAddresses = $stmtA->fetchAll();
+$savedAddresses = userAddressGetAll($pdo, $userId);
+$savedCards = cardGetAll($pdo, $userId);
 
-    $stmtC = $pdo->prepare('SELECT * FROM e5_saved_cards WHERE user_id = :u AND is_active = 1 ORDER BY id ASC');
-    $stmtC->execute([':u' => $userId]);
-    $savedCards = $stmtC->fetchAll();
-} catch (Throwable $e) {
-    // Tabelas podem não existir ainda no ambiente; segue sem elas
-    error_log('Profile aux query: ' . $e->getMessage());
+function profileAddressLine(array $address): string
+{
+    $cep = preg_replace('/\D/', '', (string) ($address['postal_code'] ?? ''));
+    $cepFmt = strlen($cep) === 8 ? preg_replace('/(\d{5})(\d{3})/', '$1-$2', $cep) : (string) ($address['postal_code'] ?? '');
+    $parts = [];
+    $parts[] = trim(($address['street'] ?? '') . ', ' . ($address['number'] ?? ''));
+    if (!empty($address['complement'])) $parts[] = (string) $address['complement'];
+    if (!empty($address['neighborhood'])) $parts[] = (string) $address['neighborhood'];
+    $cityState = trim(($address['city'] ?? '') . (($address['state'] ?? '') !== '' ? '/' . $address['state'] : ''));
+    if ($cityState !== '') $parts[] = $cityState;
+    if ($cepFmt !== '') $parts[] = 'CEP ' . $cepFmt;
+    return implode(' — ', array_filter($parts));
+}
+
+function profileAddressFormFields(?array $a): string
+{
+    $a = $a ?? [];
+    $val = function (string $k, string $default = '') use ($a): string {
+        return htmlspecialchars((string) ($a[$k] ?? $default), ENT_QUOTES, 'UTF-8');
+    };
+    $isDefault = !empty($a['is_default']);
+    $states = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
+    $options = '';
+    $sel = strtoupper((string) ($a['state'] ?? ''));
+    foreach ($states as $uf) {
+        $options .= '<option value="' . $uf . '"' . ($sel === $uf ? ' selected' : '') . '>' . $uf . '</option>';
+    }
+
+    return '<div class="ac-grid">'
+        . '<div class="ac-field"><label>Rótulo</label><input type="text" name="label" maxlength="40" placeholder="Ex.: Casa, Trabalho" value="' . $val('label', 'Entrega') . '"></div>'
+        . '<div class="ac-field"><label>CEP</label><input type="text" name="postal_code" maxlength="9" inputmode="numeric" placeholder="00000-000" value="' . $val('postal_code') . '" required></div>'
+        . '<div class="ac-field"><label>Número</label><input type="text" name="number" maxlength="10" placeholder="Ex.: 123 ou S/N" value="' . $val('number') . '" required></div>'
+        . '<div class="ac-field ac-full"><label>Rua</label><input type="text" name="street" placeholder="Preenche via CEP se deixado em branco" value="' . $val('street') . '"></div>'
+        . '<div class="ac-field"><label>Bairro</label><input type="text" name="neighborhood" placeholder="Opcional" value="' . $val('neighborhood') . '"></div>'
+        . '<div class="ac-field"><label>Cidade</label><input type="text" name="city" placeholder="Preenche via CEP se deixado em branco" value="' . $val('city') . '"></div>'
+        . '<div class="ac-field"><label>UF</label><select name="state"><option value="">--</option>' . $options . '</select></div>'
+        . '<div class="ac-field"><label>Complemento</label><input type="text" name="complement" maxlength="80" placeholder="Opcional" value="' . $val('complement') . '"></div>'
+        . '<div class="ac-field ac-full"><label class="ac-inline-check"><input type="checkbox" name="is_default" value="1"' . ($isDefault ? ' checked' : '') . '> Usar como endereço padrão</label></div>'
+        . '</div>';
 }
 
 include '../../components/header.php';
@@ -280,6 +346,13 @@ include '../../components/header.php';
                                 </div>
                             </div>
                             <div class="ac-field">
+                                <label for="phone">Telefone / Celular</label>
+                                <div class="ac-input-wrap">
+                                    <input type="text" id="phone" name="phone" placeholder="(11) 99999-9999" maxlength="16" inputmode="tel" value="<?php echo htmlspecialchars($phoneFormatted, ENT_QUOTES, 'UTF-8'); ?>" oninput="this.value=this.value.replace(/[^\d()\s-]/g,'')">
+                                    <span class="ac-input-icon"><i class="fas fa-phone"></i></span>
+                                </div>
+                            </div>
+                            <div class="ac-field">
                                 <label for="password_placeholder">Senha</label>
                                 <div class="ac-input-wrap">
                                     <input type="text" id="password_placeholder" value="••••••••" disabled>
@@ -326,6 +399,74 @@ include '../../components/header.php';
                                 <input type="text" id="complement" name="complement" placeholder="Apto., bloco, referência (opcional)" value="<?php echo htmlspecialchars($user['complement'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Endereços salvos -->
+                    <div class="ac-card">
+                        <div class="ac-card-head">
+                            <span class="ac-card-icon"><i class="fas fa-map-pin"></i></span>
+                            <div>
+                                <h2 class="ac-card-title">Endereços Salvos</h2>
+                                <p class="ac-card-desc">Cadastre quantos endereços quiser e defina o padrão para as entregas.</p>
+                            </div>
+                        </div>
+                        <?php if (empty($savedAddresses)): ?>
+                            <p class="ac-empty-note" style="margin-bottom:0;"><i class="fas fa-map-marker-alt"></i> Nenhum endereço salvo ainda. Adicione o primeiro abaixo.</p>
+                        <?php else: ?>
+                            <div style="display:flex; flex-direction:column; gap:12px;">
+                                <?php foreach ($savedAddresses as $addr): ?>
+                                    <div class="ac-card-item" style="align-items:flex-start; flex-wrap:wrap; gap:10px;">
+                                        <div style="flex:1; min-width:220px;">
+                                            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                                                <strong><?php echo htmlspecialchars((string) $addr['label'], ENT_QUOTES, 'UTF-8'); ?></strong>
+                                                <?php if ((int) $addr['is_default'] === 1): ?>
+                                                    <span class="ac-role-badge"><i class="fas fa-star"></i> Padrão</span>
+                                                <?php endif; ?>
+                                            </div>
+                                            <div style="font-size:0.85rem; color:var(--color-gray); margin-top:4px;"><?php echo htmlspecialchars(profileAddressLine($addr), ENT_QUOTES, 'UTF-8'); ?></div>
+                                        </div>
+                                        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                                            <?php if ((int) $addr['is_default'] !== 1): ?>
+                                                <form method="POST" style="display:inline;">
+                                                    <input type="hidden" name="form" value="set_default_address">
+                                                    <input type="hidden" name="address_id" value="<?php echo (int) $addr['id']; ?>">
+                                                    <?php echo csrf_field(); ?>
+                                                    <button type="submit" class="ac-btn-ghost" style="padding:6px 12px; font-size:0.8rem;"><i class="fas fa-star"></i> Tornar padrão</button>
+                                                </form>
+                                            <?php endif; ?>
+                                            <details style="display:inline-block;">
+                                                <summary class="ac-btn-ghost" style="padding:6px 12px; font-size:0.8rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; list-style:none;"><i class="fas fa-pen"></i> Editar</summary>
+                                                <form method="POST" style="margin-top:12px; width:100%;">
+                                                    <input type="hidden" name="form" value="address">
+                                                    <input type="hidden" name="intent" value="edit">
+                                                    <input type="hidden" name="address_id" value="<?php echo (int) $addr['id']; ?>">
+                                                    <?php echo csrf_field(); ?>
+                                                    <?php echo profileAddressFormFields($addr); ?>
+                                                    <button type="submit" class="ac-btn-save" style="margin-top:10px;"><i class="fas fa-save"></i> Atualizar endereço</button>
+                                                </form>
+                                            </details>
+                                            <form method="POST" style="display:inline;" onsubmit="return confirm('Excluir este endereço?');">
+                                                <input type="hidden" name="form" value="delete_address">
+                                                <input type="hidden" name="address_id" value="<?php echo (int) $addr['id']; ?>">
+                                                <?php echo csrf_field(); ?>
+                                                <button type="submit" class="ac-btn-ghost" style="padding:6px 12px; font-size:0.8rem; color:#ff6b5e;"><i class="fas fa-trash"></i></button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
+
+                        <details style="margin-top:16px;">
+                            <summary class="ac-btn-ghost" style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; list-style:none;"><i class="fas fa-plus"></i> Adicionar endereço</summary>
+                            <form method="POST" style="margin-top:14px;">
+                                <input type="hidden" name="form" value="address">
+                                <input type="hidden" name="intent" value="new">
+                                <?php echo csrf_field(); ?>
+                                <?php echo profileAddressFormFields(null); ?>
+                                <button type="submit" class="ac-btn-save" style="margin-top:10px;"><i class="fas fa-save"></i> Salvar endereço</button>
+                            </form>
+                        </details>
                     </div>
 
                     <!-- Alterar Senha -->
@@ -400,11 +541,11 @@ include '../../components/header.php';
                         </div>
                     </div>
                     <?php if (empty($savedCards)): ?>
-                        <p class="ac-empty-note" style="margin-bottom:0;"><i class="fas fa-credit-card"></i> Nenhum cartão salvo. Você pode salvar um cartão na hora de finalizar o pedido.</p>
+                        <p class="ac-empty-note" style="margin-bottom:0;"><i class="fas fa-credit-card"></i> Nenhum cartão salvo. Você pode salvar um cartão aqui ou na hora de finalizar o pedido.</p>
                     <?php else: ?>
                         <div style="display:flex; flex-direction:column; gap:12px;">
                             <?php foreach ($savedCards as $card): ?>
-                                <div class="ac-card-item">
+                                <div class="ac-card-item" style="gap:10px;">
                                     <span class="ac-card-brand">
                                         <?php
                                         $brandColor = match (strtolower((string) ($card['card_brand'] ?? ''))) {
@@ -417,13 +558,54 @@ include '../../components/header.php';
                                         <span style="<?php echo $brandColor; ?>"><?php echo htmlspecialchars($card['card_brand'] ?? 'CARD', ENT_QUOTES, 'UTF-8'); ?></span>
                                     </span>
                                     <span class="ac-card-number">•••• •••• •••• <?php echo htmlspecialchars($card['last_four'] ?? '0000', ENT_QUOTES, 'UTF-8'); ?></span>
+                                    <span style="font-size:0.8rem; color:var(--color-gray);"><?php echo htmlspecialchars((string) ($card['holder_name'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></span>
                                     <?php if (!empty($card['exp_month'])): ?>
                                         <span class="ac-card-exp"><?php echo str_pad((string) $card['exp_month'], 2, '0', STR_PAD_LEFT); ?>/<?php echo htmlspecialchars((string) ($card['exp_year'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></span>
                                     <?php endif; ?>
+                                    <form method="POST" style="margin-left:auto;" onsubmit="return confirm('Remover este cartão?');">
+                                        <input type="hidden" name="form" value="delete_card">
+                                        <input type="hidden" name="card_id" value="<?php echo (int) $card['id']; ?>">
+                                        <?php echo csrf_field(); ?>
+                                        <button type="submit" class="ac-btn-ghost" style="padding:6px 12px; font-size:0.8rem; color:#ff6b5e;"><i class="fas fa-trash"></i></button>
+                                    </form>
                                 </div>
                             <?php endforeach; ?>
                         </div>
                     <?php endif; ?>
+
+                    <details style="margin-top:16px;">
+                        <summary class="ac-btn-ghost" style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; list-style:none;"><i class="fas fa-plus"></i> Adicionar cartão</summary>
+                        <form method="POST" autocomplete="off" style="margin-top:14px;">
+                            <input type="hidden" name="form" value="card">
+                            <input type="hidden" name="save_card" value="1">
+                            <?php echo csrf_field(); ?>
+                            <div class="ac-grid">
+                                <div class="ac-field ac-full">
+                                    <label for="card_number">Número do cartão</label>
+                                    <input type="text" id="card_number" name="card_number" inputmode="numeric" maxlength="19" placeholder="0000 0000 0000 0000" required oninput="this.value=this.value.replace(/\D/g,'').replace(/(\d{4})(?=\d)/g,'$1 ')">
+                                </div>
+                                <div class="ac-field ac-full">
+                                    <label for="card_holder">Nome impresso no cartão</label>
+                                    <input type="text" id="card_holder" name="holder_name" maxlength="80" placeholder="Como está no cartão" required>
+                                </div>
+                                <div class="ac-field">
+                                    <label for="card_month">Mês (MM)</label>
+                                    <input type="text" id="card_month" name="exp_month" inputmode="numeric" maxlength="2" placeholder="MM" required>
+                                </div>
+                                <div class="ac-field">
+                                    <label for="card_year">Ano (AAAA)</label>
+                                    <input type="text" id="card_year" name="exp_year" inputmode="numeric" maxlength="4" placeholder="AAAA" required>
+                                </div>
+                                <div class="ac-field">
+                                    <label for="card_installments">Parcelas máximas</label>
+                                    <select id="card_installments" name="max_installments">
+                                        <?php for ($i = 1; $i <= 12; $i++): ?><option value="<?php echo $i; ?>"<?php echo $i === 12 ? ' selected' : ''; ?>><?php echo $i; ?>x</option><?php endfor; ?>
+                                    </select>
+                                </div>
+                            </div>
+                            <button type="submit" class="ac-btn-save" style="margin-top:10px;"><i class="fas fa-save"></i> Salvar cartão</button>
+                        </form>
+                    </details>
                 </div>
                 <!-- fim cartões -->
             </div>

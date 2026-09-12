@@ -1,6 +1,6 @@
 <?php
 
-define('ASSET_VERSION', '20260912c');
+define('ASSET_VERSION', '20260912d');
 
 function loadEnv(string $path): void
 {
@@ -37,6 +37,8 @@ function store_defaults(): array
         'pix_discount_percent' => '5',
         'boleto_days' => '3',
         'free_shipping_threshold' => '500',
+        'frete_fallback_cost' => '25',
+        'frete_fallback_days' => '5-10 dias úteis',
         'vip_spend_threshold' => '2000',
     ];
 }
