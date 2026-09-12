@@ -61,6 +61,35 @@ function buildComprovanteHtml(int $orderId, ?string $counter = null): string
 
 $counter = $counter ?? getNextComprovanteNumber();
 
+if (!empty($order['nf_number'])) {
+    $nfHtml = '<div class="section">
+        <h3>Nota Fiscal Eletrônica (NF-e)</h3>
+        <div class="info-grid">
+            <div class="info-item">
+                <div class="info-label">Número</div>
+                <div class="info-value">' . htmlspecialchars((string) $order['nf_number'], ENT_QUOTES, 'UTF-8') . '</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Data de Emissão</div>
+                <div class="info-value">' . htmlspecialchars(date('d/m/Y H:i', strtotime((string) $order['nf_emitted_at'])), ENT_QUOTES, 'UTF-8') . '</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Chave de Acesso</div>
+                <div class="info-value nf-key">' . htmlspecialchars(trim(chunk_split((string) $order['nf_key'], 4, ' ')), ENT_QUOTES, 'UTF-8') . '</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Validação</div>
+                <div class="info-value">Confira a chave no portal da SEFAZ do seu estado.</div>
+            </div>
+        </div>
+    </div>';
+} else {
+    $nfHtml = '<div class="section">
+        <h3>Nota Fiscal Eletrônica (NF-e)</h3>
+        <p>NF-e ainda não emitida para este pedido. Ela aparecerá aqui quando o pedido for concluído e a NF-e for emitida.</p>
+    </div>';
+}
+
     return '<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -88,6 +117,7 @@ $counter = $counter ?? getNextComprovanteNumber();
         .info-value { font-weight: 600; }
         .footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #999; font-size: 12px; }
         .brand-name { color: #d4af37; font-weight: 700; }
+        .nf-key { font-family: "Courier New", Courier, monospace; font-size: 13px; letter-spacing: 1px; word-break: break-all; }
     </style>
 </head>
 <body>
@@ -194,7 +224,9 @@ $counter = $counter ?? getNextComprovanteNumber();
         </div>
     </div>
 
-    <div class="footer">
+    ' . $nfHtml .
+
+    '<div class="footer">
         <p><strong class="brand-name">Royal Tech</strong> - Av. Paulista, 1000 - São Paulo, SP</p>
         <p>Este comprovante foi gerado automaticamente. Mantenha este documento para sua referência.</p>
         <p>Data de emissão: ' . date('d/m/Y H:i:s') . '</p>

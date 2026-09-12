@@ -11,6 +11,15 @@ if (!isset($_SESSION['user_id'])) {
 require_once __DIR__ . '/../../database/connection.php';
 require_once __DIR__ . '/../../includes/cart_functions.php';
 require_once __DIR__ . '/../../includes/coupon_functions.php';
+require_once __DIR__ . '/../../includes/csrf.php';
+csrf_require_valid_ajax();
+
+require_once __DIR__ . '/../../includes/rate_limit.php';
+if (!rate_limit_check('cart_' . $_SESSION['user_id'], 60, 1)) {
+    http_response_code(429);
+    echo json_encode(['success' => false, 'message' => 'Muitas solicitações. Aguarde um momento e tente novamente.']);
+    exit;
+}
 
 $userId = (int) $_SESSION['user_id'];
 
@@ -20,6 +29,12 @@ $userId = (int) $_SESSION['user_id'];
 // =====================================================================
 if (isset($_POST['action']) && $_POST['action'] === 'recalc') {
     $items = cartGetItems($pdo, $userId);
+    $selectedFlipped = array_flip(array_filter(array_map('intval', (array) ($_POST['selected'] ?? []))));
+    if ($selectedFlipped !== []) {
+        $items = array_values(array_filter($items, function ($it) use ($selectedFlipped) {
+            return isset($selectedFlipped[(int) $it['product_id']]);
+        }));
+    }
 
     $subtotal = 0;
     foreach ($items as $item) {
@@ -78,6 +93,12 @@ if ($code === '') {
 }
 
 $items = cartGetItems($pdo, $userId);
+$selectedFlipped = array_flip(array_filter(array_map('intval', (array) ($_POST['selected'] ?? []))));
+if ($selectedFlipped !== []) {
+    $items = array_values(array_filter($items, function ($it) use ($selectedFlipped) {
+        return isset($selectedFlipped[(int) $it['product_id']]);
+    }));
+}
 
 $subtotal = 0;
 foreach ($items as $item) {

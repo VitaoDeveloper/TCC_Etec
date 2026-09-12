@@ -92,9 +92,11 @@ function couponApply(PDO $pdo, string $code, float $baseAmount, ?int $userId = n
 
 /**
  * Incrementa o contador de usos de um cupom (chamado ao confirmar o pedido).
+ * Retorna false se o cupom já atingiu o limite (evita estourar max_uses em corrida).
  */
-function couponMarkUsed(PDO $pdo, string $code): void
+function couponMarkUsed(PDO $pdo, string $code): bool
 {
-    $stmt = $pdo->prepare('UPDATE e5_coupons SET used_count = used_count + 1 WHERE code = :code');
+    $stmt = $pdo->prepare('UPDATE e5_coupons SET used_count = used_count + 1 WHERE code = :code AND (max_uses = 0 OR used_count < max_uses)');
     $stmt->execute([':code' => mb_strtoupper(trim($code))]);
+    return $stmt->rowCount() > 0;
 }
