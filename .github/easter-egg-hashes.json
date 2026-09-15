@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "protected_by": "@jotaomh",
+  "description": "Hashes SHA-256 esperados do easter egg 'Modo Realeza' (chuva de coroas + icone do Corinthians). Conferidos pelo workflow .github/workflows/easter-egg-guard.yml em todo PR. Alteracoes intencionais exigem review de @jotaomh (ver .github/CODEOWNERS).",
+  "files": {
+    "assets/img/corinthians.png": {
+      "type": "file",
+      "sha256": "f7dc4ce68bec44d3c1511731d33bb5b3b1c09f859da4a51291d50f408653d571",
+      "note": "Icone do Corinthians exibido na chuva do modo realeza (30% dos elementos)."
+    },
+    "components/header.php": {
+      "type": "snippet",
+      "start_marker": "// === BEGIN EASTER EGG -- MODO REALEZA (PROTEGIDO) ===",
+      "end_marker": "// === END EASTER EGG -- MODO REALEZA (PROTEGIDO) ===",
+      "sha256": "19d553349785c7f80e94708d54e4a3b7293b71803394028b88bac95825b4de5f",
+      "note": "Trecho em components/header.php que renderiza as coroas (fa-crown) e referencia assets/img/corinthians.png."
+    },
+    "assets/css/mercadolivre-style.css": {
+      "type": "snippet",
+      "start_marker": "/* === BEGIN EASTER EGG -- MODO REALEZA (PROTEGIDO) === */",
+      "end_marker": "/* === END EASTER EGG -- MODO REALEZA (PROTEGIDO) === */",
+      "sha256": "540dee33cdf470f460d40a1c729a24b81f6027c3b999f64ee3ae81939b0fa5d2",
+      "note": "CSS da chuva (.royal-crown, royal-troll, royal-fall), glow (royal-glow) e toast (royal-toast)."
+    }
+  }
+}
