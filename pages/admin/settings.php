@@ -75,15 +75,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($logoPath !== null) {
         $values['store_logo'] = $logoPath;
     }
-    if (isset($_FILES['store_favicon']) && is_uploaded_file($_FILES['store_favicon']['tmp_name'])) {
-        $ext = strtolower(pathinfo($_FILES['store_favicon']['name'], PATHINFO_EXTENSION));
-        if (in_array($ext, ['png','jpg','jpeg','ico','webp'], true)) {
-            $name = 'favicon-' . time() . '.' . $ext;
-            $target = __DIR__ . '/../../assets/img/site/' . $name;
-            if (move_uploaded_file($_FILES['store_favicon']['tmp_name'], $target)) {
-                $values['store_favicon'] = '/assets/img/site/' . $name;
-            }
-        }
+    $faviconPath = $saveUpload('store_favicon', 'favicon', ['png', 'ico', 'webp']);
+    if ($faviconPath !== null) {
+        $values['store_favicon'] = $faviconPath;
     }
 
     foreach ($defaults as $k => $_) {
@@ -189,8 +183,8 @@ function sel($key, $val) { global $settings; return ($settings[$key] ?? '') === 
                                 <div class="admin-file-upload" onclick="document.getElementById('faviconInput').click()" style="cursor:pointer;">
                                     <i class="fas fa-cloud-upload-alt"></i><h5>Favicon</h5><p style="color:var(--color-gray);">PNG, ICO ou WEBP - 32x32px</p>
                                 </div>
-                                <input type="file" id="faviconInput" name="store_favicon" accept=".png,.jpg,.jpeg,.ico,.webp" style="display:none">
-                                <?php if (!empty($settings['store_favicon'])): ?><img src="../../<?php echo htmlspecialchars($settings['store_favicon'], ENT_QUOTES, 'UTF-8'); ?>" class="favicon-preview" alt="Favicon"><?php endif; ?>
+                                <input type="file" id="faviconInput" name="store_favicon" accept=".png,.ico,.webp" style="display:none">
+                                <?php if (!empty($settings['store_favicon'])): ?><img src="../../<?php echo htmlspecialchars(ltrim($settings['store_favicon'], '/'), ENT_QUOTES, 'UTF-8'); ?>" class="favicon-preview" alt="Favicon"><?php endif; ?>
                             </div>
                         </div>
 
@@ -287,6 +281,12 @@ function sel($key, $val) { global $settings; return ($settings[$key] ?? '') === 
         if (logoInput) {
             logoInput.addEventListener('change', function() {
                 checkUpload(logoInput, ['png', 'jpg', 'jpeg', 'webp'], 'o Logo da Loja');
+            });
+        }
+        var faviconInput = document.getElementById('faviconInput');
+        if (faviconInput) {
+            faviconInput.addEventListener('change', function() {
+                checkUpload(faviconInput, ['png', 'ico', 'webp'], 'o Favicon');
             });
         }
     })();
