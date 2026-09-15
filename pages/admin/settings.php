@@ -54,12 +54,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $targetDir = $uploadDirAbsolute . '/site';
         if (!is_dir($targetDir)) {
             if (!@mkdir($targetDir, 0775, true) && !is_dir($targetDir)) {
-                $errors[] = 'Não foi possível criar o diretório de uploads (assets/img/site). Verifique as permissões de escrita da pasta assets/img.';
+                $errors[] = 'Não foi possível criar o diretório de uploads (' . $targetDir . '). Verifique as permissões de escrita da pasta assets/img.';
                 return null;
             }
         }
         if (!is_writable($targetDir)) {
-            $errors[] = 'O diretório de uploads não tem permissão de escrita (assets/img/site).';
+            $errors[] = 'O diretório de uploads não tem permissão de escrita (' . $targetDir . ').';
             return null;
         }
         $fileName = $prefix . '-' . time() . '.' . $ext;
