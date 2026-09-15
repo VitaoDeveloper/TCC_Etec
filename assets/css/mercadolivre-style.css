@@ -64,6 +64,13 @@
     gap: 8px;
 }
 
+.ml-logo-img {
+    width: auto;
+    height: 40px;
+    max-width: 200px;
+    object-fit: contain;
+}
+
 .ml-logo-icon {
     font-size: 1.6rem;
     color: var(--ml-accent);

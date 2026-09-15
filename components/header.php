@@ -61,6 +61,10 @@ $assetVersion = defined('ASSET_VERSION') ? ASSET_VERSION : '20260909b';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <?php $siteFavicon = get_site_favicon(); ?>
+    <?php if ($siteFavicon !== ''): ?>
+    <link rel="icon" href="<?php echo htmlspecialchars($basePath . ltrim($siteFavicon, '/'), ENT_QUOTES, 'UTF-8'); ?>">
+    <?php endif; ?>
     <title><?php echo $page_title ?? 'Royal Tech - Loja de Tecnologia Premium'; ?></title>
     <meta name="description" content="<?php echo $page_description ?? 'Royal Tech - Loja de Tecnologia Premium. Os melhores produtos de tecnologia com preços imperdíveis e atendimento diferenciado.'; ?>">
     <meta property="og:title" content="<?php echo $og_title ?? $page_title ?? 'Royal Tech - Loja de Tecnologia Premium'; ?>">
@@ -86,10 +90,15 @@ $assetVersion = defined('ASSET_VERSION') ? ASSET_VERSION : '20260909b';
         </button>
 
         <!-- Logo -->
+        <?php $siteLogo = get_site_logo(); ?>
         <div class="ml-logo">
-            <a href="<?php echo $basePath; ?>index.php">
+            <a href="<?php echo $basePath; ?>index.php" title="<?php echo htmlspecialchars(store_config('store_name') ?: 'Royal Tech', ENT_QUOTES, 'UTF-8'); ?>">
+                <?php if ($siteLogo !== ''): ?>
+                <img src="<?php echo htmlspecialchars($basePath . ltrim($siteLogo, '/'), ENT_QUOTES, 'UTF-8'); ?>" class="ml-logo-img" alt="<?php echo htmlspecialchars(store_config('store_name') ?: 'Royal Tech', ENT_QUOTES, 'UTF-8'); ?>">
+                <?php else: ?>
                 <span class="ml-logo-icon"><i class="fas fa-crown"></i></span>
                 <span class="ml-logo-text">Royal<span>Tech</span></span>
+                <?php endif; ?>
             </a>
         </div>
 

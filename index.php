@@ -35,10 +35,10 @@ include 'components/header.php';
                 } elseif ($banner['image_path'] !== '') {
                     $bannerImg = ltrim($banner['image_path'], '/');
                 }
-                $bannerLink = $banner['link_url'] ?: ($basePath . 'pages/products/products.php');
+                $bannerLink = $banner['link_url'] ?: 'pages/products/products.php';
                 $linkIsExternal = preg_match('#^https?://#i', $bannerLink);
-                if (!$linkIsExternal && $bannerLink !== '#' && $bannerLink[0] === '/') {
-                    $bannerLink = ltrim($bannerLink, '/');
+                if (!$linkIsExternal && $bannerLink !== '#') {
+                    $bannerLink = $basePath . ltrim($bannerLink, '/');
                 }
             ?>
             <div class="ml-carousel-slide">

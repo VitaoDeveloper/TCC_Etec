@@ -1,9 +1,13 @@
 <?php
 $activePage = $activePage ?? '';
 
+require_once dirname(dirname(__DIR__)) . '/includes/config.php';
+
 // Caminho base do site (ex.: /TCC_Etec/) calculado a partir do script atual,
 // para links absolutos como "Voltar ao site" (mesma lógica usada em pages/404.php).
 $adminSiteBase = rtrim(dirname(dirname(dirname($_SERVER['SCRIPT_NAME'] ?? 'index.php'))), '/\\') . '/';
+
+$siteLogo = get_site_logo();
 
 $navItems = [
     'dashboard'  => ['href' => 'index.php',     'icon' => 'fa-tachometer-alt', 'label' => 'Dashboard'],
@@ -23,8 +27,12 @@ $navItems = [
 <aside class="admin-sidebar">
     <div class="admin-logo">
         <a href="index.php">
+            <?php if ($siteLogo !== ''): ?>
+            <img src="<?php echo htmlspecialchars($adminSiteBase . ltrim($siteLogo, '/'), ENT_QUOTES, 'UTF-8'); ?>" class="admin-logo-img" alt="<?php echo htmlspecialchars(store_config('store_name') ?: 'Royal Tech', ENT_QUOTES, 'UTF-8'); ?>">
+            <?php else: ?>
             <span class="logo-icon"><i class="fas fa-crown"></i></span>
             <span class="logo-text">Royal<span>Tech</span></span>
+            <?php endif; ?>
         </a>
     </div>
     <nav class="admin-nav">

@@ -47,6 +47,13 @@
     gap: 10px;
 }
 
+.admin-logo-img {
+    width: auto;
+    height: 44px;
+    max-width: 100%;
+    object-fit: contain;
+}
+
 .admin-nav {
     padding: 20px 0;
     flex: 1;
