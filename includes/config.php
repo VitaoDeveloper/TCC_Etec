@@ -71,6 +71,17 @@ function store_config(?string $key = null)
     return $settings[$key] ?? null;
 }
 
+// Retorna o caminho absoluto (com /) do logo salvo, no formato de URL,
+// ou '' quando nenhum foi enviado (o template usa o logo padrão).
+function get_site_logo(): string
+{
+    $path = (string) store_config('store_logo');
+    if ($path === '' || preg_match('#^https?://#i', $path)) {
+        return $path;
+    }
+    return '/' . ltrim($path, '/');
+}
+
 // Persiste overrides no banco. Chaves desconhecidas são ignoradas.
 function store_config_save(array $values): void
 {
