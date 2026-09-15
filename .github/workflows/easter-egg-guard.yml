@@ -1,0 +1,48 @@
+name: Easter Egg Guard
+
+on:
+  pull_request:
+    branches: ["**"]
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Verificar hashes SHA-256 do easter egg (Modo Realeza)
+        id: verify
+        run: bash scripts/check-easter-egg-hashes.sh
+
+      - name: Notificar @jotaomh sobre alteração no easter egg
+        if: failure() && env.MISMATCHES != '' && github.event_name == 'pull_request'
+        continue-on-error: true # GITHUB_TOKEN de forks não cria comentário; o check já está vermelho
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const files = (process.env.MISMATCHES || '').trim();
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: [
+                '## ⚠️ Easter egg alterado (Modo Realeza)',
+                '',
+                'O CI detectou mudança no(s) arquivo(s) protegido(s):',
+                '',
+                '````',
+                files,
+                '````',
+                '',
+                '@jotaomh, este easter egg é **intencional e monitorado** — por favor revise este PR.',
+                '',
+                'Referências: `.github/easter-egg-hashes.json` (hashes esperados) e o workflow `easter-egg-guard.yml`.',
+              ].join('\n'),
+            });
