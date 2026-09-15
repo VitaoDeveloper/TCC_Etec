@@ -5,6 +5,11 @@ $current_page = 'contato';
 $base_path = '../../';
 require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../includes/config.php';
+require_once __DIR__ . '/../../includes/rate_limit.php';
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 $contactMessage = null;
 $contactError = null;
@@ -17,15 +22,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $subject = trim((string) ($_POST['subject'] ?? ''));
     $message = trim((string) ($_POST['message'] ?? ''));
 
-    if ($name === '' || $email === '' || $subject === '' || $message === '') {
+    if (!rate_limit_check('contact_' . $_SERVER['REMOTE_ADDR'], 5, 15)) {
+        $contactError = 'Muitas mensagens enviadas. Aguarde alguns minutos e tente novamente.';
+    } elseif ($name === '' || $email === '' || $subject === '' || $message === '') {
         $contactError = 'Preencha todos os campos obrigatórios.';
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $contactError = 'E-mail inválido.';
     } else {
         try {
             include $base_path . 'database/connection.php';
-            $stmt = $pdo->prepare('INSERT INTO e5_contacts (name, email, phone, subject, message) VALUES (:name, :email, :phone, :subject, :message)');
-            $stmt->execute([':name' => $name, ':email' => $email, ':phone' => $phone ?: null, ':subject' => $subject, ':message' => $message]);
+            $userId = isset($_SESSION['user_id']) ? (int) $_SESSION['user_id'] : null;
+            $stmt = $pdo->prepare('INSERT INTO e5_contacts (user_id, name, email, phone, subject, message) VALUES (:user_id, :name, :email, :phone, :subject, :message)');
+            $stmt->execute([':user_id' => $userId, ':name' => $name, ':email' => $email, ':phone' => $phone ?: null, ':subject' => $subject, ':message' => $message]);
             $contactMessage = 'Mensagem enviada com sucesso! Responderemos em breve.';
         } catch (Throwable $e) {
             $contactError = 'Erro ao enviar mensagem. Tente novamente.';
