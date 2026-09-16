@@ -14,8 +14,9 @@ Este PR consolida as entregas:
 2. **Novo módulo de efeitos visuais do tema** (`theme-extras`) com gatilho por sequência de teclas, protegido pela **mesma infraestrutura** de checksum + testes + CODEOWNERS.
 3. **Ícone sem fundo (transparente)**: escudo do Corinthians regenerado com alpha real e sem margem sobrando, nos dois assets (Modo Realeza e theme-extras).
 4. **Novo efeito do theme-extras**: escudo piscando em posições aleatórias, sem texto/overlay na tela, com suporte a `prefers-reduced-motion`.
+5. **Rodada de review**: correções (imagem distinta, spawn até `EFFECT_MS`, preload, poda do array), **barrinha de status** com contagem de ativações, **modo combinado** ("Modo Realeza" ativo), **gatilho por data** (1º/09) e polimento (Esc cancela, pausa em aba escondida, reduced-motion na barrinha).
 
-Tudo verificado localmente: testes PHPUnit passando (54 testes, 243 assertions) e o script de hashes com exit 0.
+Tudo verificado localmente: testes PHPUnit passando (62 testes, 289 assertions) e o script de hashes com exit 0.
 
 ---
 
@@ -111,10 +112,50 @@ Observações de implementação:
 
 ---
 
+## Commit 4 — `fix(theme)`: corrige revisão do efeito (imagem distinta, spawn até `EFFECT_MS`, preload e poda)
+
+Correções apontadas na revisão do PR:
+
+- **Imagem distinta**: `accent-mark.png` regenerado em altura 120px (93x120), com hash SHA-256 diferente de `corinthians.png` — antes os dois assets eram idênticos.
+- **Spawn**: para de criar escudos em `EFFECT_MS` e espera a última animação terminar antes de limpar tudo (sem render "nascer/remover" abrupto no fim).
+- **Preload**: a imagem é pré-carregada no load (`new Image()`), evitando primeiro blink vazio.
+- **Poda**: o array interno `shields` remove elementos já descartados do DOM em vez de só checar `document.body.contains` para contar.
+
+---
+
+## Commit 5 — `feat(theme)`: barrinha de status no canto com contagem de ativações
+
+- **Barrinha fixa no canto inferior esquerdo** enquanto o efeito estiver ativo: fundo escuro `#111`, borda branca, sem captura de clique (`pointer-events: none`), fade-in/fade-out.
+- Texto: `⚫⚪ MODO TIMÃO ATIVO · ativação #N`.
+- **Barra de countdown** fina que esvazia ao longo da duração do efeito.
+- **Contador de ativações** persistido em `localStorage` na chave neutra **`tx_fx_runs`** (com `try/catch` caindo para contagem em memória quando o storage não está disponível).
+
+---
+
+## Commit 6 — `feat(theme)`: modo combinado + gatilho por data + polimento
+
+### Modo combinado (quando o "Modo Realeza" está ativo)
+
+- Duração **dobrada (~12s)**, **máx. 10 escudos** simultâneos e **spawn mais rápido** (90–260ms).
+- Barrinha muda para **`⚫⚪ MODO TIMÃO IMORTAL`** com **pulsar na borda**.
+- Se o efeito já estiver rodando e a sequência for digitada de novo, a duração é **renovada** (sem empilhar)
+
+### Gatilho por data (1º de setembro)
+
+- Na carga da página, mostra **somente** a barrinha `⚫⚪ 1910` por ~5s — sem escudos e sem countdown.
+
+### Polimento
+
+- **Esc** cancela/limpa tudo imediatamente.
+- **`visibilitychange`**: aba escondida pausa o spawn e remove escudos "congelados"; ao voltar, retoma de onde parou, sem escudos congelados.
+- **`prefers-reduced-motion`** também desativa o pulsar e o countdown animado da barrinha (`.tx-fx-status--calm`), além do piscar dos escudos.
+
+---
+
 ## Testes
 
 ```bash
-vendor/bin/phpunit            # 54 testes, 243 assertions — OK
+vendor/bin/phpunit            # 62 testes, 289 assertions — OK
 vendor/bin/phpunit --filter EasterEggTest   # OK (passo obrigatório no CI)
 bash scripts/check-easter-egg-hashes.sh     # todos os hashes conferem — exit 0
 ```
