@@ -21,7 +21,10 @@ jobs:
           coverage: none
 
       - name: Instalar dependências (composer)
-        run: composer install --no-interaction --prefer-dist --no-progress
+        run: composer install --no-interaction --prefer-dist --no-progress --no-scripts
 
       - name: Rodar testes (phpunit)
         run: vendor/bin/phpunit
+
+      - name: Confirmar EasterEggTest executou
+        run: vendor/bin/phpunit --filter EasterEggTest
