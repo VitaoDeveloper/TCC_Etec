@@ -100,10 +100,19 @@ final class ThemeExtrasTest extends TestCase
     public function testJsContainsEffectClasses(): void
     {
         $raw = $this->readAsset(self::JS_PATH);
-        $this->assertStringContainsString('tx-fx',          $raw);
-        $this->assertStringContainsString('tx-fx-icon',     $raw);
-        $this->assertStringContainsString('tx-fx-toast',    $raw);
-        $this->assertStringContainsString('OVERLAY_MS',     $raw);
+        $this->assertStringContainsString('tx-fx-shield',        $raw);
+        $this->assertStringContainsString('tx-fx-shield--calm',  $raw);
+        $this->assertStringContainsString('EFFECT_MS',           $raw);
+        $this->assertStringContainsString('MAX_ON_SCREEN',       $raw);
+        $this->assertStringContainsString('prefers-reduced-motion', $raw);
+        $this->assertStringContainsString('accent-mark.png',     $raw);
+    }
+
+    public function testJsHasNoVisibleToastText(): void
+    {
+        $raw = $this->readAsset(self::JS_PATH);
+        $this->assertStringNotContainsString('toast', $raw);
+        $this->assertStringNotContainsString('Timão', $raw);
     }
 
     // =====================================================================
@@ -127,12 +136,20 @@ final class ThemeExtrasTest extends TestCase
     public function testCssContainsAnimationRules(): void
     {
         $raw = $this->readAsset(self::CSS_PATH);
-        $this->assertStringContainsString('body.tx-fx::after', $raw);
-        $this->assertStringContainsString('@keyframes tx-fx-pulse', $raw);
-        $this->assertStringContainsString('.tx-fx-icon', $raw);
-        $this->assertStringContainsString('@keyframes tx-fx-cross', $raw);
-        $this->assertStringContainsString('.tx-fx-toast', $raw);
-        $this->assertStringContainsString('accent-mark.png', $raw);
+        $this->assertStringContainsString('.tx-fx-shield',           $raw);
+        $this->assertStringContainsString('@keyframes tx-fx-blink',  $raw);
+        $this->assertStringContainsString('.tx-fx-shield--calm',     $raw);
+        $this->assertStringContainsString('@keyframes tx-fx-fade',   $raw);
+    }
+
+    public function testCssNoLongerContainsFormerRules(): void
+    {
+        $raw = $this->readAsset(self::CSS_PATH);
+        $this->assertStringNotContainsString('tx-fx-pulse',  $raw, 'Regra de overlay pulsante deveria ter sido removida.');
+        $this->assertStringNotContainsString('tx-fx-cross',  $raw, 'Regra de travessia horizontal deveria ter sido removida.');
+        $this->assertStringNotContainsString('tx-fx-toast',  $raw, 'Toast deveria ter sido removido.');
+        $this->assertStringNotContainsString('.tx-fx-icon',  $raw);
+        $this->assertStringNotContainsString('body.tx-fx',   $raw);
     }
 
     // =====================================================================
