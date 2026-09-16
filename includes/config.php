@@ -1,6 +1,10 @@
 <?php
 
-define('ASSET_VERSION', '20260909b');
+// Cache-buster para assets (JS/CSS) referenciados via ?v= nos componentes.
+// Bump este valor a CADA mudanca em assets/js/*.js ou assets/css/*.css versionados
+// por ele, senao o navegador continua servindo a versao em cache. (Bug historico:
+// theme-extras nao aparecia porque o bump foi esquecido.)
+define('ASSET_VERSION', '20260915a');
 
 function loadEnv(string $path): void
 {

@@ -152,6 +152,30 @@ Correções apontadas na revisão do PR:
 
 ---
 
+## Commit 7 — `fix`: bump `ASSET_VERSION` para invalidar cache do `theme-extras`
+
+### Causa raiz
+
+A barrinha de status do `theme-extras` (modo combo, contador, gatilho por data) não aparecia
+no navegador porque `ASSET_VERSION` em `includes/config.php` não era bumpada desde `20260909b`,
+mas `assets/js/theme-extras.js` e `assets/css/theme-extras.css` mudaram depois disso. Como
+`footer.php` e `header.php` usam `?v=ASSET_VERSION` como cache-buster, o navegador continuava
+servindo a versão em cache de antes da barrinha existir.
+
+### Correções
+
+- **`includes/config.php`**: `ASSET_VERSION` bumpada para `20260915a` + comentário curto
+  lembrando que o valor deve ser bumpado a cada mudança em JS/CSS versionado por ela.
+- **`components/footer.php`**: as três referências (`script.js`, `theme-extras.css`,
+  `theme-extras.js`) deixaram de embutir o fallback hardcoded `20260909b` e passam a usar
+  `ASSET_VERSION` diretamente (o trecho protegido mudou → hash do JSON atualizado).
+- **`components/header.php`**: `$assetVersion` também usa `ASSET_VERSION` direto, sem fallback
+  hardcoded.
+- **`.github/easter-egg-hashes.json`**: hash do snippet protegido do `footer.php` regenerado
+  (a alteração era intencional e passa por review de @jotaomh via CODEOWNERS).
+
+---
+
 ## Testes
 
 ```bash
@@ -159,6 +183,22 @@ vendor/bin/phpunit            # 62 testes, 289 assertions — OK
 vendor/bin/phpunit --filter EasterEggTest   # OK (passo obrigatório no CI)
 bash scripts/check-easter-egg-hashes.sh     # todos os hashes conferem — exit 0
 ```
+
+### Validação manual (fluxo completo após o bump)
+
+1. Servidor local rodando → **hard refresh** (`Ctrl+Shift+R`) na loja pública.
+2. DevTools > **Network** → confirmar que `theme-extras.js` e `theme-extras.css` carregam com
+   o novo `?v=20260915a` e status **200** (não "from disk cache").
+3. Digitar **`timao`** fora de campos de texto → barrinha **⚫⚪ MODO TIMÃO ATIVO** aparece no
+   canto inferior esquerdo com a barra de countdown encolhendo.
+4. Ativar o **Modo Realeza** (10 cliques na busca vazia) e, com as coroas caindo, digitar
+   **`timao`** de novo → barrinha muda para **⚫⚪ MODO TIMÃO IMORTAL** com a borda pulsando.
+5. Digitar **`timao`** com o efeito já ativo → duração é **renovada** (sem abrir segunda barrinha).
+6. **Esc** no meio do efeito → barrinha e escudos somem na hora.
+7. Trocar de aba (`visibilitychange`) e voltar → nenhum escudo "congelado" permanece.
+
+Se algum passo falhar mesmo com o cache corrigido: reportar o passo exato, o navegador e os
+erros de JS do console do DevTools.
 
 ---
 
