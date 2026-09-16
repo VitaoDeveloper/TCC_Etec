@@ -115,6 +115,20 @@ final class ThemeExtrasTest extends TestCase
         $this->assertStringNotContainsString('Timão', $raw);
     }
 
+    public function testJsContainsStatusBarLabels(): void
+    {
+        $raw = $this->readAsset(self::JS_PATH);
+        $this->assertStringContainsString('MODO TIMÃO ATIVO', $raw);
+        $this->assertStringContainsString('ativação',         $raw);
+    }
+
+    public function testJsContainsRunCounter(): void
+    {
+        $raw = $this->readAsset(self::JS_PATH);
+        $this->assertStringContainsString('tx_fx_runs',  $raw);
+        $this->assertStringContainsString('localStorage', $raw);
+    }
+
     // =====================================================================
     //  Folha de estilos
     // =====================================================================
@@ -150,6 +164,16 @@ final class ThemeExtrasTest extends TestCase
         $this->assertStringNotContainsString('tx-fx-toast',  $raw, 'Toast deveria ter sido removido.');
         $this->assertStringNotContainsString('.tx-fx-icon',  $raw);
         $this->assertStringNotContainsString('body.tx-fx',   $raw);
+    }
+
+    public function testCssContainsStatusBarRules(): void
+    {
+        $raw = $this->readAsset(self::CSS_PATH);
+        $this->assertStringContainsString('.tx-fx-status',                $raw);
+        $this->assertStringContainsString('.tx-fx-status-text',           $raw);
+        $this->assertStringContainsString('.tx-fx-status-track',          $raw);
+        $this->assertStringContainsString('.tx-fx-status-fill',           $raw);
+        $this->assertStringContainsString('@keyframes tx-fx-status-countdown', $raw);
     }
 
     // =====================================================================
