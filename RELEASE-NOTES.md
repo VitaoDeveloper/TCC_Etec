@@ -8,12 +8,14 @@
 
 ## Visão geral
 
-Este PR consolida **duas entregas**:
+Este PR consolida as entregas:
 
 1. **Endurecimento da proteção de CI** do easter egg existente ("Modo Realeza"), corrigindo 6 furos que permitiam sabotagem passar em silêncio.
 2. **Novo módulo de efeitos visuais do tema** (`theme-extras`) com gatilho por sequência de teclas, protegido pela **mesma infraestrutura** de checksum + testes + CODEOWNERS.
+3. **Ícone sem fundo (transparente)**: escudo do Corinthians regenerado com alpha real e sem margem sobrando, nos dois assets (Modo Realeza e theme-extras).
+4. **Novo efeito do theme-extras**: escudo piscando em posições aleatórias, sem texto/overlay na tela, com suporte a `prefers-reduced-motion`.
 
-Tudo foi verificado localmente: testes PHPUnit passando (52 testes, 230 assertions) e os cenários de sabotagem reproduzidos um a um com exit code confirmado.
+Tudo verificado localmente: testes PHPUnit passando (54 testes, 243 assertions) e o script de hashes com exit 0.
 
 ---
 
@@ -62,40 +64,58 @@ Um **segundo easter egg independente** do "Modo Realeza", com gatilho secreto **
 - Sequência completa em **menos de 3 segundos**.
 - Nenhum botão, texto ou asset anuncia a existência do efeito.
 
-### Efeito (duração ~4s)
+### Efeito (atual — duração ~6s)
 
-1. Overlay de **gradiente preto-branco pulsante** sobre a viewport.
-2. **Mosaico curto** de ícones (marca de acento) cruzando a tela na horizontal com rotação.
-3. **Toast discreto** no canto inferior direito.
+1. **Escudos piscando** em posições **aleatórias** do viewport (top/left aleatórios, com margem nas bordas).
+2. Cada escudo faz **fade-in rápido → curto momento visível → fade-out**, com opacidade oscilante (2–3 ciclos rápidos).
+3. **Tamanhos aleatórios** (~40–110px de largura) e **rotação leve** (−15° a +15°).
+4. Surgem em **intervalos aleatórios** (150–450ms), **máx. 6 simultâneos**.
+5. `pointer-events: none`, z-index alto, e **limpeza completa** no fim (nenhum nó órfão).
+6. **`prefers-reduced-motion: reduce`**: poucos escudos (4) com fade suave, sem piscar rápido.
+7. **Sem toast e sem texto na tela** — efeito puramente visual.
+8. **Sem overlay/estado no `body`** — nada de `body.tx-fx` ou alteração de fundo.
 
 ### Arquivos
 
 | Arquivo | Papel |
 |---------|-------|
-| `assets/js/theme-extras.js` | Registra o listener global de teclado, janela de 3s e orquestra o efeito (classes `tx-fx*`) |
-| `assets/css/theme-extras.css` | Regras e keyframes próprios: `tx-fx-pulse`, `tx-fx-cross`, `tx-fx-toast` |
-| `assets/img/theme/accent-mark.png` | Imagem usada no mosaico (nome neutro) |
+| `assets/js/theme-extras.js` | Listener global de teclado, janela de 3s, spawn aleatório, cap de 6, reduced-motion e limpeza (`tx-fx-shield*`) |
+| `assets/css/theme-extras.css` | Regras e keyframes próprios: `tx-fx-blink`, `tx-fx-fade`, classe `tx-fx-shield` / `--calm` |
+| `assets/img/theme/accent-mark.png` | Escudo transparente usado no efeito (nome neutro) |
 | `components/footer.php` | Carrega CSS + JS (trecho protegido por marcadores) |
 
 Observações de implementação:
 - Código **limpo e legível**, no estilo vanilla ES5 do projeto.
 - **Sem comentários** rotulando o módulo como "easter egg", "secreto" ou citando o time — apenas comentários técnicos neutros de "efeitos visuais do tema".
-- O efeito **reaproveita o padrão** do overlay/toast do "Modo Realeza", mas em classes próprias (`tx-fx*`).
+- Imagem referenciada via `<img>` (basePath lido de `data-base-path`).
 
 ### Proteção (mesma infra do item A, com rótulos neutros)
 
-- **`.github/easter-egg-hashes.json`**: 4 novas entradas (`theme-extras.js`, `theme-extras.css`, `accent-mark.png`, snippet do `footer.php`) com `note` genérico `"Integridade de efeitos visuais do tema"` — sem citar easter egg/time. `expected_file_count` atualizado para **7**.
-- **`.github/CODEOWNERS`**: novos arquivos sob **review obrigatório de @jotaomh** (mesma regra).
-- **`tests/ThemeExtrasTest.php`**: valida hash dos 4 assets, presença das classes/trigger, validade do PNG e consistência de `expected_file_count`.
-- **`.gitignore`**: exceção para versionar `assets/img/theme/accent-mark.png`.
+- **`.github/easter-egg-hashes.json`**: entradas do `theme-extras` (`theme-extras.js`, `theme-extras.css`, `accent-mark.png`, snippet do `footer.php`) com `note` genérico `"Integridade de efeitos visuais do tema"` — sem citar easter egg/time. `expected_file_count` = **7**.
+- **`.github/CODEOWNERS`**: todos os arquivos sob **review obrigatório de @jotaomh** (mesma regra).
+- **`tests/ThemeExtrasTest.php`**: valida hash dos 4 assets, presença das classes/trigger, ausência das regras antigas (`tx-fx-pulse`, `tx-fx-cross`, `tx-fx-toast`) e consistência de `expected_file_count`.
+
+---
+
+## Commit 3 — `chore(assets)`: ícone sem fundo + ajustes
+
+- PNG novo (500x500, RGBA com transparência real) processado com **`convert -trim`** para o bounding box do escudo (crop original ~110,69–390,431) e **`-resize x96`**, mantendo o alpha (PNG32). Duas versões geradas:
+  - `assets/img/corinthians.png` (Modo Realeza)
+  - `assets/img/theme/accent-mark.png` (theme-extras)
+- **Sem fundo branco adicionado** (alpha preservado).
+- Removidos `border-radius` que só existiam por causa do fundo antigo:
+  - `.royal-troll` em `assets/css/mercadolivre-style.css`
+  - `.tx-fx-icon` (regra removida junto com o efeito antigo) em `assets/css/theme-extras.css`
+- Arquivo-fonte `novo-corinthians.png` (na prática `assets/img/novo_corinthians-removebg-preview.png`) **removido** após gerar as versões finais.
+- Hashes do JSON atualizados (imagens e snippet CSS do Modo Realeza).
 
 ---
 
 ## Testes
 
 ```bash
-vendor/bin/phpunit            # 52 testes, 230 assertions — OK
-vendor/bin/phpunit --filter EasterEggTest   # 8 testes — OK (passo obrigatório no CI)
+vendor/bin/phpunit            # 54 testes, 243 assertions — OK
+vendor/bin/phpunit --filter EasterEggTest   # OK (passo obrigatório no CI)
 bash scripts/check-easter-egg-hashes.sh     # todos os hashes conferem — exit 0
 ```
 

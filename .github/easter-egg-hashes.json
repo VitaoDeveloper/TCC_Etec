@@ -25,18 +25,18 @@
     },
     "assets/js/theme-extras.js": {
       "type": "file",
-      "sha256": "b52d336efc63fd8ba2c9d9275b97bb960b86c8ff3795f6b7dc34a5ff3ccea491",
-      "note": "Integridade de efeitos visuais do tema (modulo de overlay e mosaico)."
+      "sha256": "e08f6cc313502cbfa2ef41218dc6c74df9c78310043b6da489163186241f83a0",
+      "note": "Integridade de efeitos visuais do tema (modulo de pisca em posicoes aleatorias)."
     },
     "assets/css/theme-extras.css": {
       "type": "file",
-      "sha256": "ef9233ee77253d4c7f298804e70bd541da119109ef1c019a5b3da8a89fd09383",
-      "note": "Integridade de efeitos visuais do tema (classes de animacao)."
+      "sha256": "0f1c0bed87689575915b9a848e6be6e01f47a16746098126ca20b00cc219a204",
+      "note": "Integridade de efeitos visuais do tema (classes de animacao de pisca e fade)."
     },
     "assets/img/theme/accent-mark.png": {
       "type": "file",
       "sha256": "0c77580f3747bda5388034650633825ba15a5ec365b6d26778c9c2d645f747a1",
-      "note": "Integridade de efeitos visuais do tema (marca de acento usada no mosaico)."
+      "note": "Integridade de efeitos visuais do tema (marca de acento usada no efeito)."
     },
     "components/footer.php": {
       "type": "snippet",
