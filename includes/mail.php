@@ -36,8 +36,16 @@ function mailer(): \PHPMailer\PHPMailer\PHPMailer
         case 'ssl':
             $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
             break;
-        default:
+        case 'none':
+            // Escolha explícita por conexão sem criptografia (ex.: Mailpit local).
             $mail->SMTPAutoTLS = false;
+            break;
+        default:
+            // MAIL_ENCRYPTION vazio: o PHPMailer negocia STARTTLS automaticamente
+            // (SMTPAutoTLS padrão = true) quando o servidor anuncia suporte. Isso é
+            // obrigatório para provedores reais com autenticação (Gmail/Outlook/SES,
+            // porta 587); desligar o auto-TLS aqui era a causa de "FALHA NO ENVIO".
+            break;
     }
 
     $mail->CharSet = 'UTF-8';

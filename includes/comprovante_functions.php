@@ -349,8 +349,13 @@ function sendComprovanteEmail(int $orderId, string $to, string $comprovanteFilen
             case 'ssl':
                 $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
                 break;
-            default:
+            case 'none':
                 $mail->SMTPAutoTLS = false;
+                break;
+            default:
+                // STARTTLS automático (SMTPAutoTLS = true) quando o servidor anuncia
+                // suporte — necessário para provedores reais com autenticação.
+                break;
         }
 
         $mail->CharSet = 'UTF-8';
