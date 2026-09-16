@@ -46,7 +46,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'reply
         }
 
         // 3) Registra o status de envio sem quebrar o salvamento da resposta.
-        $errorMsg = $emailSent ? null : 'Falha ao enviar e-mail (verifique logs)';
+        //    Persiste o detalhe REAL da falha (mensagem/código da PHPMailer), não só um texto genérico.
+        $errorMsg = null;
+        if (!$emailSent) {
+            $realError = $GLOBALS['mail_last_error'] ?? null;
+            $errorMsg = ($realError !== null && trim($realError) !== '')
+                ? 'Falha no envio do e-mail (' . $realError . ')'
+                : 'Falha no envio do e-mail (verifique logs do servidor)';
+        }
         salvarStatusEmailContato($contactId, $emailSent ? 'sent' : 'failed', $errorMsg);
 
         $_SESSION['admin_message'] = $emailSent

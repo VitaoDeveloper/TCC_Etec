@@ -29,7 +29,8 @@ $compResult = gerarComprovante($orderId);
 if ($compResult['success']) {
     $emailSent = sendComprovanteEmail($orderId, $order['email'], $compResult['filename']);
     $emailStatus = $emailSent ? 'sent' : 'failed';
-    $errorMsg = $emailSent ? null : 'Falha ao enviar e-mail (verifique logs)';
+    $realError = $GLOBALS['mail_last_error'] ?? null;
+    $errorMsg = $emailSent ? null : ($realError ?: 'Falha no envio do e-mail (verifique logs)');
 } else {
     $emailStatus = 'failed';
     $errorMsg = $compResult['error'] ?? 'Falha ao gerar PDF';
