@@ -42,7 +42,7 @@
       "type": "snippet",
       "start_marker": "<!-- === BEGIN THEME EXTRAS ASSETS (PROTEGIDO) === -->",
       "end_marker": "<!-- === END THEME EXTRAS ASSETS (PROTEGIDO) === -->",
-      "sha256": "19fc4058472ed64ec9c3a2dde8d339b1fb70c59064e3e6011bb2a75f6ce7e42d",
+      "sha256": "561e8abf1a382e371fd81e2cb3857ddc7e409e5eb6e7121a1e4a96e7d4f2770f",
       "note": "Integridade de efeitos visuais do tema (carregamento dos assets)."
     }
   }
