@@ -19,12 +19,17 @@
     var SHIELD_MAX_W = 110;
     var EDGE_MARGIN = 12;        // keep shields clear of viewport borders
     var ASPECT_RATIO = 1.3;      // approx h/w of the accent-mark asset
+    var MAX_ANIM_MS = 2600;      // longest shield animation, used for timing
 
     var buffer = '';
     var seqStart = 0;
     var resetTimer = null;
 
     var basePath = document.body.getAttribute('data-base-path') || '';
+
+    // Preload the asset early so the first blink never renders empty.
+    var preloader = new Image();
+    preloader.src = basePath + 'assets/img/theme/accent-mark.png';
 
     function isTypingTarget(el) {
         return el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
@@ -68,19 +73,28 @@
         var calm = reducedMotion();
         var shields = [];
         var done = false;
+        var endAt = Date.now() + EFFECT_MS;
 
-        function activeCount() {
-            var n = 0;
-            for (var i = 0; i < shields.length; i++) {
-                if (document.body.contains(shields[i])) {
-                    n++;
-                }
-            }
-            return n;
+        // Drop elements that have already been removed from the DOM instead of
+        // relying on document.body.contains checks, which let the array grow.
+        function prune() {
+            shields = shields.filter(function (el) {
+                return el.parentNode;
+            });
         }
 
+        function activeCount() {
+            prune();
+            return shields.length;
+        }
+
+        // Keep spawning until EFFECT_MS; any spawn started by then must finish
+        // its animation before the cleanup below actually removes everything.
         function spawn() {
             if (done || activeCount() >= MAX_ON_SCREEN) {
+                return;
+            }
+            if (Date.now() + MAX_ANIM_MS > endAt) {
                 return;
             }
             shields.push(spawnShield(calm));
@@ -103,14 +117,16 @@
             spawn();
         }
 
+        // Wait for the last shield animation to finish before cleaning up.
         setTimeout(function () {
             done = true;
+            prune();
             for (var j = 0; j < shields.length; j++) {
                 if (document.body.contains(shields[j])) {
                     shields[j].remove();
                 }
             }
-        }, EFFECT_MS + 1200);
+        }, EFFECT_MS + MAX_ANIM_MS + 300);
     }
 
     document.addEventListener('keydown', function (e) {
