@@ -126,12 +126,22 @@ CREATE TABLE IF NOT EXISTS e5_cart (
 
 CREATE TABLE IF NOT EXISTS e5_contacts (
   id INT PRIMARY KEY AUTO_INCREMENT,
+  user_id INT NULL,
   name VARCHAR(80) NOT NULL,
   email VARCHAR(120) NOT NULL,
   phone VARCHAR(20) NULL,
   subject VARCHAR(60) NOT NULL,
   message TEXT NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  status ENUM('pending','answered') NOT NULL DEFAULT 'pending',
+  response_message TEXT NULL,
+  responded_by INT NULL,
+  responded_at TIMESTAMP NULL,
+  response_email_status ENUM('sent','failed','skipped') NULL,
+  response_email_error TEXT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_contacts_user FOREIGN KEY (user_id) REFERENCES e5_users(id) ON DELETE SET NULL,
+  CONSTRAINT fk_contacts_responded_by FOREIGN KEY (responded_by) REFERENCES e5_users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE IF NOT EXISTS e5_newsletter (

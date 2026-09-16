@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/mail.php'; // reutiliza setMailError() para logar o erro real
 
 define('COMPROVANTE_DIR', __DIR__ . '/../storage/comprovantes/');
 
@@ -290,7 +291,7 @@ function sendComprovanteEmail(int $orderId, string $to, string $comprovanteFilen
             include_once __DIR__ . '/../database/connection.php';
         }
         if (!file_exists(__DIR__ . '/../vendor/autoload.php')) {
-            error_log('PHPMailer autoload not found');
+            setMailError('PHPMailer autoload não encontrado. Execute "composer install".');
             return false;
         }
 
@@ -348,8 +349,13 @@ function sendComprovanteEmail(int $orderId, string $to, string $comprovanteFilen
             case 'ssl':
                 $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
                 break;
-            default:
+            case 'none':
                 $mail->SMTPAutoTLS = false;
+                break;
+            default:
+                // STARTTLS automático (SMTPAutoTLS = true) quando o servidor anuncia
+                // suporte — necessário para provedores reais com autenticação.
+                break;
         }
 
         $mail->CharSet = 'UTF-8';
@@ -367,10 +373,21 @@ function sendComprovanteEmail(int $orderId, string $to, string $comprovanteFilen
             $mail->addAttachment($pdfPath);
         }
 
-        $mail->send();
-        return true;
+        $ok = $mail->send();
+
+        // PHPMailer também pode retornar false sem lançar exceção.
+        if (!$ok) {
+            $msg = trim((string) $mail->ErrorInfo);
+            setMailError($msg !== '' ? $msg : 'PHPMailer retornou false sem detalhes.');
+        }
+        return $ok;
     } catch (Throwable $e) {
-        error_log('Comprovante email error: ' . $e->getMessage());
+        $msg = trim((string) $e->getMessage());
+        $msg = $msg !== '' ? $msg : get_class($e);
+        if (isset($mail) && trim((string) $mail->ErrorInfo) !== '') {
+            $msg .= ' | SMTP ErrorInfo: ' . $mail->ErrorInfo;
+        }
+        setMailError($msg);
         return false;
     }
 }

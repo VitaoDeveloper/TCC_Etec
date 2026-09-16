@@ -11,6 +11,11 @@ function mailer(): \PHPMailer\PHPMailer\PHPMailer
         return $GLOBALS['mailer'];
     }
 
+    // Degrada com falha capturável em vez de fatal error se o composer não
+    // foi executado no ambiente de destino.
+    if (!file_exists(__DIR__ . '/../vendor/autoload.php')) {
+        throw new RuntimeException('PHPMailer não instalado. Execute "composer install".');
+    }
     require_once __DIR__ . '/../vendor/autoload.php';
 
     $mail = new \PHPMailer\PHPMailer\PHPMailer(false);
@@ -31,8 +36,16 @@ function mailer(): \PHPMailer\PHPMailer\PHPMailer
         case 'ssl':
             $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
             break;
-        default:
+        case 'none':
+            // Escolha explícita por conexão sem criptografia (ex.: Mailpit local).
             $mail->SMTPAutoTLS = false;
+            break;
+        default:
+            // MAIL_ENCRYPTION vazio: o PHPMailer negocia STARTTLS automaticamente
+            // (SMTPAutoTLS padrão = true) quando o servidor anuncia suporte. Isso é
+            // obrigatório para provedores reais com autenticação (Gmail/Outlook/SES,
+            // porta 587); desligar o auto-TLS aqui era a causa de "FALHA NO ENVIO".
+            break;
     }
 
     $mail->CharSet = 'UTF-8';
@@ -47,11 +60,22 @@ function mailer(): \PHPMailer\PHPMailer\PHPMailer
     return $mail;
 }
 
+// Centraliza o registro de falha de e-mail: grava no log do servidor e deixa o
+// detalhe real (mensagem/código da PHPMailer) acessível via $GLOBALS['mail_last_error']
+// para os fluxos consumidores persistirem em email_error / response_email_error.
+// As mensagens da PHPMailer não contêm credenciais, então logá-las é seguro.
+function setMailError(string $message): void
+{
+    $GLOBALS['mail_last_error'] = $message;
+    error_log('Email error: ' . $message);
+}
+
 // Envia um e-mail HTML reaproveitando o cliente persistente.
 function sendMail(string $to, string $subject, string $body): bool
 {
-    $mail = mailer();
+    $mail = null;
     try {
+        $mail = mailer();
         // Reset do estado por-mensagem; a conexão TCP permanece aberta.
         $mail->clearAllRecipients();
         $mail->clearReplyTos();
@@ -61,8 +85,21 @@ function sendMail(string $to, string $subject, string $body): bool
         $mail->Body = $body;
         $alt = trim(strip_tags(preg_replace('/<br\s*\/?>/i', "\n", $body)));
         $mail->AltBody = html_entity_decode($alt, ENT_QUOTES, 'UTF-8');
-        return $mail->send();
+        $ok = $mail->send();
+
+        // PHPMailer também pode retornar false sem lançar exceção.
+        if (!$ok) {
+            $msg = trim((string) $mail->ErrorInfo);
+            setMailError($msg !== '' ? $msg : 'PHPMailer retornou false sem detalhes.');
+        }
+        return $ok;
     } catch (Throwable $e) {
+        $msg = trim((string) $e->getMessage());
+        $msg = $msg !== '' ? $msg : get_class($e);
+        if ($mail !== null && trim((string) $mail->ErrorInfo) !== '') {
+            $msg .= ' | SMTP ErrorInfo: ' . $mail->ErrorInfo;
+        }
+        setMailError($msg);
         return false;
     }
 }

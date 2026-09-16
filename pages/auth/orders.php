@@ -59,6 +59,6 @@ include '../../components/header.php';
             </table>
         </div>
     <?php endif; ?>
-    <div style="text-align:center; margin-top:15px;"><a href="profile.php" class="ml-btn"><i class="fas fa-user"></i> Meu Perfil</a></div>
+    <div style="text-align:center; margin-top:15px; display:flex; justify-content:center; gap:10px; flex-wrap:wrap;"><a href="profile.php" class="ml-btn"><i class="fas fa-user"></i> Meu Perfil</a><a href="contacts.php" class="ml-btn"><i class="fas fa-envelope"></i> Meus Contatos</a></div>
 </div></section>
 <?php include '../../components/footer.php'; ?>
