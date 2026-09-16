@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 #
-# Atualiza os hashes SHA-256 esperados do easter egg "Modo Realeza" em
-# .github/easter-egg-hashes.json a partir do estado ATUAL dos arquivos.
+# Atualiza os hashes SHA-256 esperados dos assets protegidos (easter egg
+# "Modo Realeza" e efeitos visuais do tema) em .github/easter-egg-hashes.json
+# a partir do estado ATUAL dos arquivos.
 #
 # Use apenas quando a alteração for INTENCIONAL e já esteja sendo revisada
 # por @jotaomh (CODEOWNERS). Rodar este script cega o CI de proteção, então
@@ -32,7 +33,7 @@ while IFS= read -r file; do
     new=$(sha256sum "$file" | cut -d' ' -f1)
   else
     new=$(awk -v s="$start" -v e="$end" \
-      '{t=$0; sub(/^[ \t]+/,"",t)} t==s{on=1} on{print} t==e{on=0}' "$file" \
+      '{t=$0; sub(/\r/,"",t); sub(/^[ \t]+/,"",t)} t==s{on=1} on{print} t==e{on=0}' "$file" \
       | sha256sum | cut -d' ' -f1)
   fi
 

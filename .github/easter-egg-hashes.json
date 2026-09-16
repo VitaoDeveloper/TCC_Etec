@@ -1,5 +1,6 @@
 {
   "version": 1,
+  "expected_file_count": 3,
   "protected_by": "@jotaomh",
   "description": "Hashes SHA-256 esperados do easter egg 'Modo Realeza' (chuva de coroas + icone do Corinthians). Conferidos pelo workflow .github/workflows/easter-egg-guard.yml em todo PR. Alteracoes intencionais exigem review de @jotaomh (ver .github/CODEOWNERS).",
   "files": {
