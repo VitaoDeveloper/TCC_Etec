@@ -7,6 +7,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
     var loggedFlag = document.body.getAttribute('data-logged-in') === '1';
     var basePath = document.body.getAttribute('data-base-path') || '';
+    var csrfToken = (function() {
+        var m = document.querySelector('meta[name="csrf-token"]');
+        return m ? m.getAttribute('content') : '';
+    })();
+    var csrfHeaders = function() {
+        var h = {'Content-Type': 'application/x-www-form-urlencoded'};
+        if (csrfToken) h['X-CSRF-Token'] = csrfToken;
+        return h;
+    };
 
     // ========================================
     // ML Carousel
@@ -150,7 +159,7 @@ document.addEventListener('DOMContentLoaded', function() {
             self.classList.add('btn-loading');
             fetch(basePath + 'pages/wishlist/toggle.php', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                headers: csrfHeaders(),
                 body: new URLSearchParams({product_id: productId})
             })
             .then(function(r) { return r.json(); })
@@ -211,7 +220,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             fetch(basePath + 'pages/cart/add.php', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                headers: csrfHeaders(),
                 body: new URLSearchParams({product_id: productId, quantity: (parseInt((document.getElementById('pdp-qty') || {}).value, 10) || 1)})
             })
             .then(function(r) { return r.json(); })
@@ -266,7 +275,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             fetch(basePath + 'pages/cart/add.php', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                headers: csrfHeaders(),
                 body: new URLSearchParams({product_id: productId, quantity: (parseInt((document.getElementById('pdp-qty') || {}).value, 10) || 1)})
             })
             .then(function(r) { return r.json(); })

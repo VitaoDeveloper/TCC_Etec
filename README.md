@@ -163,7 +163,8 @@ Integração completa com a API [SuperFrete](https://superfrete.readme.io/) em P
 | Dependência | Uso |
 |-------------|-----|
 | `guzzlehttp/guzzle` | Todas as requisições HTTP |
-| `vlucas/phpdotenv` | Variáveis de ambiente |
+| `phpmailer/phpmailer` | Envio de e-mail (SMTP) |
+| `dompdf/dompdf` | Geração de comprovantes em PDF |
 | `phpunit/phpunit` | Testes automatizados (dev) |
 
 ## Arquivos entregáveis
@@ -201,9 +202,9 @@ Trocar sandbox ↔ produção: basta alterar `SUPERFRETE_BASE_URL` no `.env`. O 
 ## Uso básico
 
 ```php
-require 'vendor/autoload.php';
-$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
-$dotenv->load();
+require __DIR__ . '/vendor/autoload.php';
+require __DIR__ . '/includes/config.php';
+loadEnv(__DIR__ . '/../.env');
 
 use TCC\SuperFreteClient;
 

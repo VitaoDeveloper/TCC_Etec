@@ -53,6 +53,7 @@ if (isset($pdo)) {
 }
 
 require_once dirname(__DIR__) . '/includes/category_icons.php';
+require_once dirname(__DIR__) . '/includes/csrf.php';
 
 $assetVersion = defined('ASSET_VERSION') ? ASSET_VERSION : '20260909b';
 ?>
@@ -72,12 +73,16 @@ $assetVersion = defined('ASSET_VERSION') ? ASSET_VERSION : '20260909b';
     <meta property="og:image" content="<?php echo ($basePath ?? '') . 'assets/img/hero-bg.jpg'; ?>">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Royal Tech">
+    <meta name="csrf-token" content="<?php echo htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8'); ?>">
     <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/style.css?v=<?php echo $assetVersion; ?>">
     <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/admin.css?v=<?php echo $assetVersion; ?>">
     <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/mercadolivre-style.css?v=<?php echo $assetVersion; ?>">
     <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/auth.css?v=<?php echo $assetVersion; ?>">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <?php if (!empty($page_css)): foreach ((array) $page_css as $cssFile): ?>
+    <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/<?php echo htmlspecialchars($cssFile, ENT_QUOTES, 'UTF-8'); ?>?v=<?php echo $assetVersion; ?>">
+    <?php endforeach; endif; ?>
 </head>
 <body class="ml-layout-active" data-logged-in="<?php echo $isLoggedIn ? '1' : '0'; ?>" data-base-path="<?php echo htmlspecialchars($basePath, ENT_QUOTES, 'UTF-8'); ?>">
 

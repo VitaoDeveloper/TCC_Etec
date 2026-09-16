@@ -6,6 +6,8 @@ require_once __DIR__ . '/../../includes/status_labels.php';
 require_once __DIR__ . '/../../includes/image_helpers.php';
 require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../includes/comprovante_functions.php';
+require_once __DIR__ . '/../../includes/order_payment_functions.php';
+require_once __DIR__ . '/../../includes/nf_functions.php';
 
 $orderId = (int) ($_GET['id'] ?? 0);
 $order = $pdo->prepare('SELECT o.*, u.name AS user_name, u.email AS user_email, u.postal_code, u.street, u.number, u.complement
@@ -27,20 +29,79 @@ $items = $items->fetchAll();
 $payLabel = ['pix' => 'Pix', 'boleto' => 'Boleto', 'credit' => 'Cartão', 'delivery' => 'Entrega'];
 $sinfo = $statusLabels[$order['status']] ?? ['label' => $order['status'], 'class' => ''];
 
-// Validação manual de pagamento: admin confirma que o pagamento foi recebido.
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'confirm_payment') {
+// Ações administrativas: confirmar pagamento, envio/rastreio, NF, estorno, cancelamento.
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_require_valid();
-    if ($order['payment_status'] !== 'paid') {
-        $pdo->prepare('UPDATE e5_orders SET payment_status = :status WHERE id = :id')
-            ->execute([':status' => 'paid', ':id' => $orderId]);
-        $_SESSION['admin_message'] = 'Pagamento confirmado.';
+    $action = (string) ($_POST['action'] ?? '');
+    $adminName = trim((string) ($_SESSION['user_name'] ?? ''));
+
+    switch ($action) {
+        case 'confirm_payment':
+            if ($order['payment_status'] !== 'paid') {
+                $pdo->prepare('UPDATE e5_orders SET payment_status = :ps, status = CASE WHEN status = "pending" THEN "paid" ELSE status END, payment_expires_at = NULL WHERE id = :id')
+                    ->execute([':ps' => 'paid', ':id' => $orderId]);
+                $_SESSION['admin_message'] = 'Pagamento confirmado.';
+            } else {
+                $_SESSION['admin_message'] = 'Pagamento já está confirmado.';
+            }
+            break;
+
+        case 'mark_shipped':
+            $track = trim((string) ($_POST['tracking_code'] ?? ''));
+            if ($track === '' && empty($order['tracking_code'])) {
+                $track = generateTrackingCode($orderId);
+            }
+            $pdo->prepare("UPDATE e5_orders SET status = 'shipped',
+                    tracking_code = CASE WHEN tracking_code IS NULL OR tracking_code = '' THEN :track ELSE tracking_code END
+                  WHERE id = :id")
+                ->execute([':track' => $track, ':id' => $orderId]);
+            $_SESSION['admin_message'] = 'Pedido marcado como enviado' . ($track !== '' ? ' — código de rastreio: ' . $track : '.');
+            break;
+
+        case 'generate_tracking':
+            $tstmt = $pdo->prepare('SELECT tracking_code FROM e5_orders WHERE id = :id');
+            $tstmt->execute([':id' => $orderId]);
+            $track = (string) $tstmt->fetchColumn();
+            if ($track === '') {
+                $track = generateTrackingCode($orderId);
+                $pdo->prepare('UPDATE e5_orders SET tracking_code = :track WHERE id = :id')
+                    ->execute([':track' => $track, ':id' => $orderId]);
+            }
+            $_SESSION['admin_message'] = 'Código de rastreio: ' . $track;
+            break;
+
+        case 'emit_nf':
+            $nf = nfEnsure($pdo, $orderId);
+            $_SESSION['admin_message'] = $nf['ok']
+                ? 'NF-e ' . $nf['nf_number'] . ' emitida' . ($nf['fresh'] ? ' (nova).' : ' (já existia).')
+                : 'Falha ao emitir NF-e: ' . $nf['message'];
+            break;
+
+        case 'refund_payment':
+            $res = orderRefundAdmin($pdo, $orderId, $adminName, trim((string) ($_POST['refund_reason'] ?? '')));
+            $_SESSION['admin_message'] = $res['message'];
+            if (!$res['ok']) {
+                $_SESSION['admin_error'] = $res['message'];
+                unset($_SESSION['admin_message']);
+            }
+            break;
+
+        case 'cancel_order':
+            $res = orderCancelAdmin($pdo, $orderId, $adminName, trim((string) ($_POST['reason'] ?? '')));
+            $_SESSION['admin_message'] = $res['message'];
+            if (!$res['ok']) {
+                $_SESSION['admin_error'] = $res['message'];
+                unset($_SESSION['admin_message']);
+            }
+            break;
     }
     header('Location: order-detail.php?id=' . $orderId);
     exit;
 }
 
 $adminMessage = $_SESSION['admin_message'] ?? null;
-unset($_SESSION['admin_message']);
+$adminError = $_SESSION['admin_error'] ?? null;
+unset($_SESSION['admin_message'], $_SESSION['admin_error']);
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -68,6 +129,9 @@ unset($_SESSION['admin_message']);
             <?php if ($adminMessage): ?>
             <div class="auth-feedback auth-feedback-success"><?php echo htmlspecialchars($adminMessage, ENT_QUOTES, 'UTF-8'); ?></div>
             <?php endif; ?>
+            <?php if ($adminError): ?>
+            <div class="auth-feedback auth-feedback-error"><?php echo htmlspecialchars($adminError, ENT_QUOTES, 'UTF-8'); ?></div>
+            <?php endif; ?>
 
             <div class="ml-card" style="padding:15px; margin-bottom:20px; display:flex; align-items:center; gap:15px; flex-wrap:wrap; justify-content:space-between;">
                 <div>
@@ -76,11 +140,17 @@ unset($_SESSION['admin_message']);
                     &mdash;
                     <?php if ($order['payment_status'] === 'paid'): ?>
                     <span class="status-badge status-active">Pago</span>
+                    <?php elseif ($order['payment_status'] === 'refunded'): ?>
+                    <span class="status-badge status-inactive">Estornado</span>
+                    <?php elseif ($order['payment_status'] === 'failed'): ?>
+                    <span class="status-badge status-inactive">Falha no pagamento</span>
+                    <?php elseif ($order['payment_status'] === 'expired'): ?>
+                    <span class="status-badge status-inactive">Expirado</span>
                     <?php else: ?>
                     <span class="status-badge status-pending">Aguardando pagamento</span>
                     <?php endif; ?>
                 </div>
-                <?php if ($order['payment_status'] !== 'paid'): ?>
+                <?php if (in_array($order['payment_status'], ['pending','processing','failed','expired'], true) && $order['status'] !== 'canceled'): ?>
                 <form method="POST" style="margin:0;" onsubmit="return confirm('Confirmar o recebimento do pagamento deste pedido?')">
                     <?php echo csrf_field(); ?>
                     <input type="hidden" name="action" value="confirm_payment">
@@ -89,6 +159,55 @@ unset($_SESSION['admin_message']);
                 <?php endif; ?>
             </div>
 
+            <?php if (in_array($order['status'], ['paid','shipped','delivered'], true)): ?>
+            <div class="ml-card" style="padding:15px; margin-bottom:20px; display:flex; align-items:center; gap:15px; flex-wrap:wrap; justify-content:space-between;">
+                <div>
+                    <strong>Operações</strong>
+                    <p style="color:var(--color-gray); font-size:0.85rem; margin-top:2px;">Marcar envio, emitir NF-e, estornar ou cancelar.</p>
+                </div>
+                <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                    <?php if ($order['status'] === 'paid'): ?>
+                    <form method="POST" style="margin:0; display:flex; gap:6px; align-items:center;">
+                        <?php echo csrf_field(); ?>
+                        <input type="hidden" name="action" value="mark_shipped">
+                        <input type="text" name="tracking_code" placeholder="Código rastreio (opcional)" style="padding:7px 10px; border:1px solid var(--color-border); border-radius:4px; background:var(--color-black); color:var(--color-white); font-size:0.8rem; width:170px;">
+                        <button type="submit" class="btn" style="background:#17a2b8; color:#fff; border:none; padding:8px 14px; border-radius:5px; cursor:pointer; white-space:nowrap;"><i class="fas fa-box"></i> Marcar Enviado</button>
+                    </form>
+                    <?php endif; ?>
+                    <?php if (empty($order['tracking_code']) && in_array($order['status'], ['shipped','delivered'], true)): ?>
+                    <form method="POST" style="margin:0;">
+                        <?php echo csrf_field(); ?>
+                        <input type="hidden" name="action" value="generate_tracking">
+                        <button type="submit" class="btn" style="background:#6f42c1; color:#fff; border:none; padding:8px 14px; border-radius:5px; cursor:pointer; white-space:nowrap;"><i class="fas fa-shipping-fast"></i> Gerar Rastreio</button>
+                    </form>
+                    <?php endif; ?>
+                    <?php if (empty($order['nf_number'])): ?>
+                    <form method="POST" style="margin:0;" onsubmit="return confirm('Emitir a NF-e deste pedido?')">
+                        <?php echo csrf_field(); ?>
+                        <input type="hidden" name="action" value="emit_nf">
+                        <button type="submit" class="btn" style="background:#fd7e14; color:#fff; border:none; padding:8px 14px; border-radius:5px; cursor:pointer; white-space:nowrap;"><i class="fas fa-file-invoice"></i> Emitir NF-e</button>
+                    </form>
+                    <?php endif; ?>
+                    <?php if ($order['payment_status'] === 'paid'): ?>
+                    <form method="POST" style="margin:0; display:flex; gap:6px; align-items:center;" onsubmit="return confirm('Estornar o pagamento deste pedido? Os itens voltam ao estoque.')">
+                        <?php echo csrf_field(); ?>
+                        <input type="hidden" name="action" value="refund_payment">
+                        <input type="text" name="refund_reason" placeholder="Motivo do estorno" style="padding:7px 10px; border:1px solid var(--color-border); border-radius:4px; background:var(--color-black); color:var(--color-white); font-size:0.8rem; width:150px;">
+                        <button type="submit" class="btn" style="background:#dc3545; color:#fff; border:none; padding:8px 14px; border-radius:5px; cursor:pointer; white-space:nowrap;"><i class="fas fa-undo"></i> Estornar</button>
+                    </form>
+                    <?php endif; ?>
+                    <?php if ($order['status'] !== 'canceled'): ?>
+                    <form method="POST" style="margin:0; display:flex; gap:6px; align-items:center;" onsubmit="return confirm('<?php echo $order['payment_status'] === 'paid' ? 'Cancelar o pedido? O pagamento será estornado e os itens voltam ao estoque.' : 'Cancelar o pedido? Os itens voltam ao estoque.'; ?>')">
+                        <?php echo csrf_field(); ?>
+                        <input type="hidden" name="action" value="cancel_order">
+                        <input type="text" name="reason" placeholder="Motivo do cancelamento" style="padding:7px 10px; border:1px solid var(--color-border); border-radius:4px; background:var(--color-black); color:var(--color-white); font-size:0.8rem; width:170px;">
+                        <button type="submit" class="btn" style="background:#ff6b5e; color:#fff; border:none; padding:8px 14px; border-radius:5px; cursor:pointer; white-space:nowrap;"><i class="fas fa-ban"></i> Cancelar</button>
+                    </form>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <?php endif; ?>
+
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:25px; margin-bottom:30px;">
                 <div class="admin-table-container" style="padding:25px;">
                     <h3 style="margin-bottom:15px; font-size:1.1rem;">Informações do Pedido</h3>
@@ -96,7 +215,37 @@ unset($_SESSION['admin_message']);
                         <tr><td style="color:var(--color-gray); padding:6px 0;">Data</td><td style="text-align:right;"><?php echo date('d/m/Y H:i', strtotime($order['created_at'])); ?></td></tr>
                         <tr><td style="color:var(--color-gray); padding:6px 0;">Total</td><td style="text-align:right; font-weight:700; color:var(--color-primary);">R$ <?php echo number_format((float)$order['total'], 2, ',', '.'); ?></td></tr>
                         <tr><td style="color:var(--color-gray); padding:6px 0;">Frete</td><td style="text-align:right;"><?php echo htmlspecialchars($order['shipping_method'] ?? '—', ENT_QUOTES, 'UTF-8'); ?> <?php echo $order['shipping_cost'] > 0 ? '(R$ ' . number_format((float)$order['shipping_cost'], 2, ',', '.') . ')' : '(Grátis)'; ?></td></tr>
-                        <tr><td style="color:var(--color-gray); padding:6px 0;">Pagamento</td><td style="text-align:right;"><?php echo htmlspecialchars($payLabel[$order['payment_method']] ?? $order['payment_method'] ?? '—', ENT_QUOTES, 'UTF-8'); ?> | <?php echo htmlspecialchars($order['payment_status'] ?? '—', ENT_QUOTES, 'UTF-8'); ?></td></tr>
+                        <tr><td style="color:var(--color-gray); padding:6px 0;">Pagamento</td><td style="text-align:right;"><?php echo htmlspecialchars($payLabel[$order['payment_method']] ?? $order['payment_method'] ?? '—', ENT_QUOTES, 'UTF-8'); ?> | <?php echo htmlspecialchars($paymentStatusLabels[$order['payment_status']]['label'] ?? $order['payment_status'] ?? '—', ENT_QUOTES, 'UTF-8'); ?></td></tr>
+                        <tr>
+                            <td style="color:var(--color-gray); padding:6px 0;">Rastreio</td>
+                            <td style="text-align:right;">
+                                <?php if (!empty($order['tracking_code'])): ?>
+                                    <span style="font-family:Consolas,monospace;"><?php echo htmlspecialchars($order['tracking_code'], ENT_QUOTES, 'UTF-8'); ?></span>
+                                <?php else: ?>
+                                    <span style="color:var(--color-gray);">Não gerado</span>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="color:var(--color-gray); padding:6px 0;">NF-e</td>
+                            <td style="text-align:right;">
+                                <?php if (!empty($order['nf_number'])): ?>
+                                    <?php echo htmlspecialchars($order['nf_number'], ENT_QUOTES, 'UTF-8'); ?>
+                                    <?php if ($order['nf_emitted_at']): ?><small style="display:block; color:var(--color-gray);"><?php echo date('d/m/Y H:i', strtotime($order['nf_emitted_at'])); ?></small><?php endif; ?>
+                                <?php else: ?>
+                                    <span style="color:var(--color-gray);">Não emitida</span>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                        <?php if ($order['payment_status'] === 'refunded' || !empty($order['refund_reason'])): ?>
+                        <tr>
+                            <td style="color:var(--color-gray); padding:6px 0;">Estorno</td>
+                            <td style="text-align:right;">
+                                <?php echo htmlspecialchars($order['refund_reason'] ?? '—', ENT_QUOTES, 'UTF-8'); ?>
+                                <?php if ($order['refunded_at']): ?><small style="display:block; color:var(--color-gray);">por <?php echo htmlspecialchars($order['refunded_by'] ?? '', ENT_QUOTES, 'UTF-8'); ?> em <?php echo date('d/m/Y H:i', strtotime($order['refunded_at'])); ?></small><?php endif; ?>
+                            </td>
+                        </tr>
+                        <?php endif; ?>
                             <tr>
                                 <td style="color:var(--color-gray); padding:6px 0; font-size:0.85rem;">Comprovante</td>
                                 <td>

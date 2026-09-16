@@ -27,3 +27,12 @@ function csrf_require_valid(): void {
         exit('Sessão expirada. Recarregue a página.');
     }
 }
+
+function csrf_require_valid_ajax(): void {
+    if (!csrf_verify($_SERVER['HTTP_X_CSRF_TOKEN'] ?? '')) {
+        http_response_code(419);
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'Sessão expirada. Recarregue a página.']);
+        exit;
+    }
+}

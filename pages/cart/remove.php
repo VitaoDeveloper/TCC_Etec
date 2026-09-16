@@ -18,8 +18,22 @@ if ($productId <= 0) {
 
 require_once __DIR__ . '/../../database/connection.php';
 require_once __DIR__ . '/../../includes/cart_functions.php';
+require_once __DIR__ . '/../../includes/csrf.php';
+csrf_require_valid_ajax();
 
-cartRemoveItem($pdo, (int)$_SESSION['user_id'], $productId);
+require_once __DIR__ . '/../../includes/rate_limit.php';
+if (!rate_limit_check('cart_' . $_SESSION['user_id'], 60, 1)) {
+    http_response_code(429);
+    echo json_encode(['success' => false, 'message' => 'Muitas solicitações. Aguarde um momento e tente novamente.']);
+    exit;
+}
+
+$affected = cartRemoveItem($pdo, (int)$_SESSION['user_id'], $productId);
 $count = cartGetCount($pdo, (int)$_SESSION['user_id']);
+
+if ($affected === 0) {
+    echo json_encode(['success' => false, 'message' => 'Este item não está no carrinho.', 'count' => $count]);
+    exit;
+}
 
 echo json_encode(['success' => true, 'count' => $count]);
