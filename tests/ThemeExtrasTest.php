@@ -12,8 +12,9 @@ use PHPUnit\Framework\TestCase;
  * Verifica:
  *   1. O asset de imagem existe e tem assinatura PNG válida.
  *   2. Hash SHA-256 dos arquivos e do trecho de carregamento conferem com o JSON de referência.
- *   3. O módulo JS contém o sequenciador e as classes esperadas do efeito.
- *   4. O trecho CSS contém as regras de animação e classes esperadas.
+ *   3. O módulo JS contém o sequenciador, as classes do efeito, a barrinha de status,
+ *      o modo combinado e os tratamentos de teclado/visibilidade esperados.
+ *   4. O trecho CSS contém as regras de animação, da barrinha e do countdown.
  */
 final class ThemeExtrasTest extends TestCase
 {
@@ -108,18 +109,47 @@ final class ThemeExtrasTest extends TestCase
         $this->assertStringContainsString('accent-mark.png',     $raw);
     }
 
-    public function testJsHasNoVisibleToastText(): void
+    public function testJsHasNoToastCode(): void
     {
         $raw = $this->readAsset(self::JS_PATH);
         $this->assertStringNotContainsString('toast', $raw);
-        $this->assertStringNotContainsString('Timão', $raw);
     }
 
     public function testJsContainsStatusBarLabels(): void
     {
         $raw = $this->readAsset(self::JS_PATH);
-        $this->assertStringContainsString('MODO TIMÃO ATIVO', $raw);
-        $this->assertStringContainsString('ativação',         $raw);
+        $this->assertStringContainsString('MODO TIMÃO ATIVO',   $raw);
+        $this->assertStringContainsString('MODO TIMÃO IMORTAL', $raw);
+        $this->assertStringContainsString('ativação',           $raw);
+    }
+
+    public function testJsContainsComboModeRefs(): void
+    {
+        $raw = $this->readAsset(self::JS_PATH);
+        $this->assertStringContainsString('COMBO_EFFECT_MS',     $raw);
+        $this->assertStringContainsString('COMBO_MAX_ON_SCREEN', $raw);
+        $this->assertStringContainsString('royal-glow',          $raw);
+        $this->assertStringContainsString('royal-crown',         $raw);
+    }
+
+    public function testJsContainsRenewPath(): void
+    {
+        $raw = $this->readAsset(self::JS_PATH);
+        $this->assertStringContainsString('renewEffect',  $raw);
+        $this->assertStringContainsString('resetCountdown', $raw);
+    }
+
+    public function testJsContainsEscapeHandler(): void
+    {
+        $raw = $this->readAsset(self::JS_PATH);
+        $this->assertStringContainsString('Escape', $raw);
+    }
+
+    public function testJsContainsVisibilityHandler(): void
+    {
+        $raw = $this->readAsset(self::JS_PATH);
+        $this->assertStringContainsString('visibilitychange', $raw);
+        $this->assertStringContainsString('document.hidden',   $raw);
     }
 
     public function testJsContainsRunCounter(): void
@@ -127,6 +157,13 @@ final class ThemeExtrasTest extends TestCase
         $raw = $this->readAsset(self::JS_PATH);
         $this->assertStringContainsString('tx_fx_runs',  $raw);
         $this->assertStringContainsString('localStorage', $raw);
+    }
+
+    public function testJsContainsDateFlag(): void
+    {
+        $raw = $this->readAsset(self::JS_PATH);
+        $this->assertStringContainsString('1910',        $raw);
+        $this->assertStringContainsString('DATE_FLAG_MS', $raw);
     }
 
     // =====================================================================
@@ -156,6 +193,18 @@ final class ThemeExtrasTest extends TestCase
         $this->assertStringContainsString('@keyframes tx-fx-fade',   $raw);
     }
 
+    public function testCssContainsStatusBarRules(): void
+    {
+        $raw = $this->readAsset(self::CSS_PATH);
+        $this->assertStringContainsString('.tx-fx-status',            $raw);
+        $this->assertStringContainsString('.tx-fx-status--combo',     $raw);
+        $this->assertStringContainsString('.tx-fx-status--calm',      $raw);
+        $this->assertStringContainsString('.tx-fx-status-track',      $raw);
+        $this->assertStringContainsString('.tx-fx-status-fill',       $raw);
+        $this->assertStringContainsString('@keyframes tx-fx-status-countdown', $raw);
+        $this->assertStringContainsString('@keyframes tx-fx-status-pulse',     $raw);
+    }
+
     public function testCssNoLongerContainsFormerRules(): void
     {
         $raw = $this->readAsset(self::CSS_PATH);
@@ -164,16 +213,6 @@ final class ThemeExtrasTest extends TestCase
         $this->assertStringNotContainsString('tx-fx-toast',  $raw, 'Toast deveria ter sido removido.');
         $this->assertStringNotContainsString('.tx-fx-icon',  $raw);
         $this->assertStringNotContainsString('body.tx-fx',   $raw);
-    }
-
-    public function testCssContainsStatusBarRules(): void
-    {
-        $raw = $this->readAsset(self::CSS_PATH);
-        $this->assertStringContainsString('.tx-fx-status',                $raw);
-        $this->assertStringContainsString('.tx-fx-status-text',           $raw);
-        $this->assertStringContainsString('.tx-fx-status-track',          $raw);
-        $this->assertStringContainsString('.tx-fx-status-fill',           $raw);
-        $this->assertStringContainsString('@keyframes tx-fx-status-countdown', $raw);
     }
 
     // =====================================================================
