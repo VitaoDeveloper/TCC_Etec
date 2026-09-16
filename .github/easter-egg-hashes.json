@@ -25,12 +25,12 @@
     },
     "assets/js/theme-extras.js": {
       "type": "file",
-      "sha256": "de71f5c6d5bef13863843a2fae829928c5cde7f92411eb4989891595808ed5da",
+      "sha256": "01af662930e04a76101b4defbef90c5b582a98a367df66bcf2591af23bfc664f",
       "note": "Integridade de efeitos visuais do tema (modulo de pisca em posicoes aleatorias)."
     },
     "assets/css/theme-extras.css": {
       "type": "file",
-      "sha256": "0f1c0bed87689575915b9a848e6be6e01f47a16746098126ca20b00cc219a204",
+      "sha256": "41b730a818fac5cc551a8f1198d5d4d61a3982b824e12b421e7e2e2be64ca1e6",
       "note": "Integridade de efeitos visuais do tema (classes de animacao de pisca e fade)."
     },
     "assets/img/theme/accent-mark.png": {
