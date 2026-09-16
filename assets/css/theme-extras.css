@@ -1,0 +1,73 @@
+/* ========================================
+   THEME EXTRAS — decorative visual modules
+   (black/white pulse overlay + accent-mark mosaic)
+   ======================================== */
+
+/* ========================================
+   Pulse overlay (applied to <body> via .tx-fx)
+   ======================================== */
+body.tx-fx::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9997;
+    background: linear-gradient(120deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0) 40%, rgba(0, 0, 0, 0) 60%, rgba(0, 0, 0, 0.12) 100%);
+    animation: tx-fx-pulse 0.85s ease-in-out infinite alternate;
+}
+
+@keyframes tx-fx-pulse {
+    from { opacity: 0.2; }
+    to   { opacity: 0.9; }
+}
+
+/* ========================================
+   Horizontal mosaic (accent-mark icons)
+   ======================================== */
+.tx-fx-icon {
+    position: fixed;
+    height: auto;
+    pointer-events: none;
+    z-index: 9998;
+    border-radius: 6px;
+    opacity: 0.9;
+    animation-name: tx-fx-cross;
+    animation-timing-function: linear;
+    animation-fill-mode: forwards;
+    background-image: url('../img/theme/accent-mark.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+}
+
+@keyframes tx-fx-cross {
+    from { transform: translateX(-12vw) translateY(0) rotate(0deg); }
+    to   { transform: translateX(115vw) translateY(-14vh) rotate(360deg); }
+}
+
+/* ========================================
+   Fallback toast (only used if window.showToast unavailable)
+   ======================================== */
+.tx-fx-toast {
+    position: fixed;
+    bottom: 28px;
+    right: 24px;
+    z-index: 9999;
+    padding: 12px 18px;
+    background: #111;
+    border: 1px solid #fff;
+    border-radius: 6px;
+    color: #fff;
+    font-size: 0.9rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55);
+    animation: tx-fx-toast-in 0.25s ease, tx-fx-toast-out 0.3s ease 2.7s forwards;
+}
+
+@keyframes tx-fx-toast-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes tx-fx-toast-out {
+    from { opacity: 1; transform: translateY(0); }
+    to   { opacity: 0; transform: translateY(10px); }
+}
