@@ -98,11 +98,27 @@ class WebhookHandler
             ];
         }
 
-        // 6. Registrar no log de idempotência
-        $this->logEvent($eventId, $eventType, $orderId, $payload);
-
-        // 7. Processar o evento (hook customizado)
-        $this->processEvent($eventType, $eventData);
+        // 6. Registrar no log de idempotência + processar de forma atômica.
+        // Se o processamento falhar, o log é revertido para permitir o retry
+        // automático da SuperFrete (mesmo event_id será reprocessado).
+        $useTransaction = isset($this->db);
+        try {
+            if ($useTransaction) {
+                $this->db->beginTransaction();
+            }
+            $this->logEvent($eventId, $eventType, $orderId, $payload);
+            $this->processEvent($eventType, $eventData);
+            if ($useTransaction) {
+                $this->db->commit();
+            }
+        } catch (\Throwable $e) {
+            if ($useTransaction && $this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            error_log('[SuperFrete Webhook] Falha ao processar ' . $eventType . ': ' . $e->getMessage());
+            http_response_code(500);
+            return ['status' => 'error', 'message' => 'Falha ao processar evento'];
+        }
 
         http_response_code(200);
         return [
@@ -205,26 +221,157 @@ class WebhookHandler
     }
 
     /**
-     * Processa o evento recebido.
+     * Processa o evento recebido e reflete o novo estado no pedido e no envio.
      *
-     * Este é o hook onde a aplicação deve implementar a lógica
-     * específica para cada tipo de evento. Sobrescreva em uma subclasse.
+     * Mapeamento evento → status do envio (e5_shippings):
+     *   order.created   → pending
+     *   order.generated → generated
+     *   order.released  → released
+     *   order.posted    → posted    (pedido → shipped)
+     *   order.delivered → delivered (pedido → delivered)
+     *   order.cancelled → canceled  (pedido → canceled)
+     *
+     * O pedido é localizado por e5_shippings.superfrete_order_id ou pela tag
+     * "ORDER-<id>" enviada na criação da etiqueta.
      *
      * @param string $eventType Tipo do evento (order.created, etc.)
      * @param array  $eventData Dados do evento
      */
     protected function processEvent(string $eventType, array $eventData): void
     {
-        // Por padrão, apenas loga o evento.
-        // Sobrescrever esta classe ou adicionar callback para lógica customizada.
-        error_log(
-            sprintf(
-                '[SuperFrete Webhook] Evento processado: %s | Order: %s | Status: %s',
-                $eventType,
-                $eventData['id'] ?? 'N/A',
-                $eventData['status'] ?? 'N/A'
-            )
+        $superfreteId = (string) ($eventData['id'] ?? '');
+        $orderId = $this->resolveLocalOrderId($eventData, $superfreteId);
+
+        error_log(sprintf(
+            '[SuperFrete Webhook] %s | SuperFrete: %s | Pedido: %s',
+            $eventType,
+            $superfreteId !== '' ? $superfreteId : 'N/A',
+            $orderId !== null ? (string) $orderId : 'não localizado'
+        ));
+
+        if ($orderId === null) {
+            return; // evento de pedido que não é desta loja
+        }
+
+        $shippingStatus = [
+            'order.created'   => 'pending',
+            'order.generated' => 'generated',
+            'order.released'  => 'released',
+            'order.posted'    => 'posted',
+            'order.delivered' => 'delivered',
+            'order.cancelled' => 'canceled',
+        ][$eventType] ?? null;
+
+        $tracking = (string) ($eventData['tracking'] ?? $eventData['tracking_code'] ?? '');
+        $carrier  = (string) ($eventData['carrier'] ?? $eventData['service']['name'] ?? '');
+
+        // Atualiza o envio (e5_shippings).
+        $set = ['last_event = :ev', 'last_event_at = :now'];
+        $params = [':ev' => $eventType, ':now' => date('Y-m-d H:i:s'), ':oid' => $orderId];
+        if ($shippingStatus !== null) {
+            $set[] = 'status = :st';
+            $params[':st'] = $shippingStatus;
+        }
+        if ($tracking !== '') {
+            $set[] = 'tracking_code = :tr';
+            $params[':tr'] = $tracking;
+        }
+        if ($carrier !== '') {
+            $set[] = 'carrier = :cr';
+            $params[':cr'] = $carrier;
+        }
+        if ($eventType === 'order.cancelled') {
+            $set[] = 'canceled = 1';
+        }
+        $this->db->prepare('UPDATE e5_shippings SET ' . implode(', ', $set) . ' WHERE order_id = :oid')
+            ->execute($params);
+
+        // Atualiza o pedido (e5_orders) respeitando a progressão de status.
+        $stmt = $this->db->prepare('SELECT status, payment_status, tracking_code FROM e5_orders WHERE id = :id LIMIT 1');
+        $stmt->execute([':id' => $orderId]);
+        $order = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$order) {
+            return;
+        }
+
+        $rank = ['pending' => 0, 'paid' => 1, 'shipped' => 2, 'delivered' => 3, 'canceled' => 4];
+        $current = (string) $order['status'];
+
+        if ($eventType === 'order.cancelled') {
+            if ($current !== 'canceled') {
+                $this->db->prepare("UPDATE e5_orders SET status = 'canceled' WHERE id = :id")->execute([':id' => $orderId]);
+                $this->addHistory($orderId, 'canceled', (string) $order['payment_status'], 'Etiqueta cancelada na SuperFrete (webhook).');
+            }
+            return;
+        }
+
+        $target = null;
+        $note = '';
+        if ($eventType === 'order.posted') {
+            $target = 'shipped';
+            $note = 'Pedido postado na transportadora (webhook)' . ($tracking !== '' ? '. Rastreio: ' . $tracking : '.');
+        } elseif ($eventType === 'order.delivered') {
+            $target = 'delivered';
+            $note = 'Pedido entregue ao destinatário (webhook).';
+        }
+
+        if ($target !== null && ($rank[$target] ?? 0) > ($rank[$current] ?? 0)) {
+            $sql = 'UPDATE e5_orders SET status = :status';
+            $up = [':status' => $target, ':id' => $orderId];
+            if ($tracking !== '' && empty($order['tracking_code'])) {
+                $sql .= ', tracking_code = :track';
+                $up[':track'] = $tracking;
+            }
+            $sql .= ' WHERE id = :id';
+            $this->db->prepare($sql)->execute($up);
+            $this->addHistory($orderId, $target, (string) $order['payment_status'], $note);
+        }
+    }
+
+    /**
+     * Descobre o pedido local a partir do evento do webhook.
+     */
+    protected function resolveLocalOrderId(array $eventData, string $superfreteId): ?int
+    {
+        if ($superfreteId !== '') {
+            $stmt = $this->db->prepare('SELECT order_id FROM e5_shippings WHERE superfrete_order_id = :sid LIMIT 1');
+            $stmt->execute([':sid' => $superfreteId]);
+            $found = $stmt->fetchColumn();
+            if ($found !== false && $found !== null) {
+                return (int) $found;
+            }
+        }
+
+        // Tags enviadas na criação ("ORDER-<id>").
+        $tags = $eventData['tags'] ?? [];
+        if (is_array($tags)) {
+            foreach ($tags as $tag) {
+                $value = is_array($tag) ? (string) ($tag['tag'] ?? '') : (string) $tag;
+                if (preg_match('/^ORDER-(\d+)$/i', trim($value), $m)) {
+                    return (int) $m[1];
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Registra a transição na timeline do pedido (e5_order_status_history).
+     */
+    protected function addHistory(int $orderId, string $status, ?string $paymentStatus, string $note): void
+    {
+        $stmt = $this->db->prepare(
+            'INSERT INTO e5_order_status_history (order_id, status, payment_status, note, changed_by)
+             VALUES (:oid, :st, :ps, :note, :by)'
         );
+        $stmt->execute([
+            ':oid'  => $orderId,
+            ':st'   => $status,
+            ':ps'   => $paymentStatus,
+            ':note' => mb_substr($note, 0, 255),
+            ':by'   => 'SuperFrete',
+        ]);
     }
 
     // =====================================================================

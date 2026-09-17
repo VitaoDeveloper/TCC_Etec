@@ -42,6 +42,12 @@ class SuperFreteClient
     private string $baseUrl;
     private string $userAgent;
 
+    /** Tentativas extras em falhas transitórias (0 = sem retry). */
+    private int $maxRetries;
+
+    /** Base do backoff exponencial em milissegundos. */
+    private int $retryBaseMs;
+
     /** @var resource|null Handle de log para debug (NUNCA expor token) */
     private $logHandle = null;
 
@@ -50,12 +56,16 @@ class SuperFreteClient
      *
      * @param array<string,string> $env Variáveis SUPERFRETE_* do .env
      * @param string|null         $logPath Caminho opcional para arquivo de log
+     * @param Client|null         $httpClient Cliente Guzzle injetável (testes)
      */
-    public function __construct(array $env, ?string $logPath = null)
+    public function __construct(array $env, ?string $logPath = null, ?Client $httpClient = null)
     {
         $this->token     = $env['SUPERFRETE_TOKEN'] ?? '';
         $this->baseUrl   = rtrim($env['SUPERFRETE_BASE_URL'] ?? 'https://sandbox.superfrete.com/', '/');
         $this->userAgent = $env['SUPERFRETE_USER_AGENT'] ?? 'RoyalTech 1.0 (integracao@superfrete.com)';
+
+        $this->maxRetries  = max(0, (int) ($env['SUPERFRETE_MAX_RETRIES'] ?? 2));
+        $this->retryBaseMs = max(0, (int) ($env['SUPERFRETE_RETRY_BASE_MS'] ?? 250));
 
         if ($this->token === '') {
             throw new \InvalidArgumentException(
@@ -63,7 +73,7 @@ class SuperFreteClient
             );
         }
 
-        $this->httpClient = new Client([
+        $this->httpClient = $httpClient ?? new Client([
             'base_uri' => $this->baseUrl,
             'timeout'  => 30,
             'headers'  => [
@@ -428,6 +438,10 @@ class SuperFreteClient
     /**
      * Executa uma requisição HTTP e trata erros da API SuperFrete.
      *
+     * Aplica retry com backoff exponencial para falhas transitórias
+     * (sem conexão, timeout, HTTP 429 ou 5xx). Erros de negócio (4xx)
+     * são propagados sem retry.
+     *
      * @param string $method  Método HTTP (GET, POST, PUT, DELETE)
      * @param string $uri     URI relativa (ex: /api/v0/calculator)
      * @param array  $options Opções do Guzzle (json, query, etc.)
@@ -435,6 +449,53 @@ class SuperFreteClient
      * @throws SuperFreteException Em caso de erro da API
      */
     private function request(string $method, string $uri, array $options = []): array
+    {
+        $attempts = $this->maxRetries + 1;
+        $lastError = null;
+
+        for ($attempt = 1; $attempt <= $attempts; $attempt++) {
+            try {
+                return $this->performRequest($method, $uri, $options);
+            } catch (SuperFreteException $e) {
+                $lastError = $e;
+                if ($attempt >= $attempts || !$this->isRetryable($e)) {
+                    throw $e;
+                }
+
+                // Backoff exponencial: base, 2x base, 4x base... (limitado a 3s)
+                $delayMs = min(3000, $this->retryBaseMs * (2 ** ($attempt - 1)));
+                $this->log("<<< RETRY $attempt/$this->maxRetries em {$delayMs}ms ({$e->getMessage()})");
+                if ($delayMs > 0) {
+                    usleep($delayMs * 1000);
+                }
+            }
+        }
+
+        // Inalcançável (o loop sempre retorna ou lança), mantém o analisador feliz.
+        throw $lastError ?? new SuperFreteException('unknown', 'Falha desconhecida na requisição');
+    }
+
+    /**
+     * Indica se o erro permite nova tentativa (transitório).
+     */
+    private function isRetryable(SuperFreteException $e): bool
+    {
+        $code = $e->getGrpcCode();
+        if (in_array((string) $code, ['unavailable', 'deadline-exceeded', 'resource-exhausted'], true)) {
+            return true;
+        }
+
+        $status = $e->getHttpStatus();
+        return $status === 429 || $status >= 500;
+    }
+
+    /**
+     * Executa UMA tentativa HTTP e converte erros em SuperFreteException.
+     *
+     * @return array
+     * @throws SuperFreteException
+     */
+    private function performRequest(string $method, string $uri, array $options = []): array
     {
         $this->log(">>> $method $uri");
 

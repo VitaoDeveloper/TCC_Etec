@@ -7,11 +7,14 @@ require_once __DIR__ . '/../../includes/config.php';
 $settings = store_config();
 $defaults = [
     'store_name'=>'','store_email'=>'','store_phone'=>'','store_address'=>'','store_cnpj'=>'',
+    'store_url'=>'','notif_email_enabled'=>'1',
     'store_currency'=>'BRL','store_description'=>'','social_facebook'=>'','social_instagram'=>'',
     'social_twitter'=>'','social_youtube'=>'','store_logo'=>'','store_favicon'=>'',
     'pix_key'=>'','boleto_days'=>'3',
     'pix_discount_percent'=>'5',
     'free_shipping_threshold'=>'500',
+    'frete_fallback_cost'=>'25',
+    'frete_fallback_days'=>'5-10 dias úteis',
     'vip_spend_threshold'=>'2000',
 ];
 
@@ -19,48 +22,111 @@ $tab = (string) ($_GET['tab'] ?? 'store');
 $validTabs = ['store','emails','pagamentos','frete','segurança','usuários'];
 if (!in_array($tab, $validTabs, true)) $tab = 'store';
 
+// Valida uploads de imagem: erro de transporte, tamanho e MIME real (não confia
+// na extensão enviada pelo cliente). Retorna mensagem de erro ou null se válido.
+function validateImageUpload(array $file, array $allowedMimes, int $maxBytes): ?string
+{
+    $error = (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE);
+    if ($error === UPLOAD_ERR_NO_FILE) {
+        return null;
+    }
+    if ($error !== UPLOAD_ERR_OK) {
+        return 'Falha no upload do arquivo (código ' . $error . ').';
+    }
+    if (!is_uploaded_file($file['tmp_name'] ?? '')) {
+        return 'Arquivo de upload inválido.';
+    }
+    if ((int) ($file['size'] ?? 0) > $maxBytes) {
+        return 'Arquivo excede o limite de ' . number_format($maxBytes / 1048576, 1, ',', '.') . ' MB.';
+    }
+    $mime = '';
+    try {
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+        $mime = (string) $finfo->file($file['tmp_name']);
+    } catch (Throwable $e) {
+        $mime = (string) ($file['type'] ?? '');
+    }
+    if (!in_array($mime, $allowedMimes, true)) {
+        return 'Tipo de arquivo não permitido (' . htmlspecialchars($mime, ENT_QUOTES, 'UTF-8') . ').';
+    }
+    // Confere que o conteúdo é realmente uma imagem (ICO não é lido por getimagesize).
+    if ($mime !== 'image/vnd.microsoft.icon' && $mime !== 'image/x-icon') {
+        if (@getimagesize($file['tmp_name']) === false) {
+            return 'O arquivo enviado não é uma imagem válida.';
+        }
+    }
+    return null;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_require_valid();
 
     $values = [];
-    if (isset($_FILES['store_logo']) && is_uploaded_file($_FILES['store_logo']['tmp_name'])) {
-        $ext = strtolower(pathinfo($_FILES['store_logo']['name'], PATHINFO_EXTENSION));
-        if (in_array($ext, ['png','jpg','jpeg','webp'], true)) {
+    $uploadError = null;
+    $maxUploadBytes = 2 * 1024 * 1024;
+    $logoMimes = ['image/png', 'image/jpeg', 'image/webp'];
+    $faviconMimes = ['image/png', 'image/jpeg', 'image/webp', 'image/vnd.microsoft.icon', 'image/x-icon'];
+
+    if (isset($_FILES['store_logo'])) {
+        $err = validateImageUpload($_FILES['store_logo'], $logoMimes, $maxUploadBytes);
+        if ($err !== null) {
+            $uploadError = 'Logo: ' . $err;
+        } elseif (is_uploaded_file($_FILES['store_logo']['tmp_name'])) {
+            $ext = strtolower(pathinfo($_FILES['store_logo']['name'], PATHINFO_EXTENSION));
+            $ext = $ext === 'jpeg' ? 'jpg' : $ext;
             $name = 'logo-' . time() . '.' . $ext;
             $target = __DIR__ . '/../../assets/img/' . $name;
             if (move_uploaded_file($_FILES['store_logo']['tmp_name'], $target)) {
                 $values['store_logo'] = 'assets/img/' . $name;
+            } else {
+                error_log('Falha ao mover upload de logo para ' . $target);
+                $uploadError = 'Logo: não foi possível gravar o arquivo. Verifique as permissões da pasta assets/img.';
             }
         }
     }
-    if (isset($_FILES['store_favicon']) && is_uploaded_file($_FILES['store_favicon']['tmp_name'])) {
-        $ext = strtolower(pathinfo($_FILES['store_favicon']['name'], PATHINFO_EXTENSION));
-        if (in_array($ext, ['png','jpg','jpeg','ico','webp'], true)) {
+    if (isset($_FILES['store_favicon'])) {
+        $err = validateImageUpload($_FILES['store_favicon'], $faviconMimes, $maxUploadBytes);
+        if ($err !== null) {
+            $uploadError = 'Favicon: ' . $err;
+        } elseif (is_uploaded_file($_FILES['store_favicon']['tmp_name'])) {
+            $ext = strtolower(pathinfo($_FILES['store_favicon']['name'], PATHINFO_EXTENSION));
+            $ext = $ext === 'jpeg' ? 'jpg' : $ext;
             $name = 'favicon-' . time() . '.' . $ext;
             $target = __DIR__ . '/../../assets/img/' . $name;
             if (move_uploaded_file($_FILES['store_favicon']['tmp_name'], $target)) {
                 $values['store_favicon'] = 'assets/img/' . $name;
+            } else {
+                error_log('Falha ao mover upload de favicon para ' . $target);
+                $uploadError = 'Favicon: não foi possível gravar o arquivo. Verifique as permissões da pasta assets/img.';
             }
         }
     }
 
     foreach ($defaults as $k => $_) {
         if (in_array($k, ['store_logo','store_favicon'], true)) continue;
-        $values[$k] = trim((string) ($_POST[$k] ?? ''));
+        // Só atualiza chaves realmente enviadas: evita apagar configurações
+        // quando um campo não vem no POST.
+        if (!array_key_exists($k, $_POST)) continue;
+        $values[$k] = trim((string) $_POST[$k]);
     }
 
     try {
         store_config_save($values);
-        $_SESSION['admin_message'] = 'Configurações salvas com sucesso.';
+        if ($uploadError !== null) {
+            $_SESSION['admin_error'] = $uploadError;
+        } else {
+            $_SESSION['admin_message'] = 'Configurações salvas com sucesso.';
+        }
     } catch (Throwable $e) {
-        $_SESSION['admin_message'] = 'Erro ao salvar configurações: banco indisponível.';
+        $_SESSION['admin_error'] = 'Erro ao salvar configurações: banco indisponível.';
     }
     header('Location: settings.php?tab=' . urlencode($tab));
     exit;
 }
 
 $message = $_SESSION['admin_message'] ?? null;
-unset($_SESSION['admin_message']);
+$error = $_SESSION['admin_error'] ?? null;
+unset($_SESSION['admin_message'], $_SESSION['admin_error']);
 
 function val($key) { global $settings; return htmlspecialchars($settings[$key] ?? '', ENT_QUOTES, 'UTF-8'); }
 function sel($key, $val) { global $settings; return ($settings[$key] ?? '') === $val ? 'selected' : ''; }
@@ -97,6 +163,9 @@ function sel($key, $val) { global $settings; return ($settings[$key] ?? '') === 
             <?php if ($message): ?>
             <div class="auth-feedback auth-feedback-success"><?php echo htmlspecialchars($message, ENT_QUOTES, 'UTF-8'); ?></div>
             <?php endif; ?>
+            <?php if ($error): ?>
+            <div class="auth-feedback auth-feedback-error"><?php echo htmlspecialchars($error, ENT_QUOTES, 'UTF-8'); ?></div>
+            <?php endif; ?>
             <form id="settingsForm" method="POST" enctype="multipart/form-data">
             <?php echo csrf_field(); ?>
             <div style="display: grid; grid-template-columns: 250px 1fr; gap: 30px;">
@@ -123,6 +192,7 @@ function sel($key, $val) { global $settings; return ($settings[$key] ?? '') === 
                             <div class="admin-form-group"><label for="store_cnpj">CNPJ</label><input type="text" id="store_cnpj" name="store_cnpj" value="<?php echo val('store_cnpj'); ?>" placeholder="00.000.000/0001-00"></div>
                             <div class="admin-form-group"><label for="store_currency">Moeda</label><select id="store_currency" name="store_currency"><option value="BRL" <?php echo sel('store_currency','BRL'); ?>>Real (R$)</option><option value="USD" <?php echo sel('store_currency','USD'); ?>>Dólar ($)</option><option value="EUR" <?php echo sel('store_currency','EUR'); ?>>Euro (€)</option></select></div>
                         </div>
+                        <div class="admin-form-group"><label for="store_url">URL do Site</label><input type="url" id="store_url" name="store_url" value="<?php echo val('store_url'); ?>" placeholder="https://sualoja.com.br"><small style="color:var(--color-gray); display:block; margin-top:6px;">Usada nos links dos e-mails transacionais.</small></div>
                         <div class="admin-form-group"><label for="store_description">Descrição da Loja</label><textarea id="store_description" name="store_description" rows="4" placeholder="Breve descrição da loja"><?php echo val('store_description'); ?></textarea></div>
 
                         <hr style="border:none; border-top:1px solid var(--color-border); margin:30px 0;">
@@ -130,14 +200,14 @@ function sel($key, $val) { global $settings; return ($settings[$key] ?? '') === 
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
                             <div>
                                 <div class="admin-file-upload" onclick="document.getElementById('logoInput').click()" style="cursor:pointer;">
-                                    <i class="fas fa-cloud-upload-alt"></i><h5>Logo da Loja</h5><p style="color:var(--color-gray);">PNG, JPG ou WEBP - 200x60px</p>
+                                    <i class="fas fa-cloud-upload-alt"></i><h5>Logo da Loja</h5><p style="color:var(--color-gray);">PNG, JPG ou WEBP - 200x60px · máx. 2 MB</p>
                                 </div>
                                 <input type="file" id="logoInput" name="store_logo" accept=".png,.jpg,.jpeg,.webp" style="display:none">
                                 <?php if (!empty($settings['store_logo'])): ?><img src="../../<?php echo htmlspecialchars($settings['store_logo'], ENT_QUOTES, 'UTF-8'); ?>" class="logo-preview" alt="Logo"><?php endif; ?>
                             </div>
                             <div>
                                 <div class="admin-file-upload" onclick="document.getElementById('faviconInput').click()" style="cursor:pointer;">
-                                    <i class="fas fa-cloud-upload-alt"></i><h5>Favicon</h5><p style="color:var(--color-gray);">PNG, ICO ou WEBP - 32x32px</p>
+                                    <i class="fas fa-cloud-upload-alt"></i><h5>Favicon</h5><p style="color:var(--color-gray);">PNG, ICO ou WEBP - 32x32px · máx. 2 MB</p>
                                 </div>
                                 <input type="file" id="faviconInput" name="store_favicon" accept=".png,.jpg,.jpeg,.ico,.webp" style="display:none">
                                 <?php if (!empty($settings['store_favicon'])): ?><img src="../../<?php echo htmlspecialchars($settings['store_favicon'], ENT_QUOTES, 'UTF-8'); ?>" class="favicon-preview" alt="Favicon"><?php endif; ?>
@@ -158,6 +228,14 @@ function sel($key, $val) { global $settings; return ($settings[$key] ?? '') === 
                     <div class="admin-table-container" style="padding:30px;<?php echo $tab!=='emails'?' display:none;':''; ?>">
                         <h4 style="margin-bottom:25px;">Configurações de E-mail</h4>
                         <p style="color:var(--color-gray); margin-bottom:20px;">O envio usa SMTP com conexão persistente (PHPMailer). As credenciais são gerenciadas por variáveis de ambiente no arquivo <code>.env</code> / <code>.env.prod</code> — não podem ser alteradas por aqui.</p>
+                        <div class="admin-form-group">
+                            <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-weight:600;">
+                                <input type="hidden" name="notif_email_enabled" value="0">
+                                <input type="checkbox" name="notif_email_enabled" value="1" <?php echo ($settings['notif_email_enabled'] ?? '1') === '1' ? 'checked' : ''; ?> style="width:auto; margin:0;">
+                                Enviar notificações transacionais por e-mail
+                            </label>
+                            <small style="color:var(--color-gray); display:block; margin-top:6px;">Confirmação de pagamento, envio, cancelamento, boas-vindas e contato. A fila é processada pelo cron: <code>php scripts/notifications-worker.php</code>.</small>
+                        </div>
                         <table class="admin-table">
                             <thead><tr><th>Parâmetro</th><th>Valor ativo</th></tr></thead>
                             <tbody>
@@ -186,6 +264,14 @@ function sel($key, $val) { global $settings; return ($settings[$key] ?? '') === 
                         <h4 style="margin-bottom:25px;">Configurações de Frete</h4>
                         <div class="admin-form-group"><label for="free_shipping_threshold">Frete Grátis a partir de (R$)</label><input type="number" id="free_shipping_threshold" name="free_shipping_threshold" value="<?php echo val('free_shipping_threshold'); ?>" min="0" step="0.01"></div>
                         <p style="color:var(--color-gray); font-size:0.85rem; margin-top:-10px;">Valor mínimo do pedido para frete grátis. Deixe 0 para desabilitar.</p>
+
+                        <hr style="border:none; border-top:1px solid var(--color-border); margin:30px 0;">
+                        <h4 style="margin-bottom:10px;">Frete de Contingência</h4>
+                        <p style="color:var(--color-gray); font-size:0.85rem; margin-top:0; margin-bottom:20px;">Usado somente quando a API SuperFrete não responde: o checkout aplica este valor e prazo para não travar a compra.</p>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+                            <div class="admin-form-group"><label for="frete_fallback_cost">Valor do frete de contingência (R$)</label><input type="number" id="frete_fallback_cost" name="frete_fallback_cost" value="<?php echo val('frete_fallback_cost'); ?>" min="0" step="0.01"></div>
+                            <div class="admin-form-group"><label for="frete_fallback_days">Prazo estimado (texto)</label><input type="text" id="frete_fallback_days" name="frete_fallback_days" value="<?php echo val('frete_fallback_days'); ?>" placeholder="Ex: 5-10 dias úteis" maxlength="60"></div>
+                        </div>
                     </div>
 
                     <!-- Segurança -->

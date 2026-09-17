@@ -3,6 +3,7 @@ $page_title = 'Cupons de Desconto - Royal Tech';
 include 'auth_check.php';
 include '../../database/connection.php';
 require_once __DIR__ . '/../../includes/csrf.php';
+require_once __DIR__ . '/../../includes/pagination.php';
 $activePage = 'coupons';
 
 function parseDecimalOrNull(array $post, string $field): ?float
@@ -78,16 +79,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
-$coupons = $pdo->query('SELECT * FROM e5_coupons ORDER BY created_at DESC, id DESC')->fetchAll();
+$search = trim((string) ($_GET['q'] ?? ''));
+$where = '';
+$params = [];
+if ($search !== '') {
+    $where = 'WHERE code LIKE :q_code';
+    $params[':q_code'] = '%' . $search . '%';
+}
+
+$countStmt = $pdo->prepare("SELECT COUNT(*) FROM e5_coupons $where");
+$countStmt->execute($params);
+$total = (int) $countStmt->fetchColumn();
+
+$page = pagination_page();
+$limit = pagination_limit(20);
+$totalPages = max(1, (int) ceil($total / $limit));
+if ($page > $totalPages) {
+    $page = $totalPages;
+}
+$offset = pagination_offset($page, $limit);
+
+$couponsStmt = $pdo->prepare("SELECT * FROM e5_coupons $where ORDER BY created_at DESC, id DESC LIMIT $limit OFFSET $offset");
+$couponsStmt->execute($params);
+$coupons = $couponsStmt->fetchAll();
+
 $message = $_SESSION['admin_message'] ?? null;
 $error = $_SESSION['admin_error'] ?? null;
 unset($_SESSION['admin_message'], $_SESSION['admin_error']);
 $editCoupon = null;
 if (isset($_GET['edit'])) {
-    $editId = (int) $_GET['edit'];
-    foreach ($coupons as $c) {
-        if ((int) $c['id'] === $editId) { $editCoupon = $c; break; }
-    }
+    $editStmt = $pdo->prepare('SELECT * FROM e5_coupons WHERE id = :id');
+    $editStmt->execute([':id' => (int) $_GET['edit']]);
+    $editCoupon = $editStmt->fetch() ?: null;
 }
 function couponFmtValue(array $coupon): string
 {
@@ -234,8 +257,14 @@ function couponFmtDec(?string $val): string
 
             <div class="admin-table-container">
                 <div class="admin-table-header">
-                    <h3>Cupons cadastrados</h3>
-                    <span style="color:var(--color-gray); font-size:0.85rem;"><?php echo count($coupons); ?> cupom(ns)</span>
+                    <h3>Cupons cadastrados <span class="pagination-summary">(<?php echo $total; ?>)</span></h3>
+                    <form method="GET" class="admin-filter-bar">
+                        <input type="text" name="q" placeholder="Buscar por código..." value="<?php echo htmlspecialchars($search, ENT_QUOTES, 'UTF-8'); ?>">
+                        <button type="submit" class="btn btn-secondary" aria-label="Buscar cupons"><i class="fas fa-search"></i></button>
+                        <?php if ($search !== ''): ?>
+                        <a href="coupons.php" class="btn btn-secondary" aria-label="Limpar busca"><i class="fas fa-times"></i></a>
+                        <?php endif; ?>
+                    </form>
                 </div>
                 <table class="admin-table">
                     <thead>
@@ -312,6 +341,7 @@ function couponFmtDec(?string $val): string
                         <?php endforeach; ?>
                     </tbody>
                 </table>
+                <?php echo pagination_render($page, $totalPages, ['q' => $search]); ?>
             </div>
         </main>
     </div>

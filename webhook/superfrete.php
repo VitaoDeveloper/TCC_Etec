@@ -47,7 +47,8 @@ try {
     $result  = $handler->handle();
 
     header('Content-Type: application/json; charset=utf-8');
-    http_response_code(200);
+    // O handler já definiu o status correto (400/401/500/200); não forçar 200
+    // para não mascarar erros e não impedir o retry automático da SuperFrete.
     echo json_encode($result, JSON_UNESCAPED_UNICODE);
 } catch (Throwable $e) {
     // NUNCA logar o secret_token / token. Apenas a mensagem genérica.

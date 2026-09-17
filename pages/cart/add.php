@@ -37,7 +37,11 @@ if (!$stmt->fetch()) {
     exit;
 }
 
-$check = validateStock($pdo, $productId, $quantity, cartGetItemQuantity($pdo, (int)$_SESSION['user_id'], $productId));
+$existingRow = cartGetRow($pdo, (int) $_SESSION['user_id'], $productId);
+$existingQty = $existingRow ? (int) $existingRow['quantity'] : 0;
+
+// Soma o que já existe (mesmo salvo para depois, pois será reativado).
+$check = validateStock($pdo, $productId, $quantity, $existingQty);
 if (!$check['ok']) {
     echo json_encode(['success' => false, 'message' => $check['msg']]);
     exit;

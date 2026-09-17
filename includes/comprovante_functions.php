@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/mail.php';
 
 define('COMPROVANTE_DIR', __DIR__ . '/../storage/comprovantes/');
 
@@ -56,8 +57,10 @@ function buildComprovanteHtml(int $orderId, ?string $counter = null): string
         $subtotal += (float) $it['unit_price'] * (int) $it['quantity'];
     }
     $shippingCost = (float) $order['shipping_cost'];
-    $discount = ($order['payment_method'] === 'pix') ? round($subtotal * 0.05, 2) : 0;
-    $grandTotal = $subtotal + $shippingCost - $discount;
+    // Total oficial gravado no pedido é a fonte de verdade; o desconto exibido
+    // é a diferença para subtotal + frete (cobre Pix e cupom).
+    $grandTotal = (float) $order['total'];
+    $discount = round(max(0, $subtotal + $shippingCost - $grandTotal), 2);
 
 $counter = $counter ?? getNextComprovanteNumber();
 
@@ -351,8 +354,10 @@ function sendComprovanteEmail(int $orderId, string $to, string $comprovanteFilen
             $subtotal += (float) $it['unit_price'] * (int) $it['quantity'];
         }
         $shippingCost = (float) $order['shipping_cost'];
-        $discount = ($order['payment_method'] === 'pix') ? round($subtotal * 0.05, 2) : 0;
-        $grandTotal = $subtotal + $shippingCost - $discount;
+        // Total oficial gravado no pedido é a fonte de verdade; o desconto
+        // exibido é a diferença para subtotal + frete (cobre Pix e cupom).
+        $grandTotal = (float) $order['total'];
+        $discount = round(max(0, $subtotal + $shippingCost - $grandTotal), 2);
 
         $body = '<h2>Seu Comprovante de Compra</h2>
         <p>Olá <strong>' . htmlspecialchars($order['user_name'], ENT_QUOTES, 'UTF-8') . '</strong>,</p>
@@ -362,45 +367,16 @@ function sendComprovanteEmail(int $orderId, string $to, string $comprovanteFilen
         <p><strong>Pagamento:</strong> ' . htmlspecialchars($payLabel[$order['payment_method']] ?? $order['payment_method'], ENT_QUOTES, 'UTF-8') . '</p>
         <p>Anexo: comprovante PDF em anexo.</p>';
 
-        $mail = new \PHPMailer\PHPMailer\PHPMailer(false);
-        $mail->isSMTP();
-        $mail->Host = $_ENV['MAIL_HOST'] ?? 'localhost';
-        $mail->Port = (int) ($_ENV['MAIL_PORT'] ?? 1025);
-
-        if (($_ENV['MAIL_USERNAME'] ?? '') !== '') {
-            $mail->SMTPAuth = true;
-            $mail->Username = $_ENV['MAIL_USERNAME'];
-            $mail->Password = $_ENV['MAIL_PASSWORD'] ?? '';
+        // Reutiliza o cliente SMTP compartilhado (mailer) — sem duplicação de configuração.
+        if ($comprovanteFilename === '') {
+            return false;
         }
-
-        switch (strtolower(trim($_ENV['MAIL_ENCRYPTION'] ?? ''))) {
-            case 'tls':
-                $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
-                break;
-            case 'ssl':
-                $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
-                break;
-            default:
-                $mail->SMTPAutoTLS = false;
-        }
-
-        $mail->CharSet = 'UTF-8';
-        $mail->isHTML(true);
-        $mailFrom = !empty($_ENV['MAIL_FROM']) ? $_ENV['MAIL_FROM'] : store_config('store_email');
-        $mail->setFrom($mailFrom, store_config('store_name'));
-        $mail->addAddress($to);
-        $mail->Subject = 'Seu comprovante de compra — Pedido #' . str_pad((string) $orderId, 4, '0', STR_PAD_LEFT);
-        $mail->Body = $body;
-        $alt = trim(strip_tags(preg_replace('/<br\s*\/?>/i', "\n", $body)));
-        $mail->AltBody = html_entity_decode($alt, ENT_QUOTES, 'UTF-8');
-
         $pdfPath = COMPROVANTE_DIR . $comprovanteFilename;
-        if (file_exists($pdfPath)) {
-            $mail->addAttachment($pdfPath);
+        if (!is_file($pdfPath)) {
+            return false;
         }
 
-        $mail->send();
-        return true;
+        return sendMailWithAttachment($to, 'Seu comprovante de compra — pedido #' . str_pad((string) $orderId, 4, '0', STR_PAD_LEFT), $body, $pdfPath, $comprovanteFilename);
     } catch (Throwable $e) {
         error_log('Comprovante email error: ' . $e->getMessage());
         return false;

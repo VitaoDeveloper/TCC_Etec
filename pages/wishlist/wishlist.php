@@ -21,7 +21,7 @@ include $base_path . 'components/header.php';
 <section class="ml-section" style="padding-top: 8px;"><div class="container">
     <div class="ml-section-header">
         <h2 class="ml-section-title">Meus Favoritos</h2>
-        <span class="ml-main-count"><?php echo count($items); ?> <?php echo count($items) === 1 ? 'item' : 'itens'; ?></span>
+        <span class="ml-main-count" id="wishlistCount"><?php echo count($items); ?> <?php echo count($items) === 1 ? 'item' : 'itens'; ?></span>
     </div>
 
     <?php if (empty($items)): ?>
@@ -32,7 +32,7 @@ include $base_path . 'components/header.php';
             <p style="margin-top: 16px;"><a href="../products/products.php" class="ml-btn ml-btn-primary"><i class="fas fa-store"></i> Ver Produtos</a></p>
         </div>
     <?php else: ?>
-        <div class="ml-products-grid">
+        <div class="ml-products-grid" data-wishlist-page>
         <?php foreach ($items as $item):
             $product_name = $item['product_name'];
             $product_id = $item['product_id'];
@@ -45,6 +45,7 @@ include $base_path . 'components/header.php';
             $product_is_featured = false;
             $product_is_new = false;
             $product_installments = null;
+            $product_is_favorite = true;
             include $base_path . 'components/product-card.php';
         endforeach; ?>
         </div>

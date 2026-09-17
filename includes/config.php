@@ -1,5 +1,18 @@
 <?php
 
+// Fuso horário oficial da loja. Precisa espelhar o time_zone da conexão MySQL
+// (definido em database/connection.php) para que datas gravadas por PHP e pelo
+// banco sejam comparáveis — evita expiração de pagamento com horas erradas.
+date_default_timezone_set('America/Sao_Paulo');
+
+// Alguns builds do XAMPP trazem serialize_precision=100, o que faz json_encode()
+// devolver floats com "ruído" (ex.: 742.47000000000002728...). O padrão do PHP
+// 7.1+ é -1 (representação mais curta); garantimos isso aqui para todos os
+// endpoints AJAX que devolvem valores monetários.
+if ((string) ini_get('serialize_precision') !== '-1') {
+    ini_set('serialize_precision', '-1');
+}
+
 define('ASSET_VERSION', '20260912d');
 
 function loadEnv(string $path): void
@@ -25,6 +38,8 @@ function store_defaults(): array
         'store_phone' => '(11) 99999-9999',
         'store_address' => 'Av. Paulista, 1000 - São Paulo, SP',
         'store_cnpj' => '00.000.000/0001-00',
+        'store_url' => 'http://localhost/TCC_Etec',
+        'notif_email_enabled' => '1',
         'store_currency' => 'BRL',
         'store_description' => 'Sua loja de tecnologia premium com os melhores produtos e atendimento diferenciado.',
         'social_facebook' => '',
@@ -72,6 +87,21 @@ function store_config(?string $key = null)
         return $settings;
     }
     return $settings[$key] ?? null;
+}
+
+// URL base pública da loja, usada em links de e-mail (reset de senha,
+// notificações). Prioriza a configuração do admin e cai para o host atual.
+function app_base_url(): string
+{
+    $configured = trim((string) store_config('store_url'));
+    if ($configured !== '') {
+        return rtrim($configured, '/');
+    }
+    if (!empty($_SERVER['HTTP_HOST'])) {
+        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        return $scheme . '://' . $_SERVER['HTTP_HOST'] . '/TCC_Etec';
+    }
+    return 'http://localhost/TCC_Etec';
 }
 
 // Persiste overrides no banco. Chaves desconhecidas são ignoradas.

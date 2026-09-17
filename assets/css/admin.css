@@ -186,10 +186,29 @@
     position: sticky;
     top: 0;
     background: var(--color-black-light);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    z-index: 2;
 }
 
 .admin-notif-header h4 {
     font-size: 1rem;
+}
+
+.admin-notif-mark {
+    background: none;
+    border: none;
+    color: var(--color-primary);
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+}
+
+.admin-notif-mark:hover {
+    text-decoration: underline;
 }
 
 .admin-notif-empty {
@@ -228,10 +247,53 @@
 }
 
 .admin-notif-list li a i {
-    margin-top: 5px;
-    font-size: 0.55rem;
+    margin-top: 3px;
+    font-size: 0.95rem;
     color: var(--color-primary);
     flex-shrink: 0;
+}
+
+.admin-notif-list li a span {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.admin-notif-list li a strong {
+    color: var(--color-white);
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.admin-notif-list li a small {
+    color: var(--color-gray-light);
+    font-size: 0.8rem;
+    line-height: 1.35;
+    word-break: break-word;
+}
+
+.admin-notif-list li a em {
+    color: var(--color-gray);
+    font-size: 0.72rem;
+    font-style: normal;
+}
+
+.admin-notif-list li.is-read {
+    background: rgba(255, 255, 255, 0.015);
+}
+
+.admin-notif-list li.is-read a strong {
+    color: var(--color-gray-light);
+    font-weight: 500;
+}
+
+.admin-notif-list li.is-read a i {
+    color: var(--color-gray);
+}
+
+.admin-notif-list li.is-unread {
+    border-left: 3px solid var(--color-primary);
 }
 
 .admin-notif-footer {
@@ -767,4 +829,74 @@
     .admin-action-buttons {
         gap: 8px;
     }
+}
+
+/* ---------- Filtros e paginação de listagens ---------- */
+.admin-filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+}
+
+.admin-filter-bar input[type="text"],
+.admin-filter-bar input[type="search"],
+.admin-filter-bar select {
+    padding: 8px 15px;
+    border: 1px solid var(--color-border);
+    border-radius: 5px;
+    background: var(--color-black);
+    color: var(--color-white);
+    min-width: 220px;
+}
+
+.admin-pagination {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    justify-content: center;
+    padding: 18px 25px;
+    border-top: 1px solid var(--color-border);
+}
+
+.admin-pagination .page-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    height: 36px;
+    padding: 0 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    color: var(--color-gray-light);
+    font-size: 0.85rem;
+    transition: all 0.2s ease;
+}
+
+.admin-pagination .page-link:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+
+.admin-pagination .page-link.current {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: var(--color-black);
+    font-weight: 600;
+}
+
+.admin-pagination .page-link.disabled {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+.admin-pagination .page-ellipsis {
+    color: var(--color-gray);
+    padding: 0 4px;
+}
+
+.pagination-summary {
+    color: var(--color-gray);
+    font-size: 0.85rem;
 }

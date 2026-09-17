@@ -147,6 +147,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         icon.className = data.active ? 'fas fa-heart' : 'far fa-heart';
                     }
                     self.classList.toggle('is-active', data.active);
+                    self.setAttribute('aria-pressed', data.active ? 'true' : 'false');
+                    self.setAttribute('title', data.active ? 'Remover dos favoritos' : 'Favoritar');
 
                     var badge = document.querySelector('.ml-wishlist-link .ml-badge, .wishlist-btn .cart-badge');
                     if (badge) {
@@ -159,6 +161,26 @@ document.addEventListener('DOMContentLoaded', function() {
                             span.className = 'ml-badge';
                             span.textContent = data.count;
                             wb.appendChild(span);
+                        }
+                    }
+
+                    var wlCount = document.getElementById('wishlistCount');
+                    if (wlCount) wlCount.textContent = data.count;
+
+                    // Na página de favoritos, desfavoritar remove o cartão da lista.
+                    var wlGrid = self.closest('[data-wishlist-page]');
+                    if (wlGrid && !data.active) {
+                        var wlCard = self.closest('.ml-product-card');
+                        if (wlCard) {
+                            wlCard.style.transition = 'opacity .3s, transform .3s';
+                            wlCard.style.opacity = '0';
+                            wlCard.style.transform = 'scale(.97)';
+                            setTimeout(function() {
+                                wlCard.remove();
+                                if (!wlGrid.querySelector('.ml-product-card')) {
+                                    location.reload();
+                                }
+                            }, 300);
                         }
                     }
                 } else if (window.showToast) {

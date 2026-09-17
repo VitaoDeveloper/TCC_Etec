@@ -1,19 +1,37 @@
+version: '3.8'
+
 services:
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: royaltech
     restart: unless-stopped
     ports:
       - "8080:80"
     env_file:
       - .env.prod
+    environment:
+      - APACHE_DOCUMENT_ROOT=/var/www/html
+    volumes:
+      - ./storage:/var/www/html/storage:rw
+      - ./assets/img:/var/www/html/assets/img:rw
+      - ./avatars:/var/www/html/avatars:rw
     depends_on:
       db:
         condition: service_healthy
+      mailpit:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   db:
     image: mysql:8.0
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --default-authentication-plugin=mysql_native_password
     container_name: royaltech_db
     restart: always
     environment:
@@ -25,29 +43,37 @@ services:
       - db_data:/var/lib/mysql
       - ./database:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root"]
       interval: 5s
       timeout: 5s
       retries: 10
 
   phpmyadmin:
-    image: phpmyadmin
+    image: phpmyadmin:latest
     container_name: phpmyadmin
     restart: unless-stopped
     ports:
       - "8081:80"
-
+    environment:
+      - PMA_HOST=db
+      - PMA_PORT=3306
+      - MYSQL_ROOT_PASSWORD=
     depends_on:
       db:
         condition: service_healthy
 
   mailpit:
-    image: axllent/mailpit
+    image: axllent/mailpit:latest
     container_name: mailpit
     restart: unless-stopped
     ports:
-      - "8025:8025" 
-      - "1025:1025" 
+      - "8025:8025"
+      - "1025:1025"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8025"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   db_data:

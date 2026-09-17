@@ -1,6 +1,7 @@
 <?php
+// Itens ativos do carrinho (não inclui "salvos para depois").
 function cartGetCount($pdo, $userId) {
-    $stmt = $pdo->prepare('SELECT COALESCE(SUM(quantity), 0) FROM e5_cart WHERE user_id = :uid');
+    $stmt = $pdo->prepare('SELECT COALESCE(SUM(quantity), 0) FROM e5_cart WHERE user_id = :uid AND saved_for_later = 0');
     $stmt->execute([':uid' => $userId]);
     return (int) $stmt->fetchColumn();
 }
@@ -16,23 +17,52 @@ function cartGetItems($pdo, $userId) {
         FROM e5_cart c
         INNER JOIN e5_products p ON p.id = c.product_id
         LEFT JOIN e5_package_sizes ps ON ps.id = p.package_size_id
-        WHERE c.user_id = :uid
+        WHERE c.user_id = :uid AND c.saved_for_later = 0
         ORDER BY c.created_at DESC
     ');
     $stmt->execute([':uid' => $userId]);
     return $stmt->fetchAll();
 }
 
+// Itens marcados como "salvos para depois" (fora do total do carrinho).
+function cartGetSavedItems($pdo, $userId) {
+    $stmt = $pdo->prepare('
+        SELECT c.product_id, c.quantity,
+               p.name, p.price, p.old_price, p.brand, p.stock,
+               (SELECT pi.image_path FROM e5_product_images pi WHERE pi.product_id = p.id ORDER BY pi.is_primary DESC, pi.id ASC LIMIT 1) AS image_path
+        FROM e5_cart c
+        INNER JOIN e5_products p ON p.id = c.product_id
+        WHERE c.user_id = :uid AND c.saved_for_later = 1
+        ORDER BY c.updated_at DESC
+    ');
+    $stmt->execute([':uid' => $userId]);
+    return $stmt->fetchAll();
+}
+
+// Retorna a linha do carrinho (ativa ou salva) para o produto, ou null.
+function cartGetRow($pdo, $userId, $productId) {
+    $stmt = $pdo->prepare('SELECT id, quantity, saved_for_later FROM e5_cart WHERE user_id = :uid AND product_id = :pid LIMIT 1');
+    $stmt->execute([':uid' => $userId, ':pid' => $productId]);
+    $row = $stmt->fetch();
+    return $row ?: null;
+}
+
 function cartAddItem($pdo, $userId, $productId, $quantity = 1) {
-    $stmtCheck = $pdo->prepare('SELECT id, quantity FROM e5_cart WHERE user_id = :uid AND product_id = :pid');
-    $stmtCheck->execute([':uid' => $userId, ':pid' => $productId]);
-    $existing = $stmtCheck->fetch();
+    $existing = cartGetRow($pdo, $userId, $productId);
     if ($existing) {
-        $stmt = $pdo->prepare('UPDATE e5_cart SET quantity = :qty WHERE id = :id');
-        return $stmt->execute([':qty' => (int)$existing['quantity'] + $quantity, ':id' => $existing['id']]);
+        // Reativa o item caso estivesse "salvo para depois" e soma a quantidade.
+        $stmt = $pdo->prepare('UPDATE e5_cart SET quantity = :qty, saved_for_later = 0 WHERE id = :id');
+        return $stmt->execute([':qty' => (int) $existing['quantity'] + $quantity, ':id' => $existing['id']]);
     }
-    $stmt = $pdo->prepare('INSERT INTO e5_cart (user_id, product_id, quantity) VALUES (:uid, :pid, :qty)');
+    $stmt = $pdo->prepare('INSERT INTO e5_cart (user_id, product_id, quantity, saved_for_later) VALUES (:uid, :pid, :qty, 0)');
     return $stmt->execute([':uid' => $userId, ':pid' => $productId, ':qty' => $quantity]);
+}
+
+// Marca/desmarca um item como "salvo para depois". Retorna true se alterou.
+function cartSetSaved($pdo, $userId, $productId, $saved) {
+    $stmt = $pdo->prepare('UPDATE e5_cart SET saved_for_later = :saved WHERE user_id = :uid AND product_id = :pid');
+    $stmt->execute([':saved' => $saved ? 1 : 0, ':uid' => $userId, ':pid' => $productId]);
+    return $stmt->rowCount() > 0;
 }
 
 function cartUpdateQuantity($pdo, $userId, $productId, $quantity) {
@@ -51,9 +81,19 @@ function cartRemoveItem($pdo, $userId, $productId) {
 }
 
 function cartGetItemQuantity($pdo, $userId, $productId) {
-    $stmt = $pdo->prepare('SELECT COALESCE(SUM(quantity), 0) FROM e5_cart WHERE user_id = :uid AND product_id = :pid');
+    $stmt = $pdo->prepare('SELECT COALESCE(SUM(quantity), 0) FROM e5_cart WHERE user_id = :uid AND product_id = :pid AND saved_for_later = 0');
     $stmt->execute([':uid' => $userId, ':pid' => $productId]);
     return (int) $stmt->fetchColumn();
+}
+
+// Remove vários itens de uma vez (usado no checkout para limpar só o que foi comprado).
+function cartRemoveItems($pdo, $userId, array $productIds) {
+    $ids = array_values(array_filter(array_map('intval', $productIds), fn($v) => $v > 0));
+    if (empty($ids)) return 0;
+    $in = implode(',', array_fill(0, count($ids), '?'));
+    $stmt = $pdo->prepare("DELETE FROM e5_cart WHERE user_id = ? AND product_id IN ($in)");
+    $stmt->execute(array_merge([$userId], $ids));
+    return $stmt->rowCount();
 }
 
 function cartClear($pdo, $userId) {

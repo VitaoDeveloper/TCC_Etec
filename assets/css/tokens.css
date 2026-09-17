@@ -1,0 +1,112 @@
+/* ============================================================
+   ROYAL TECH — DESIGN TOKENS
+   Tema ESCURO PREMIUM (preto + dourado) com layout estilo
+   Mercado Livre. Fonte única de verdade do tema.
+   Carregue este arquivo ANTES dos demais CSS.
+   ============================================================ */
+
+:root {
+    /* ---------- Marca / acento (dourado) ---------- */
+    --tk-gold: #d4af37;
+    --tk-gold-dark: #b8962e;
+    --tk-gold-light: #e8c547;
+    --tk-gold-soft: rgba(212, 175, 55, .14);
+
+    /* Aliases de acento — mantém os componentes existentes
+       (que usam --tk-blue) apontando para o dourado da marca. */
+    --tk-yellow: var(--tk-gold);
+    --tk-yellow-dark: var(--tk-gold-dark);
+    --tk-blue: var(--tk-gold);
+    --tk-blue-dark: var(--tk-gold-dark);
+    --tk-blue-soft: var(--tk-gold-soft);
+
+    /* ---------- Cores semânticas ---------- */
+    --tk-green: #00a650;           /* sucesso / frete grátis / aprovado */
+    --tk-green-soft: rgba(0, 166, 80, .14);
+    --tk-red: #ff6161;             /* erro / cancelado */
+    --tk-red-soft: rgba(255, 97, 97, .14);
+    --tk-orange: #ffa726;          /* alerta / aguardando */
+
+    /* ---------- Superfícies (escuras) ---------- */
+    --tk-bg: #1a1a1a;              /* fundo da página */
+    --tk-card: #222222;            /* cards e superfícies */
+    --tk-card-alt: #2a2a2a;        /* superfície alternada / hover */
+    --tk-border: #333333;          /* borda padrão */
+    --tk-border-strong: #454545;   /* borda de destaque */
+
+    /* ---------- Texto ---------- */
+    --tk-text: #f0f0f0;                    /* principal */
+    --tk-text-secondary: #a8a8a8;          /* secundário */
+    --tk-text-muted: #7d7d7d;              /* terciário */
+
+    /* ---------- Tipografia ---------- */
+    --tk-font: 'Rajdhani', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+        Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --tk-font-display: 'Playfair Display', Georgia, 'Times New Roman', serif;
+
+    /* ---------- Forma ---------- */
+    --tk-radius: 6px;
+    --tk-radius-lg: 8px;
+    --tk-radius-sm: 4px;
+    --tk-shadow: 0 2px 8px rgba(0, 0, 0, .35);
+    --tk-shadow-md: 0 6px 18px rgba(0, 0, 0, .45);
+    --tk-shadow-pop: 0 12px 32px rgba(0, 0, 0, .55);
+    --tk-focus: 0 0 0 3px rgba(212, 175, 55, .35);
+
+    /* ---------- Espaçamento (base 4px) ---------- */
+    --tk-sp-1: 4px;
+    --tk-sp-2: 8px;
+    --tk-sp-3: 12px;
+    --tk-sp-4: 16px;
+    --tk-sp-5: 24px;
+    --tk-sp-6: 32px;
+    --tk-sp-7: 48px;
+
+    /* ---------- Layout ---------- */
+    --tk-container: 1200px;
+    --tk-header-h: 64px;
+
+    /* ============================================================
+       Compatibilidade com o CSS legado (--ml-* e --color-*).
+       O tema oficial mora em style.css / mercadolivre-style.css;
+       estes aliases garantem que qualquer arquivo novo herde o
+       mesmo preto + dourado.
+       ============================================================ */
+    --ml-bg: var(--tk-bg);
+    --ml-bg-card: var(--tk-card);
+    --ml-bg-sidebar: var(--tk-card);
+    --ml-bg-hover: var(--tk-card-alt);
+    --ml-border: var(--tk-border);
+    --ml-border-strong: var(--tk-border-strong);
+    --ml-breadcrumb: var(--tk-text-secondary);
+    --ml-text: var(--tk-text);
+    --ml-text-secondary: var(--tk-text-secondary);
+    --ml-text-muted: var(--tk-text-muted);
+    --ml-accent: var(--tk-gold);
+    --ml-accent-dark: var(--tk-gold-dark);
+    --ml-green: var(--tk-green);
+    --ml-green-bg: var(--tk-green-soft);
+    --ml-red: var(--tk-red);
+    --ml-discount-bg: var(--tk-green-soft);
+    --ml-discount-text: var(--tk-green);
+    --ml-header-height: var(--tk-header-h);
+    --ml-category-bar-height: 48px;
+
+    /* style.css legado */
+    --color-primary: var(--tk-gold);
+    --color-primary-dark: var(--tk-gold-dark);
+    --color-primary-light: var(--tk-gold-light);
+    --color-black: var(--tk-bg);
+    --color-black-light: var(--tk-card-alt);
+    --color-black-lighter: var(--tk-border-strong);
+    --color-white: var(--tk-text);
+    --color-white-smoke: var(--tk-card);
+    --color-gray: var(--tk-text-secondary);
+    --color-gray-light: var(--tk-border-strong);
+    --color-border: var(--tk-border);
+    --color-gold: var(--tk-gold);
+    --font-primary: var(--tk-font);
+    --font-secondary: var(--tk-font-display);
+    --shadow: var(--tk-shadow);
+    --shadow-hover: var(--tk-shadow-md);
+}

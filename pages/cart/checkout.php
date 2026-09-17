@@ -20,6 +20,7 @@ require_once __DIR__ . '/../../includes/mail.php';
 require_once __DIR__ . '/../../includes/comprovante_functions.php';
 require_once __DIR__ . '/../../includes/order_payment_functions.php';
 require_once __DIR__ . '/../../includes/saved_card_functions.php';
+require_once __DIR__ . '/../../includes/shipping_functions.php';
 
 use TCC\SuperFreteClient;
 use TCC\Exception\SuperFreteException;
@@ -81,80 +82,11 @@ foreach ($items as $item) {
 // =====================================================================
 // FRETE — cotação real via SuperFrete (/api/v0/calculator)
 // Usa products[] para a API calcular a caixa ideal e o preço por CEP.
+// Cache curto + normalização ficam em includes/shipping_functions.php.
 // =====================================================================
 function superfreteCalcShipping(string $cep, array $items): array
 {
-    $cep = SuperFreteClient::normalizePostalCode($cep);
-    if (strlen($cep) !== 8) {
-        throw new RuntimeException('CEP inválido para cotação');
-    }
-
-    $client = new SuperFreteClient($_ENV);
-
-    $products = [];
-    foreach ($items as $item) {
-        $qty = max(1, (int) $item['quantity']);
-        $usePreset = !empty($item['package_size_id']);
-
-        $hasCustom = fn (mixed $v): bool => trim((string) ($v ?? '')) !== '' && (float) $v > 0;
-
-        $height = $usePreset ? (float) ($item['preset_height_cm'] ?? 15.0)
-                            : ($hasCustom($item['height_cm'] ?? null) ? (float) $item['height_cm'] : 15.0);
-        $width  = $usePreset ? (float) ($item['preset_width_cm'] ?? 10.0)
-                            : ($hasCustom($item['width_cm'] ?? null) ? (float) $item['width_cm'] : 10.0);
-        $length = $usePreset ? (float) ($item['preset_length_cm'] ?? 20.0)
-                            : ($hasCustom($item['length_cm'] ?? null) ? (float) $item['length_cm'] : 20.0);
-        $weight = $hasCustom($item['weight_kg'] ?? null) ? (float) $item['weight_kg']
-                     : ($usePreset ? (float) ($item['preset_max_weight_kg'] ?? 0.5) : 0.5);
-
-        $products[] = [
-            'quantity' => $qty,
-            'height'   => $height,
-            'width'    => $width,
-            'length'   => $length,
-            'weight'   => $weight,
-        ];
-    }
-
-    $result = $client->calculateShipping([
-        'from'     => [
-            'postal_code' => SuperFreteClient::normalizePostalCode($_ENV['SUPERFRETE_ORIGIN_POSTAL_CODE'] ?? '01310100'),
-        ],
-        'to'       => ['postal_code' => $cep],
-        'services' => '1,2', // PAC + SEDEX (Correios)
-        'options'  => [
-            'own_hand' => false,
-            'receipt'  => false,
-            'insurance_value' => 0,
-            'use_insurance_value' => false,
-        ],
-        'products' => $products,
-    ]);
-
-    $options = [];
-    foreach ($result as $row) {
-        if (empty($row['name']) || !empty($row['error']) || ($row['has_error'] ?? false)) {
-            continue; // serviço indisponível para o trecho
-        }
-        $key = strtolower((string) $row['name']);
-        if (!in_array($key, ['pac', 'sedex'], true)) {
-            continue; // UI atual só exibe PAC e SEDEX
-        }
-        $min = $row['delivery_range']['min'] ?? $row['delivery_time'] ?? '';
-        $max = $row['delivery_range']['max'] ?? $row['delivery_time'] ?? '';
-        $days = ($min === '') ? '' : (($min === $max) ? "$min dia útil" : "$min-$max dias úteis");
-        $options[$key] = [
-            'method' => $row['name'],
-            'cost'   => (float) $row['price'],
-            'days'   => $days,
-        ];
-    }
-
-    if ($options === []) {
-        throw new RuntimeException('Nenhuma opção de frete disponível para o CEP informado');
-    }
-
-    return $options;
+    return shippingQuote($cep, $items);
 }
 
 // =====================================================================
@@ -484,6 +416,9 @@ if ($isConfirming) {
             ]);
             $orderId = (int) $pdo->lastInsertId();
 
+            // Registrar evento inicial no histórico de status
+            orderHistoryAdd($pdo, $orderId, $orderStatus, $orderPayStatus, null, $user['name'] ?? 'Sistema');
+
             // Salvar endereço de entrega no perfil do usuário (para próximas compras)
             if ($shippingType === 'entrega' && $shipCepDb !== '') {
                 $updParts = ['postal_code = :cep'];
@@ -511,6 +446,7 @@ if ($isConfirming) {
             }
 
             $stmtItem = $pdo->prepare('INSERT INTO e5_order_items (order_id, product_id, quantity, unit_price) VALUES (:oid, :pid, :qty, :price)');
+            $orderedProductIds = [];
             foreach ($items as $item) {
                 $stmtItem->execute([
                     ':oid'   => $orderId,
@@ -522,6 +458,7 @@ if ($isConfirming) {
                 if ($stockAffected <= 0) {
                     throw new RuntimeException('Estoque insuficiente para "' . $item['name'] . '". Reduza a quantidade.');
                 }
+                $orderedProductIds[] = (int) $item['product_id'];
             }
 
             if ($appliedCoupon !== '') {
@@ -530,7 +467,8 @@ if ($isConfirming) {
                 }
             }
 
-            cartClear($pdo, $userId);
+            // Remove do carrinho apenas os itens comprados; mantém não selecionados e "salvos para depois".
+            cartRemoveItems($pdo, $userId, $orderedProductIds);
 
             $pdo->commit();
             $orderCreated = true;
@@ -546,6 +484,12 @@ if ($isConfirming) {
             } else {
                 $emailStatus = 'skipped';
                 salvarStatusEmail($orderId, $emailStatus);
+            }
+
+            // Fallback: se o comprovante não pôde ser enviado, enfileira um
+            // e-mail simples de confirmação para o cliente não ficar sem aviso.
+            if ($emailStatus !== 'sent') {
+                notificationTrigger('order_created', $orderId, [], $pdo);
             }
 
             // Redirecionar para a página de pagamento (fluxo realista com countdown/retry)

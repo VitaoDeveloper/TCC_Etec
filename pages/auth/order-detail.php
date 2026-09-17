@@ -69,7 +69,11 @@ foreach ($items as $it) {
 }
 $subtotal  = round($subtotal, 2);
 $shipping  = (float) $order['shipping_cost'];
-$totalCalc = round($subtotal + $shipping, 2);
+// Total oficial gravado no pedido é a fonte de verdade; o desconto exibido é
+// a diferença para subtotal + frete (cobre Pix, cupom e outras promoções).
+$orderTotal = round((float) $order['total'], 2);
+$discount   = max(0, round($subtotal + $shipping - $orderTotal, 2));
+$totalCalc  = $orderTotal;
 
 // Dados da sidebar
 $initials = '';
@@ -184,6 +188,17 @@ include '../../components/header.php';
                     <?php echo renderOrderTimeline($order, false); ?>
                 </div>
 
+                <!-- Histórico auditável do pedido -->
+                <div class="ac-card">
+                    <div class="ac-card-head ac-card-head-tight">
+                        <span class="ac-card-icon"><i class="fas fa-history"></i></span>
+                        <div class="ac-card-title-wrap">
+                            <h2 class="ac-card-title">Histórico do pedido</h2>
+                        </div>
+                    </div>
+                    <?php echo orderHistoryRender(orderHistoryWithFallback($pdo, $order)); ?>
+                </div>
+
                 <!-- Itens do pedido -->
                 <div class="ac-card">
                     <div class="ac-card-head ac-card-head-tight">
@@ -221,6 +236,12 @@ include '../../components/header.php';
                                 <span style="color:var(--ml-green); font-weight:600;">Grátis</span>
                             <?php endif; ?>
                         </div>
+                        <?php if ($discount > 0): ?>
+                        <div style="display:flex; justify-content:space-between;">
+                            <span style="color:var(--ml-text-muted);">Descontos</span>
+                            <span style="color:var(--ml-green); font-weight:600;">- R$ <?php echo number_format($discount, 2, ',', '.'); ?></span>
+                        </div>
+                        <?php endif; ?>
                         <div style="display:flex; justify-content:space-between; align-items:center; padding-top:10px; border-top:1px dashed rgba(255,255,255,0.08);">
                             <span style="font-weight:700;">Total</span>
                             <strong style="font-size:1.15rem; color:var(--ml-accent);">R$ <?php echo number_format($totalCalc, 2, ',', '.'); ?></strong>

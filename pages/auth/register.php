@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once __DIR__ . '/../../includes/csrf.php';
+require_once __DIR__ . '/../../includes/config.php';
 
 if (isset($_SESSION['user_id'])) {
     header('Location: ../products/products.php');
@@ -17,13 +18,14 @@ unset($_SESSION['auth_errors'], $_SESSION['auth_old']);
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Royal Tech - Cadastro de Usuário</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="../../assets/css/tokens.css">
+  <link rel="stylesheet" href="../../assets/css/base.css">
+  <link rel="stylesheet" href="../../assets/css/components.css">
   <link rel="stylesheet" href="../../assets/css/style.css">
   <link rel="stylesheet" href="../../assets/css/mercadolivre-style.css">
   <link rel="stylesheet" href="../../assets/css/auth.css">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/vendor/fontawesome/css/all.min.css">
 </head>
 <body class="auth-page">
   <main class="auth-shell">
@@ -36,7 +38,7 @@ unset($_SESSION['auth_errors'], $_SESSION['auth_old']);
       <ul class="auth-brand-perks">
         <li><i class="fas fa-shield-halved"></i> Compra 100% segura</li>
         <li><i class="fas fa-truck-fast"></i> Frete grátis acima de R$ 500</li>
-        <li><i class="fas fa-qrcode"></i> 5% de desconto no PIX</li>
+        <li><i class="fas fa-qrcode"></i> <?php echo (int) store_config('pix_discount_percent'); ?>% de desconto no PIX</li>
       </ul>
     </aside>
 

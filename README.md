@@ -1,23 +1,25 @@
 # Royal Tech
 
-E-commerce premium desenvolvido como Trabalho de Conclusão de Curso (TCC) da ETEC. Loja virtual de tecnologia com identidade visual sofisticada (preto, dourado e branco) e painel administrativo completo.
+E-commerce premium desenvolvido como Trabalho de Conclusão de Curso (TCC) da ETEC. Loja virtual de tecnologia com identidade visual sofisticada (preto, dourado e branco), fluxo de compra completo, integração real com a API SuperFrete (cotação, etiqueta, rastreio e webhook) e painel administrativo completo.
 
 ## Stack
 
 | Camada | Tecnologia |
 |--------|-----------|
-| Backend | PHP 8+ (vanilla) |
-| Banco de Dados | MySQL 8 |
+| Backend | PHP 8.2 (vanilla, PDO) |
+| Banco de Dados | MySQL 8 / MariaDB |
 | Frontend | HTML5, CSS3, JavaScript vanilla |
-| Ícones | Font Awesome 6.4 |
+| Ícones | Font Awesome 6 (local, `assets/vendor/fontawesome`) |
 | Tipografia | Playfair Display + Rajdhani |
-| Dependências | PHPMailer, DomPDF |
+| Dependências | Guzzle (SuperFrete), PHPMailer (SMTP), Dompdf (PDF) |
+| Testes | PHPUnit 10 |
 
 ## Funcionalidades
 
-**Loja:** catálogo responsivo, busca, filtros, paginação, carrinho, checkout, lista de desejos, perfil do usuário, histórico de pedidos, recuperação de senha, newsletter e contato.
+**Loja:** catálogo responsivo, busca, filtros, ordenação e paginação; carrinho com AJAX + salvar para depois; cupons segmentados (novo/VIP); checkout com cotação de frete real (SuperFrete) e fallback; pagamento Pix (BR Code EMV real), boleto e cartão simulado; comprovante em PDF por e-mail; favoritos; perfil completo (endereços, cartões, avatar, senha, preferências); histórico/detalhe de pedido com timeline; avaliações; recuperação de senha; newsletter e contato.
 
-**Admin:** dashboard com métricas, CRUD de produtos/categorias/banners, gerenciamento de pedidos/clientes, relatórios, newsletter e configurações do sistema.
+**Admin:** dashboard com métricas; CRUD de produtos/categorias/embalagens/cupons/banners; gestão de pedidos (status, rastreio, NF, comprovante, reenvio); clientes; contatos e newsletter; relatórios com exportação PDF/CSV; configurações da loja; sino de notificações persistido; painel da fila de e-mails transacionais.
+
 
 ## Upload e exibição de imagens
 
@@ -105,43 +107,55 @@ cp .env.example .env
 
 Acesse `http://localhost/TCC_Etec`.
 
-### Credenciais padrão
+### Credenciais padrão (seed)
 
-- **Admin:** `admin` / `admin123`
+- **Admin:** `admin@royaltech.com` / `password`
+- **Cliente:** `maria.silva@email.com` / `password`
+
+> Contas de colaboradores (`jonatas@royaltech.com`, `lucas@royaltech.com`, ...) também são criadas pelo seed `database/database.sql`.
 
 ## Segurança
 
-- CSRF token em formulários POST
-- Rate limiting no login (5 tentativas / 15 min por IP)
-- Prepared statements (MySQLi)
+- CSRF token em formulários POST e requisições AJAX (`X-CSRF-Token`)
+- Rate limiting no login e nas ações de carrinho (por IP/usuário)
+- Prepared statements (PDO) em 100% das queries
 - Sanitização de saída (`htmlspecialchars`)
 - Senhas com `password_hash()` / `password_verify()`
-- Credenciais em `.env` (excluído do Git)
+- Uploads validados por MIME real (`finfo` + `getimagesize`) e limite de 2 MB
+- Segredos e credenciais em `.env` (excluído do Git)
 
 ## Banco de Dados
 
-`e5_royaltech` — 11 tabelas: `e5_users`, `e5_categories`, `e5_products`, `e5_product_images`, `e5_cart`, `e5_orders`, `e5_order_items`, `e5_contacts`, `e5_newsletter`, `e5_password_reset_tokens`, `e5_banners`.
+`e5_royaltech` — 24 tabelas, incluindo `e5_users`, `e5_categories`, `e5_package_sizes`, `e5_products`, `e5_product_images`, `e5_cart`, `e5_wishlist`, `e5_reviews`, `e5_orders`, `e5_order_items`, `e5_order_status_history`, `e5_shippings`, `e5_coupons`, `e5_user_addresses`, `e5_saved_cards`, `e5_contacts`, `e5_newsletter`, `e5_banners`, `e5_settings`, `e5_notifications`, `e5_notifications_log`, `e5_admin_notifications`, `e5_password_reset_tokens` e `superfrete_webhook_log`.
 
-Schema completo em [`database/database.sql`](database/database.sql).
+Schema completo e seeds em [`database/database.sql`](database/database.sql).
 
 ## Estrutura
 
 ```
 ├── assets/
-│   ├── css/          # estilos
-│   ├── img/          # imagens
+│   ├── css/          # tokens, base, componentes, páginas, admin (tema escuro)
+│   ├── img/          # imagens (produtos, banners, placeholder)
 │   └── js/           # scripts
 ├── components/       # header, footer, product-card
 ├── database/
-│   ├── connection.php
-│   └── database.sql  # schema completo
-├── includes/         # config, csrf, mail, rate_limit, helpers
+│   ├── connection.php # conexão + auto-provisionamento do schema
+│   └── database.sql   # schema completo + seeds
+├── includes/         # config, csrf, mail, rate_limit, carrinho, cupom,
+│   │                 # paginação, comprovante, shipping_functions,
+│   │                 # notifications_functions, helpers
 ├── pages/
-│   ├── admin/        # dashboard, CRUDs, relatórios
-│   ├── auth/         # login, registro, perfil, pedidos
-│   ├── cart/         # carrinho e checkout
-│   ├── products/     # vitrine, categorias, contato
+│   ├── admin/        # dashboard, CRUDs, pedidos, relatórios, settings
+│   ├── auth/         # login, registro, perfil, pedidos, reset de senha
+│   ├── cart/         # carrinho, checkout, pagamento, comprovante
+│   ├── products/     # vitrine, categorias, detalhe, institucional
 │   └── wishlist/     # lista de desejos
+├── scripts/
+│   ├── demo.php               # demonstração da integração SuperFrete
+│   └── notifications-worker.php # worker da fila de e-mails (cron)
+├── src/              # SuperFreteClient, Exception, WebhookHandler
+├── tests/            # PHPUnit (SuperFrete + templates de notificação)
+├── webhook/          # receptor de webhooks SuperFrete (HMAC)
 ├── .env.example      # modelo de variáveis de ambiente
 ├── docker-compose.yml
 ├── Dockerfile

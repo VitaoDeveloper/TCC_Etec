@@ -50,9 +50,14 @@ function mailer(): \PHPMailer\PHPMailer\PHPMailer
 // Envia um e-mail HTML reaproveitando o cliente persistente.
 function sendMail(string $to, string $subject, string $body): bool
 {
+    return sendMailWithAttachment($to, $subject, $body, '');
+}
+
+// Envia e-mail com anexo opcional (comprovante PDF). Reaproveita o cliente SMTP persistente.
+function sendMailWithAttachment(string $to, string $subject, string $body, string $filePath = '', ?string $fileName = null): bool
+{
     $mail = mailer();
     try {
-        // Reset do estado por-mensagem; a conexão TCP permanece aberta.
         $mail->clearAllRecipients();
         $mail->clearReplyTos();
         $mail->clearAttachments();
@@ -61,6 +66,9 @@ function sendMail(string $to, string $subject, string $body): bool
         $mail->Body = $body;
         $alt = trim(strip_tags(preg_replace('/<br\s*\/?>/i', "\n", $body)));
         $mail->AltBody = html_entity_decode($alt, ENT_QUOTES, 'UTF-8');
+        if ($filePath !== '') {
+            $mail->addAttachment($filePath, $fileName ?? basename($filePath));
+        }
         return $mail->send();
     } catch (Throwable $e) {
         return false;

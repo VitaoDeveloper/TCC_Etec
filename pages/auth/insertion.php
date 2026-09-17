@@ -92,6 +92,9 @@ try {
     $_SESSION['user_role'] = 'customer';
     $_SESSION['auth_success'] = 'Cadastro concluído com sucesso. Sua conta já está ativa.';
 
+    require_once __DIR__ . '/../../includes/notifications_functions.php';
+    notificationWelcome((int) $_SESSION['user_id'], $pdo);
+
     header('Location: ../products/products.php');
     exit;
 } catch (PDOException $e) {

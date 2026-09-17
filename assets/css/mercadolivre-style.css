@@ -4031,3 +4031,197 @@ body.royal-glow::after {
         order: -1;
     }
 }
+
+/* ============================================================
+   CARRINHO — Salvar para depois
+   ============================================================ */
+.ml-item-save {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--ml-text-muted);
+    padding: 4px 6px;
+    font-size: 0.88rem;
+    transition: transform 0.2s, color 0.2s;
+}
+.ml-item-save:hover {
+    color: var(--ml-accent);
+    transform: scale(1.15);
+}
+.ml-item-save:disabled {
+    opacity: 0.5;
+    cursor: default;
+    transform: none;
+}
+
+.ml-saved-block {
+    margin-top: 24px;
+    background: var(--ml-bg-card);
+    border: 1px solid var(--ml-border);
+    border-radius: 8px;
+    padding: 16px;
+}
+.ml-saved-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--ml-border);
+}
+.ml-saved-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    font-size: 1.05rem;
+    color: var(--ml-text);
+}
+.ml-saved-title i {
+    color: var(--ml-accent);
+}
+.ml-saved-count {
+    background: var(--ml-accent);
+    color: var(--ml-bg);
+    font-size: 0.72rem;
+    font-weight: 700;
+    border-radius: 10px;
+    padding: 1px 8px;
+    min-width: 20px;
+    text-align: center;
+}
+.ml-saved-hint {
+    font-size: 0.78rem;
+    color: var(--ml-text-muted);
+}
+.ml-saved-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.ml-saved-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px;
+    background: var(--ml-bg);
+    border: 1px solid var(--ml-border);
+    border-radius: 6px;
+}
+.ml-saved-img {
+    flex-shrink: 0;
+    width: 64px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--ml-bg-card);
+    border-radius: 6px;
+    overflow: hidden;
+}
+.ml-saved-img img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+.ml-saved-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.ml-saved-name {
+    color: var(--ml-text);
+    font-weight: 600;
+    font-size: 0.92rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.ml-saved-name:hover {
+    color: var(--ml-accent);
+}
+.ml-saved-prices {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+.ml-saved-old {
+    color: var(--ml-text-muted);
+    text-decoration: line-through;
+    font-size: 0.78rem;
+}
+.ml-saved-price {
+    color: var(--ml-accent);
+    font-weight: 700;
+    font-size: 1rem;
+}
+.ml-saved-qty {
+    color: var(--ml-text-secondary);
+    font-size: 0.78rem;
+}
+.ml-saved-out {
+    color: var(--ml-red);
+    font-size: 0.78rem;
+}
+.ml-saved-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+.ml-saved-restore {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    color: var(--ml-accent);
+    border: 1px solid var(--ml-accent);
+    border-radius: 6px;
+    padding: 7px 12px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+.ml-saved-restore:hover:not(:disabled) {
+    background: var(--ml-accent);
+    color: var(--ml-bg);
+}
+.ml-saved-restore:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+.ml-saved-remove {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--ml-text-muted);
+    padding: 6px;
+    font-size: 0.9rem;
+    transition: transform 0.2s, color 0.2s;
+}
+.ml-saved-remove:hover {
+    color: var(--ml-red);
+    transform: scale(1.12);
+}
+.ml-saved-empty {
+    text-align: center;
+    color: var(--ml-text-muted);
+    font-size: 0.85rem;
+    padding: 12px;
+}
+
+@media (max-width: 600px) {
+    .ml-saved-item {
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+    .ml-saved-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+}

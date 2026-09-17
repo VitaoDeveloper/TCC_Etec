@@ -1,6 +1,9 @@
 <?php
 // Área de usuário exibida no canto direito do header de todas as páginas do admin.
 // Deve ser incluída dentro (ou ao lado) de .admin-actions, após o carregamento do $pdo.
+require_once __DIR__ . '/../../includes/admin_notifications.php';
+require_once __DIR__ . '/../../includes/csrf.php';
+
 $adminUserName = trim((string) ($_SESSION['user_name'] ?? ''));
 if ($adminUserName === '') {
     $adminUserName = 'Administrador';
@@ -10,36 +13,23 @@ $msgCount = 0;
 $notifCount = 0;
 $notifItems = [];
 if (isset($pdo)) {
+    adminNotificationsSync($pdo);
+    $notifItems = adminNotificationsLatest($pdo, 6);
+    $notifCount = adminNotificationsUnreadCount($pdo);
     try {
-        $lowStock = $pdo->query(
-            'SELECT name, stock FROM e5_products WHERE stock <= 5 ORDER BY stock ASC LIMIT 5'
-        )->fetchAll(PDO::FETCH_ASSOC);
-        foreach ($lowStock as $item) {
-            $notifItems[] = [
-                'text' => 'Estoque baixo: ' . $item['name'] . ' (' . (int) $item['stock'] . ' un.)',
-                'url' => 'products.php',
-            ];
-        }
-
-        $recentContacts = $pdo->query(
-            'SELECT id, name, subject FROM e5_contacts WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) ORDER BY created_at DESC LIMIT 4'
-        )->fetchAll(PDO::FETCH_ASSOC);
-        foreach ($recentContacts as $c) {
-            $notifItems[] = [
-                'text' => 'Nova mensagem de ' . $c['name'] . ': ' . $c['subject'],
-                'url' => 'contacts.php',
-            ];
-        }
-
         $msgCount = (int) $pdo->query(
             'SELECT COUNT(*) FROM e5_contacts WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)'
         )->fetchColumn();
     } catch (Throwable $e) {
-        $notifItems = [];
         $msgCount = 0;
     }
-    $notifCount = count($notifItems);
 }
+
+$notifIcons = [
+    'order' => 'fa-shopping-bag',
+    'contact' => 'fa-envelope',
+    'stock' => 'fa-box-open',
+];
 ?>
 <div class="admin-user-area">
     <div class="admin-action-buttons">
@@ -57,22 +47,36 @@ if (isset($pdo)) {
                 <?php endif; ?>
             </button>
             <div class="admin-notif-panel" id="admin-notif-panel">
-                <div class="admin-notif-header"><h4>Notificações</h4></div>
+                <div class="admin-notif-header">
+                    <h4>Notificações</h4>
+                    <?php if ($notifCount > 0): ?>
+                    <form method="POST" action="notifications-read-all.php">
+                        <?php echo csrf_field(); ?>
+                        <button type="submit" class="admin-notif-mark">Marcar todas como lidas</button>
+                    </form>
+                    <?php endif; ?>
+                </div>
                 <?php if (empty($notifItems)): ?>
                 <p class="admin-notif-empty">Tudo em dia por aqui. Nenhuma notificação.</p>
                 <?php else: ?>
                 <ul class="admin-notif-list">
-                    <?php foreach ($notifItems as $n): ?>
-                    <li>
-                        <a href="<?php echo htmlspecialchars($n['url'], ENT_QUOTES, 'UTF-8'); ?>">
-                            <i class="fas fa-circle"></i>
-                            <span><?php echo htmlspecialchars($n['text'], ENT_QUOTES, 'UTF-8'); ?></span>
+                    <?php foreach ($notifItems as $n):
+                        $icon = $notifIcons[$n['type']] ?? 'fa-bell';
+                    ?>
+                    <li class="<?php echo (int) $n['is_read'] === 1 ? 'is-read' : 'is-unread'; ?>">
+                        <a href="notification-open.php?id=<?php echo (int) $n['id']; ?>">
+                            <i class="fas <?php echo $icon; ?>"></i>
+                            <span>
+                                <strong><?php echo htmlspecialchars($n['title'], ENT_QUOTES, 'UTF-8'); ?></strong>
+                                <small><?php echo htmlspecialchars($n['message'], ENT_QUOTES, 'UTF-8'); ?></small>
+                                <em><?php echo htmlspecialchars(adminNotificationsTimeAgo($n['created_at']), ENT_QUOTES, 'UTF-8'); ?></em>
+                            </span>
                         </a>
                     </li>
                     <?php endforeach; ?>
                 </ul>
                 <div class="admin-notif-footer">
-                    <a href="contacts.php">Ver todas as mensagens</a>
+                    <a href="notifications.php">Ver todas as notificações</a>
                 </div>
                 <?php endif; ?>
             </div>

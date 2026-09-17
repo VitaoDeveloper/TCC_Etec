@@ -17,6 +17,7 @@ $socialLinks = [
 
 $cartCount = 0;
 $wishlistCount = 0;
+$favoriteIds = [];
 if ($isLoggedIn) {
     if (!isset($pdo)) {
         $connPath = dirname(__DIR__) . '/database/connection.php';
@@ -29,6 +30,9 @@ if ($isLoggedIn) {
         $cartCount = cartGetCount($pdo, (int)$_SESSION['user_id']);
         require_once dirname(__DIR__) . '/includes/wishlist_functions.php';
         $wishlistCount = wishlistCount($pdo, (int)$_SESSION['user_id']);
+        if ($wishlistCount > 0) {
+            $favoriteIds = array_map('intval', wishlistGetIds($pdo, (int)$_SESSION['user_id']));
+        }
     }
 }
 
@@ -70,12 +74,14 @@ $assetVersion = defined('ASSET_VERSION') ? ASSET_VERSION : '20260909b';
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Royal Tech">
     <meta name="csrf-token" content="<?php echo htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8'); ?>">
+    <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/tokens.css?v=<?php echo $assetVersion; ?>">
+    <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/base.css?v=<?php echo $assetVersion; ?>">
+    <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/components.css?v=<?php echo $assetVersion; ?>">
     <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/style.css?v=<?php echo $assetVersion; ?>">
-    <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/admin.css?v=<?php echo $assetVersion; ?>">
     <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/mercadolivre-style.css?v=<?php echo $assetVersion; ?>">
     <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/auth.css?v=<?php echo $assetVersion; ?>">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="<?php echo $basePath; ?>assets/vendor/fontawesome/css/all.min.css">
     <?php if (!empty($page_css)): foreach ((array) $page_css as $cssFile): ?>
     <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/<?php echo htmlspecialchars($cssFile, ENT_QUOTES, 'UTF-8'); ?>?v=<?php echo $assetVersion; ?>">
     <?php endforeach; endif; ?>

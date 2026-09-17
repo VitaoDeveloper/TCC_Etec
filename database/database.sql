@@ -130,9 +130,11 @@ CREATE TABLE IF NOT EXISTS e5_cart (
   user_id INT NOT NULL,
   product_id INT NOT NULL,
   quantity INT NOT NULL DEFAULT 1,
+  saved_for_later TINYINT(1) NOT NULL DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY unique_cart_item (user_id, product_id),
+  KEY idx_cart_user_saved (user_id, saved_for_later),
   CONSTRAINT fk_cart_user FOREIGN KEY (user_id) REFERENCES e5_users(id) ON DELETE CASCADE,
   CONSTRAINT fk_cart_product FOREIGN KEY (product_id) REFERENCES e5_products(id) ON DELETE CASCADE
 );
@@ -262,7 +264,7 @@ CREATE TABLE IF NOT EXISTS e5_coupons (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ======================================================================
--- REGISTROS DE EXEMPLO (SEED) -- senha padrão: password123 (hash bcrypt)
+-- REGISTROS DE EXEMPLO (SEED) -- senha padrão: password (hash bcrypt)
 -- ======================================================================
 
 INSERT INTO e5_users (name, email, username, password, role, postal_code, street, number, complement) VALUES
@@ -296,17 +298,17 @@ INSERT INTO e5_categories (name, slug, description) VALUES
 ('Componentes', 'componentes', 'Processadores, placas de vídeo e memórias'),
 ('Áudio', 'audio', 'Fones de ouvido, caixas de som e soundbars');
 
-INSERT INTO e5_products (category_id, name, slug, description, brand, price, old_price, stock, is_featured) VALUES
-(1, 'Smartphone Galaxy S25 256GB', 'smartphone-galaxy-s25-256gb', 'Smartphone premium com tela AMOLED 6.2" e câmera 200MP.', 'Samsung', 4599.90, 4999.00, 25, 1),
-(1, 'iPhone 16 128GB', 'iphone-16-128gb', 'iPhone 16 com chip A18 e sistema de câmeras avançado.', 'Apple', 5299.00, NULL, 15, 1),
-(2, 'Notebook Nitro V15 i7', 'notebook-nitro-v15-i7', 'Notebook gamer com RTX 4060, 16GB RAM e SSD 512GB.', 'Acer', 4899.99, 5399.00, 10, 1),
-(2, 'Ultrabook Zenbook 14 OLED', 'ultrabook-zenbook-14-oled', 'Ultrabook leve com tela OLED 2.8K e bateria de longa duração.', 'ASUS', 6499.00, NULL, 8, 0),
-(3, 'Mouse Gamer Logitech G502', 'mouse-gamer-logitech-g502', 'Mouse gamer com sensor HERO 25K e 11 botões programáveis.', 'Logitech', 349.90, 399.90, 80, 0),
-(3, 'Teclado Mecânico Redragon', 'teclado-mecanico-redragon', 'Teclado mecânico RGB com switches Redragon e layout ABNT2.', 'Redragon', 259.90, NULL, 60, 0),
-(4, 'Processador Ryzen 7 7800X3D', 'processador-ryzen-7-7800x3d', 'Processador de 8 núcleos para games com cache 3D.', 'AMD', 2699.90, 2899.90, 20, 1),
-(4, 'Placa de Vídeo RTX 4070 Super', 'placa-de-video-rtx-4070-super', 'GPU com 12GB GDDR6X e suporte a DLSS 3.', 'NVIDIA', 4399.90, NULL, 12, 0),
-(5, 'Headset Gamer HyperX Cloud III', 'headset-gamer-hyperx-cloud-iii', 'Headset com som 7.1 surround e microfone com cancelamento de ruído.', 'HyperX', 699.90, 799.90, 45, 1),
-(5, 'Caixa de Som JBL Flip 7', 'caixa-de-som-jbl-flip-7', 'Caixa bluetooth portátil à prova d\'água com 12h de bateria.', 'JBL', 549.90, NULL, 35, 0);
+INSERT INTO e5_products (category_id, name, slug, description, brand, price, old_price, stock, is_featured, package_size_id, weight_kg) VALUES
+(1, 'Smartphone Galaxy S25 256GB', 'smartphone-galaxy-s25-256gb', 'Smartphone premium com tela AMOLED 6.2" e câmera 200MP.', 'Samsung', 4599.90, 4999.00, 25, 1, 2, 0.40),
+(1, 'iPhone 16 128GB', 'iphone-16-128gb', 'iPhone 16 com chip A18 e sistema de câmeras avançado.', 'Apple', 5299.00, NULL, 15, 1, 2, 0.35),
+(2, 'Notebook Nitro V15 i7', 'notebook-nitro-v15-i7', 'Notebook gamer com RTX 4060, 16GB RAM e SSD 512GB.', 'Acer', 4899.99, 5399.00, 10, 1, 3, 2.50),
+(2, 'Ultrabook Zenbook 14 OLED', 'ultrabook-zenbook-14-oled', 'Ultrabook leve com tela OLED 2.8K e bateria de longa duração.', 'ASUS', 6499.00, NULL, 8, 0, 3, 1.40),
+(3, 'Mouse Gamer Logitech G502', 'mouse-gamer-logitech-g502', 'Mouse gamer com sensor HERO 25K e 11 botões programáveis.', 'Logitech', 349.90, 399.90, 80, 0, 1, 0.15),
+(3, 'Teclado Mecânico Redragon', 'teclado-mecanico-redragon', 'Teclado mecânico RGB com switches Redragon e layout ABNT2.', 'Redragon', 259.90, NULL, 60, 0, 2, 0.90),
+(4, 'Processador Ryzen 7 7800X3D', 'processador-ryzen-7-7800x3d', 'Processador de 8 núcleos para games com cache 3D.', 'AMD', 2699.90, 2899.90, 20, 1, 1, 0.10),
+(4, 'Placa de Vídeo RTX 4070 Super', 'placa-de-video-rtx-4070-super', 'GPU com 12GB GDDR6X e suporte a DLSS 3.', 'NVIDIA', 4399.90, NULL, 12, 0, 2, 0.90),
+(5, 'Headset Gamer HyperX Cloud III', 'headset-gamer-hyperx-cloud-iii', 'Headset com som 7.1 surround e microfone com cancelamento de ruído.', 'HyperX', 699.90, 799.90, 45, 1, 2, 0.35),
+(5, 'Caixa de Som JBL Flip 7', 'caixa-de-som-jbl-flip-7', 'Caixa bluetooth portátil à prova d\'água com 12h de bateria.', 'JBL', 549.90, NULL, 35, 0, 2, 0.60);
 
 INSERT INTO e5_product_images (product_id, image_path, is_primary) VALUES
 (1, '/assets/img/products/galaxy-s25.jpg', 1),
@@ -321,6 +323,11 @@ INSERT INTO e5_product_images (product_id, image_path, is_primary) VALUES
 (10, '/assets/img/products/flip-7.jpg', 1),
 (1, '/assets/img/products/galaxy-s25-2.jpg', 0),
 (5, '/assets/img/products/g502-2.jpg', 0);
+
+INSERT INTO e5_coupons (code, type, value, min_amount, max_discount, valid_from, valid_until, active, customer_scope, max_uses) VALUES
+('BEMVINDO10', 'percent', 10.00, 300.00, 300.00, '2024-01-01', '2027-12-31', 1, 'new', 0),
+('ROYAL50', 'fixed', 50.00, 500.00, NULL, '2024-01-01', '2027-12-31', 1, 'all', 0),
+('VIP15', 'percent', 15.00, 2000.00, 800.00, '2024-01-01', '2027-12-31', 1, 'vip', 0);
 
 INSERT INTO e5_orders (user_id, status, total, shipping_method, shipping_cost, payment_method, payment_status, shipping_neighborhood, shipping_city, shipping_state, shipping_postal_code) VALUES
 (1, 'delivered', 4999.00, 'correios', 29.90, 'pix', 'paid', 'Bela Vista', 'São Paulo', 'SP', '01310-100'),
@@ -353,9 +360,9 @@ INSERT INTO e5_newsletter (email) VALUES
 ('news3@email.com');
 
 INSERT INTO e5_banners (title, subtitle, image_path, link_url, is_active) VALUES
-('Promoção Smartphones', 'Até 30% OFF em smartphones selecionados', '/assets/img/banners/smartphones.jpg', '/produtos/smartphones', 1),
-('Semana do Consumidor', 'Ofertas imperdíveis por tempo limitado', '/assets/img/banners/semana-consumidor.jpg', '/ofertas', 1),
-('Frete Grátis', 'Em compras acima de R$ 499,00', '/assets/img/banners/frete-gratis.jpg', NULL, 0);
+('Promoção Smartphones', 'Até 30% OFF em smartphones selecionados', '/assets/img/banners/smartphones.svg', 'categoria/smartphones', 1),
+('Semana do Consumidor', 'Ofertas imperdíveis por tempo limitado', '/assets/img/banners/semana-consumidor.svg', 'produtos', 1),
+('Frete Grátis', 'Em compras acima de R$ 499,00', '/assets/img/banners/frete-gratis.svg', NULL, 0);
 
 INSERT INTO e5_wishlist (user_id, product_id) VALUES
 (1, 3),
@@ -373,6 +380,120 @@ INSERT INTO e5_settings (setting_key, setting_value) VALUES
 -- =====================================================================
 -- INTEGRAÇÕES / SUPERFRETE
 -- =====================================================================
+
+-- =====================================================================
+-- e5_order_status_history — timeline auditável de troca de status
+-- =====================================================================
+CREATE TABLE IF NOT EXISTS e5_order_status_history (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  order_id INT NOT NULL,
+  status ENUM('pending','paid','shipped','delivered','canceled') NOT NULL,
+  payment_status ENUM('pending','processing','paid','refunded','failed','expired') NULL,
+  note VARCHAR(255) NULL,
+  changed_by VARCHAR(80) NOT NULL DEFAULT 'system',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_order_status_history_order FOREIGN KEY (order_id) REFERENCES e5_orders(id) ON DELETE CASCADE,
+  KEY idx_osh_order (order_id),
+  KEY idx_osh_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Histórico de alterações de status do pedido';
+
+-- =====================================================================
+-- e5_shippings — envios/etiquetas SuperFrete por pedido
+-- =====================================================================
+CREATE TABLE IF NOT EXISTS e5_shippings (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  order_id INT NOT NULL,
+  superfrete_order_id VARCHAR(64) NULL,
+  service_id VARCHAR(20) NULL,
+  service_name VARCHAR(80) NULL,
+  carrier VARCHAR(80) NULL,
+  tracking_code VARCHAR(100) NULL,
+  label_url VARCHAR(255) NULL,
+  price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  delivery_days INT NULL,
+  status VARCHAR(40) NOT NULL DEFAULT 'pending',
+  last_event VARCHAR(60) NULL,
+  last_event_at DATETIME NULL,
+  canceled TINYINT(1) NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_shippings_order FOREIGN KEY (order_id) REFERENCES e5_orders(id) ON DELETE CASCADE,
+  UNIQUE KEY uk_shipping_superfrete (superfrete_order_id),
+  KEY idx_shipping_order (order_id),
+  KEY idx_shipping_tracking (tracking_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Envios SuperFrete (etiqueta, rastreio e status) por pedido';
+
+-- =====================================================================
+-- e5_notifications — fila de notificações (email/whatsapp)
+-- =====================================================================
+CREATE TABLE IF NOT EXISTS e5_notifications (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  order_id INT NULL,
+  user_id INT NULL,
+  event_key VARCHAR(60) NOT NULL,
+  channel ENUM('email','whatsapp') NOT NULL,
+  recipient VARCHAR(160) NOT NULL,
+  template VARCHAR(60) NULL,
+  subject VARCHAR(160) NULL,
+  body TEXT NULL,
+  status ENUM('pending','sent','failed','skipped') NOT NULL DEFAULT 'pending',
+  attempts INT NOT NULL DEFAULT 0,
+  max_attempts INT NOT NULL DEFAULT 3,
+  last_error TEXT NULL,
+  dedupe_key VARCHAR(120) NOT NULL,
+  available_at DATETIME NULL,
+  sent_at DATETIME NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_notifications_order FOREIGN KEY (order_id) REFERENCES e5_orders(id) ON DELETE CASCADE,
+  CONSTRAINT fk_notifications_user FOREIGN KEY (user_id) REFERENCES e5_users(id) ON DELETE SET NULL,
+  UNIQUE KEY uk_notifications_dedupe (dedupe_key),
+  KEY idx_notifications_status (status),
+  KEY idx_notifications_available (available_at),
+  KEY idx_notifications_order (order_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Fila de notificações por evento/canal (com dedupe)';
+
+-- =====================================================================
+-- e5_notifications_log — log bruto de cada tentativa de envio
+-- =====================================================================
+CREATE TABLE IF NOT EXISTS e5_notifications_log (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  notification_id INT NOT NULL,
+  channel ENUM('email','whatsapp') NOT NULL,
+  status ENUM('sent','failed','skipped') NOT NULL,
+  provider VARCHAR(60) NULL,
+  response TEXT NULL,
+  error TEXT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_notifications_log_notification FOREIGN KEY (notification_id) REFERENCES e5_notifications(id) ON DELETE CASCADE,
+  KEY idx_notif_log_notification (notification_id),
+  KEY idx_notif_log_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Log de tentativas de notificação (resposta/erro do provedor)';
+
+-- =====================================================================
+-- e5_admin_notifications — sino de notificações do painel administrativo
+-- (persistido, com estado lido/não-lido). Dedupe por evento de origem.
+-- =====================================================================
+CREATE TABLE IF NOT EXISTS e5_admin_notifications (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  type ENUM('order','contact','stock') NOT NULL,
+  title VARCHAR(120) NOT NULL,
+  message VARCHAR(255) NOT NULL,
+  url VARCHAR(160) NULL,
+  ref_id INT NULL,
+  is_read TINYINT(1) NOT NULL DEFAULT 0,
+  dedupe_key VARCHAR(120) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  read_at DATETIME NULL,
+  UNIQUE KEY uk_admin_notif_dedupe (dedupe_key),
+  KEY idx_admin_notif_read (is_read),
+  KEY idx_admin_notif_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Notificações do sino do admin (lido/não-lido, dedupe por evento)';
 
 -- =====================================================================
 -- superfrete_webhook_log

@@ -13,6 +13,7 @@ require_once $base_path . 'database/connection.php';
 require_once $base_path . 'includes/cart_functions.php';
 require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../includes/order_payment_functions.php';
+require_once __DIR__ . '/../../includes/notifications_functions.php';
 require_once __DIR__ . '/../../includes/store_logo.php';
 
 $userId = (int) $_SESSION['user_id'];
@@ -40,30 +41,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_require_valid();
 
     $action = $_POST['action'] ?? '';
+    $actorName = trim((string) ($_SESSION['user_name'] ?? '')) ?: 'Sistema';
+    if ($isAdmin && str_starts_with($action, 'simulate_')) {
+        $actorName = 'Admin · ' . $actorName;
+    }
 
     switch ($action) {
         case 'simulate_paid':
-            if (in_array($paymentStatus, ['pending','processing'], true) && $orderStatus === 'pending') {
-                orderMarkPaid($pdo, $orderId);
+            if ($isAdmin && in_array($paymentStatus, ['pending','processing'], true) && $orderStatus === 'pending') {
+                if (orderMarkPaid($pdo, $orderId, $actorName)) {
+                    notificationTrigger('order_paid', $orderId, [], $pdo);
+                }
             }
             header('Location: payment.php?id=' . $orderId);
             exit;
 
         case 'simulate_failed':
-            if (in_array($paymentStatus, ['pending','processing'], true) && $orderStatus === 'pending') {
-                orderMarkFailed($pdo, $orderId);
+            if ($isAdmin && in_array($paymentStatus, ['pending','processing'], true) && $orderStatus === 'pending') {
+                if (orderMarkFailed($pdo, $orderId, $actorName)) {
+                    notificationTrigger('order_failed', $orderId, [], $pdo);
+                }
             }
             header('Location: payment.php?id=' . $orderId);
             exit;
 
         case 'simulate_expired':
-            orderAutoExpire($pdo, $orderId);
+            if ($isAdmin && orderAutoExpire($pdo, $orderId, $actorName)) {
+                notificationTrigger('order_expired', $orderId, [], $pdo);
+            }
             header('Location: payment.php?id=' . $orderId);
             exit;
 
         case 'retry':
             if (in_array($paymentStatus, ['failed','expired'], true)) {
-                $retry = orderRetryPayment($pdo, $orderId, $paymentMethod, (float) $order['total']);
+                $retry = orderRetryPayment($pdo, $orderId, $paymentMethod, (float) $order['total'], $actorName);
                 if (!$retry[0]) {
                     $pageError = $retry[1];
                 }
@@ -73,7 +84,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         case 'cancel':
             if (in_array($paymentStatus, ['pending','processing','failed','expired'], true) && $orderStatus === 'pending') {
-                orderCancelCustomer($pdo, $orderId);
+                if (orderCancelCustomer($pdo, $orderId, $actorName)) {
+                    notificationTrigger('order_canceled', $orderId, ['reason' => 'Cancelado pelo cliente.'], $pdo);
+                }
             }
             header('Location: ../auth/order-detail.php?id=' . $orderId);
             exit;
@@ -123,38 +136,8 @@ $subtitleDefault = ($paymentMethod === 'pix')
         ? 'Pague o boleto até o vencimento para confirmar seu pedido.'
         : 'Aguarde a confirmação do pagamento de seu pedido.');
 
-// QR decorativo determinístico (ambiente de demonstração — a aprovação é simulada)
-$qrSeed = ($paymentInfo['pix_code'] ?? '') ?: (string) $orderId;
-mt_srand(crc32($qrSeed));
-$qrSize = 21;
-$qr = [];
-for ($r = 0; $r < $qrSize; $r++) {
-    $qr[$r] = [];
-    for ($c = 0; $c < $qrSize; $c++) {
-        $qr[$r][$c] = mt_rand(0, 100) < 46 ? 1 : 0;
-    }
-}
-$finder = [
-    [1,1,1,1,1,1,1],
-    [1,0,0,0,0,0,1],
-    [1,0,1,1,1,0,1],
-    [1,0,1,1,1,0,1],
-    [1,0,1,1,1,0,1],
-    [1,0,0,0,0,0,1],
-    [1,1,1,1,1,1,1],
-];
-$place = function (int $top, int $left) use (&$qr, $finder, $qrSize) {
-    foreach ($finder as $r => $row) {
-        foreach ($row as $c => $v) {
-            if (($top + $r) < $qrSize && ($left + $c) < $qrSize) {
-                $qr[$top + $r][$left + $c] = $v;
-            }
-        }
-    }
-};
-$place(0, 0);
-$place(0, $qrSize - 7);
-$place($qrSize - 7, 0);
+// O QR Code Pix é gerado no navegador (assets/vendor/qrcodejs) a partir do
+// BR Code EMV montado em includes/pix_functions.php.
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -166,7 +149,7 @@ $place($qrSize - 7, 0);
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="<?= $base_path ?>assets/vendor/fontawesome/css/all.min.css">
     <style>
         /* ============================================================
            TELA DE PAGAMENTO — ROYAL TECH (tema escuro premium)
@@ -326,10 +309,8 @@ $place($qrSize - 7, 0);
             border-radius: 14px;
             box-shadow: 0 10px 26px rgba(0,0,0,0.45);
         }
-        .rt-qr-grid { display: grid; grid-template-columns: repeat(<?= $qrSize ?>, 6px); gap: 1px; justify-content: center; width: max-content; margin: 0 auto; }
-        .rt-qr-cell { width: 6px; height: 6px; border-radius: 1px; }
-        .rt-qr-cell.on { background: #151515; }
-        .rt-qr-cell.off { background: transparent; }
+        .rt-qr-canvas { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
+        .rt-qr-canvas img, .rt-qr-canvas canvas { display: block; width: 100% !important; height: 100% !important; }
 
         .rt-pix-label {
             font-size: 0.7rem;
@@ -695,15 +676,7 @@ $place($qrSize - 7, 0);
 
     <?php if ($paymentMethod === 'pix' && ($paymentInfo['pix_code'] ?? null)): ?>
     <div class="rt-pix-box">
-        <?php
-        $cells = '';
-        foreach ($qr as $row) {
-            foreach ($row as $cell) {
-                $cells .= '<span class="rt-qr-cell ' . ($cell ? 'on' : 'off') . '"></span>';
-            }
-        }
-        ?>
-        <div class="rt-qr"><div class="rt-qr-grid" aria-hidden="true"><?= $cells ?></div></div>
+        <div class="rt-qr"><div class="rt-qr-canvas" id="pixQrCanvas" data-pix="<?= htmlspecialchars($paymentInfo['pix_code'], ENT_QUOTES, 'UTF-8') ?>" role="img" aria-label="QR Code Pix"></div></div>
         <p class="rt-pix-label"><i class="fas fa-keyboard" style="margin-right:6px"></i>Ou copie o código abaixo</p>
         <code class="rt-pix-code" id="pixCodeText"><?= htmlspecialchars($paymentInfo['pix_code']) ?></code>
         <button class="rt-btn rt-btn-copy" id="copyPixBtn" type="button"><i class="fas fa-copy" id="copyPixIcon"></i><span id="copyPixLabel">Copiar Código Pix</span></button>
@@ -756,6 +729,22 @@ $place($qrSize - 7, 0);
     <?php endif; ?>
 
     <?php if ($paymentMethod === 'pix'): ?>
+    <script src="<?= $base_path ?>assets/vendor/qrcodejs/qrcode.min.js"></script>
+    <script>
+    (function () {
+        var qrEl = document.getElementById('pixQrCanvas');
+        if (qrEl && window.QRCode) {
+            new QRCode(qrEl, {
+                text: qrEl.getAttribute('data-pix'),
+                width: 150,
+                height: 150,
+                colorDark: '#151515',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.M
+            });
+        }
+    })();
+    </script>
     <script>
     (function () {
         var codeEl = document.getElementById('pixCodeText');

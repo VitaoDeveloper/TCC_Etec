@@ -3,6 +3,7 @@ $page_title = 'Gerenciar Categorias - Royal Tech';
 include 'auth_check.php';
 include '../../database/connection.php';
 require_once __DIR__ . '/../../includes/csrf.php';
+require_once __DIR__ . '/../../includes/pagination.php';
 $activePage = 'categories';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -12,11 +13,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'create') {
         $name = trim((string) $_POST['name']);
         $description = trim((string) $_POST['description']);
-        if ($name !== '') {
-            $slugBase = strtolower(trim(preg_replace('/[^a-zA-Z0-9]+/', '-', $name), '-'));
-            $stmt = $pdo->prepare('INSERT INTO e5_categories (name, slug, description) VALUES (:name, :slug, :description)');
-            $stmt->execute([':name' => $name, ':slug' => $slugBase . '-' . time(), ':description' => $description ?: null]);
-            $_SESSION['admin_message'] = 'Categoria criada com sucesso.';
+        if ($name === '') {
+            $_SESSION['admin_error'] = 'Informe o nome da categoria.';
+        } else {
+            try {
+                $slugBase = strtolower(trim(preg_replace('/[^a-zA-Z0-9]+/', '-', $name), '-'));
+                $stmt = $pdo->prepare('INSERT INTO e5_categories (name, slug, description) VALUES (:name, :slug, :description)');
+                $stmt->execute([':name' => $name, ':slug' => $slugBase . '-' . time(), ':description' => $description ?: null]);
+                $_SESSION['admin_message'] = 'Categoria criada com sucesso.';
+            } catch (Throwable $e) {
+                if ((string) $e->getCode() === '23000') {
+                    $_SESSION['admin_error'] = 'Já existe uma categoria com esse nome.';
+                } else {
+                    error_log('Category create error: ' . $e->getMessage());
+                    $_SESSION['admin_error'] = 'Não foi possível criar a categoria.';
+                }
+            }
         }
     }
 
@@ -25,19 +37,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $name = trim((string) $_POST['name']);
         $description = trim((string) $_POST['description']);
         if ($categoryId > 0 && $name !== '') {
-            $slugBase = strtolower(trim(preg_replace('/[^a-zA-Z0-9]+/', '-', $name), '-'));
-            $stmt = $pdo->prepare('UPDATE e5_categories SET name = :name, slug = :slug, description = :description WHERE id = :id');
-            $stmt->execute([':name' => $name, ':slug' => $slugBase . '-' . time(), ':description' => $description ?: null, ':id' => $categoryId]);
-            $_SESSION['admin_message'] = 'Categoria atualizada com sucesso.';
+            try {
+                $slugBase = strtolower(trim(preg_replace('/[^a-zA-Z0-9]+/', '-', $name), '-'));
+                $stmt = $pdo->prepare('UPDATE e5_categories SET name = :name, slug = :slug, description = :description WHERE id = :id');
+                $stmt->execute([':name' => $name, ':slug' => $slugBase . '-' . time(), ':description' => $description ?: null, ':id' => $categoryId]);
+                $_SESSION['admin_message'] = 'Categoria atualizada com sucesso.';
+            } catch (Throwable $e) {
+                if ((string) $e->getCode() === '23000') {
+                    $_SESSION['admin_error'] = 'Já existe uma categoria com esse nome.';
+                } else {
+                    error_log('Category update error: ' . $e->getMessage());
+                    $_SESSION['admin_error'] = 'Não foi possível atualizar a categoria.';
+                }
+            }
         }
     }
 
     if ($action === 'delete') {
         $categoryId = (int) ($_POST['category_id'] ?? 0);
         if ($categoryId > 0) {
-            $stmt = $pdo->prepare('DELETE FROM e5_categories WHERE id = :id');
-            $stmt->execute([':id' => $categoryId]);
-            $_SESSION['admin_message'] = 'Categoria removida com sucesso.';
+            // FK fk_products_category é RESTRICT: bloqueia exclusão se houver produtos vinculados.
+            $linked = $pdo->prepare('SELECT COUNT(*) FROM e5_products WHERE category_id = :id');
+            $linked->execute([':id' => $categoryId]);
+            $linkedCount = (int) $linked->fetchColumn();
+            if ($linkedCount > 0) {
+                $_SESSION['admin_error'] = 'Não é possível excluir esta categoria: há ' . $linkedCount . ' produto(s) vinculado(s). Mova ou exclua os produtos antes.';
+            } else {
+                $stmt = $pdo->prepare('DELETE FROM e5_categories WHERE id = :id');
+                $stmt->execute([':id' => $categoryId]);
+                $_SESSION['admin_message'] = 'Categoria removida com sucesso.';
+            }
         }
     }
 
@@ -45,18 +74,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
-$categories = $pdo->query('SELECT c.*, (SELECT COUNT(*) FROM e5_products p WHERE p.category_id = c.id) AS total_products FROM e5_categories c ORDER BY c.name')->fetchAll();
+$search = trim((string) ($_GET['q'] ?? ''));
+$where = '';
+$params = [];
+if ($search !== '') {
+    $where = 'WHERE c.name LIKE :q_name';
+    $params[':q_name'] = '%' . $search . '%';
+}
+
+$countStmt = $pdo->prepare("SELECT COUNT(*) FROM e5_categories c $where");
+$countStmt->execute($params);
+$total = (int) $countStmt->fetchColumn();
+
+$page = pagination_page();
+$limit = pagination_limit(25);
+$totalPages = max(1, (int) ceil($total / $limit));
+if ($page > $totalPages) {
+    $page = $totalPages;
+}
+$offset = pagination_offset($page, $limit);
+
+$categories = $pdo->prepare("SELECT c.*, (SELECT COUNT(*) FROM e5_products p WHERE p.category_id = c.id) AS total_products
+    FROM e5_categories c $where ORDER BY c.name LIMIT $limit OFFSET $offset");
+$categories->execute($params);
+$categories = $categories->fetchAll();
+
 $message = $_SESSION['admin_message'] ?? null;
-unset($_SESSION['admin_message']);
+$error = $_SESSION['admin_error'] ?? null;
+unset($_SESSION['admin_message'], $_SESSION['admin_error']);
 $editCategory = null;
 if (isset($_GET['edit'])) {
     $editId = (int) $_GET['edit'];
-    foreach ($categories as $cat) {
-        if ((int) $cat['id'] === $editId) {
-            $editCategory = $cat;
-            break;
-        }
-    }
+    $editStmt = $pdo->prepare('SELECT c.*, (SELECT COUNT(*) FROM e5_products p WHERE p.category_id = c.id) AS total_products FROM e5_categories c WHERE c.id = :id');
+    $editStmt->execute([':id' => $editId]);
+    $editCategory = $editStmt->fetch() ?: null;
 }
 ?><!DOCTYPE html>
 <html lang="pt-BR">
@@ -83,6 +134,9 @@ if (isset($_GET['edit'])) {
 
             <?php if ($message): ?>
             <div class="auth-feedback auth-feedback-success"><?php echo htmlspecialchars($message, ENT_QUOTES, 'UTF-8'); ?></div>
+            <?php endif; ?>
+            <?php if ($error): ?>
+            <div class="auth-feedback auth-feedback-error"><?php echo htmlspecialchars($error, ENT_QUOTES, 'UTF-8'); ?></div>
             <?php endif; ?>
 
             <div class="admin-table-container" style="margin-bottom:30px;">
@@ -114,8 +168,14 @@ if (isset($_GET['edit'])) {
 
             <div class="admin-table-container">
                 <div class="admin-table-header">
-                    <h3>Todas as categorias</h3>
-                    <span style="color:var(--color-gray); font-size:0.85rem;"><?php echo count($categories); ?> categorias</span>
+                    <h3>Todas as categorias <span class="pagination-summary">(<?php echo $total; ?>)</span></h3>
+                    <form method="GET" class="admin-filter-bar">
+                        <input type="text" name="q" placeholder="Buscar categoria..." value="<?php echo htmlspecialchars($search, ENT_QUOTES, 'UTF-8'); ?>">
+                        <button type="submit" class="btn btn-secondary" aria-label="Buscar categorias"><i class="fas fa-search"></i></button>
+                        <?php if ($search !== ''): ?>
+                        <a href="categories.php" class="btn btn-secondary" aria-label="Limpar busca"><i class="fas fa-times"></i></a>
+                        <?php endif; ?>
+                    </form>
                 </div>
                 <table class="admin-table">
                     <thead>
@@ -151,6 +211,7 @@ if (isset($_GET['edit'])) {
                         <?php endforeach; endif; ?>
                     </tbody>
                 </table>
+                <?php echo pagination_render($page, $totalPages, ['q' => $search]); ?>
             </div>
         </main>
     </div>

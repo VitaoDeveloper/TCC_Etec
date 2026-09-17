@@ -11,6 +11,9 @@
 //   refunded   → estorno (administrativo)
 // =============================================================================
 
+require_once __DIR__ . '/pix_functions.php';
+require_once __DIR__ . '/order_history_functions.php';
+
 function orderGetById($pdo, $orderId) {
     $stmt = $pdo->prepare('SELECT * FROM e5_orders WHERE id = :id LIMIT 1');
     $stmt->execute([':id' => (int) $orderId]);
@@ -36,13 +39,25 @@ function generatePaymentDetails(string $method, float $total): array {
     $expiresAt = null;
 
     if ($method === 'pix') {
+        // Chave Pix configurada no painel; se vazia, usa o CNPJ da loja (apenas dígitos).
+        $pixKey = trim((string) store_config('pix_key'));
+        if ($pixKey === '') {
+            $pixKey = preg_replace('/\D/', '', (string) store_config('store_cnpj'));
+        }
+        $city = 'Sao Paulo';
+        if (preg_match('/-\s*([^,]+)/', (string) store_config('store_address'), $m)) {
+            $city = trim($m[1]);
+        }
         $info = [
             'method' => 'Pix',
             'instructions' => 'Escaneie o QR Code abaixo ou copie o código Pix para pagamento.',
-            'pix_code' => '00020126580014BR.GOV.BCB.PIX0136' . bin2hex(random_bytes(20))
-                . '5204000053039865406' . number_format($total, 2, '', '')
-                . '5802BR5913Royal Tech LTDA6009SAO PAULO62070503***6304'
-                . strtoupper(substr(bin2hex(random_bytes(4)), 0, 4)),
+            'pix_code' => pixBuildBrCode([
+                'key' => $pixKey,
+                'name' => (string) store_config('store_name'),
+                'city' => $city,
+                'amount' => $total,
+                'txid' => 'RT' . strtoupper(bin2hex(random_bytes(5))),
+            ]),
         ];
         $expiresAt = date('Y-m-d H:i:s', strtotime('+30 minutes'));
     } elseif ($method === 'boleto') {
@@ -52,6 +67,11 @@ function generatePaymentDetails(string $method, float $total): array {
             'boleto_number' => '34191.79001 01043.510047 91020.150008 ' . random_int(100000000, 999999999) . ' ' . random_int(1, 9),
         ];
         $expiresAt = date('Y-m-d H:i:s', strtotime('+3 days'));
+    }
+
+    if ($expiresAt !== null) {
+        // Data legível exibida na tela de sucesso do checkout.
+        $info['expires'] = date('d/m/Y H:i', strtotime($expiresAt));
     }
 
     return ['info' => $info, 'expires_at' => $expiresAt];
@@ -85,18 +105,22 @@ function orderRestoreStock($pdo, $orderId) {
 }
 
 // Marca o pedido como pago (pagamento aprovado).
-function orderMarkPaid($pdo, $orderId): bool {
+function orderMarkPaid($pdo, $orderId, string $changedBy = 'Sistema'): bool {
     $stmt = $pdo->prepare(
         "UPDATE e5_orders
             SET payment_status = 'paid', status = 'paid', payment_expires_at = NULL, payment_details = NULL
           WHERE id = :id AND payment_status <> 'paid'"
     );
     $stmt->execute([':id' => (int) $orderId]);
-    return $stmt->rowCount() > 0;
+    if ($stmt->rowCount() > 0) {
+        orderHistoryAdd($pdo, (int) $orderId, 'paid', 'paid', 'Pagamento confirmado.', $changedBy);
+        return true;
+    }
+    return false;
 }
 
 // Simula falha de pagamento (devolve o estoque reservado). Idempotente.
-function orderMarkFailed($pdo, $orderId): bool {
+function orderMarkFailed($pdo, $orderId, string $changedBy = 'Sistema'): bool {
     $pdo->beginTransaction();
     try {
         $stmt = $pdo->prepare(
@@ -106,6 +130,7 @@ function orderMarkFailed($pdo, $orderId): bool {
         $stmt->execute([':id' => (int) $orderId]);
         if ($stmt->rowCount() > 0) {
             orderRestoreStock($pdo, $orderId);
+            orderHistoryAdd($pdo, (int) $orderId, 'pending', 'failed', 'Pagamento não aprovado. Estoque devolvido.', $changedBy);
         }
         $pdo->commit();
         return true;
@@ -116,7 +141,7 @@ function orderMarkFailed($pdo, $orderId): bool {
 }
 
 // Marca como expirado (pagamento não realizado dentro do prazo). Idempotente.
-function orderMarkExpired($pdo, $orderId): bool {
+function orderMarkExpired($pdo, $orderId, string $changedBy = 'Sistema'): bool {
     $pdo->beginTransaction();
     try {
         $stmt = $pdo->prepare(
@@ -126,6 +151,7 @@ function orderMarkExpired($pdo, $orderId): bool {
         $stmt->execute([':id' => (int) $orderId]);
         if ($stmt->rowCount() > 0) {
             orderRestoreStock($pdo, $orderId);
+            orderHistoryAdd($pdo, (int) $orderId, 'pending', 'expired', 'Pagamento expirado dentro do prazo. Estoque devolvido.', $changedBy);
         }
         $pdo->commit();
         return true;
@@ -136,7 +162,7 @@ function orderMarkExpired($pdo, $orderId): bool {
 }
 
 // Automaticamente marca como expirado se a janela de pagamento venceu.
-function orderAutoExpire($pdo, $orderId) {
+function orderAutoExpire($pdo, $orderId, string $changedBy = 'Sistema') {
     $order = orderGetById($pdo, $orderId);
     if (!$order) return false;
     if ($order['status'] !== 'pending') return false;
@@ -144,12 +170,12 @@ function orderAutoExpire($pdo, $orderId) {
     $expires = $order['payment_expires_at'];
     if (!$expires) return false;
     if (strtotime($expires) > time()) return false;
-    return orderMarkExpired($pdo, $orderId);
+    return orderMarkExpired($pdo, $orderId, $changedBy);
 }
 
 // Reativa um pedido com pagamento falho/expirado: nova cobrança, novo prazo e
 // re-reserva de estoque. Retorna [bool, dado|mensagem].
-function orderRetryPayment($pdo, $orderId, string $method, float $total): array {
+function orderRetryPayment($pdo, $orderId, string $method, float $total, string $changedBy = 'Sistema'): array {
     $order = orderGetById($pdo, $orderId);
     if (!$order || $order['status'] !== 'pending') {
         return [false, 'Este pedido não pode ser retentado.'];
@@ -158,7 +184,11 @@ function orderRetryPayment($pdo, $orderId, string $method, float $total): array 
         return [false, 'Pagamento já está aguardando confirmação.'];
     }
 
-    $gen = generatePaymentDetails($method, $total);
+    try {
+        $gen = generatePaymentDetails($method, $total);
+    } catch (Throwable $e) {
+        return [false, 'Não foi possível gerar a cobrança. Verifique a configuração de pagamento.'];
+    }
 
     $pdo->beginTransaction();
     try {
@@ -179,11 +209,12 @@ function orderRetryPayment($pdo, $orderId, string $method, float $total): array 
         return [false, 'Estoque insuficiente para processar o pagamento. ' . $e->getMessage()];
     }
 
+    orderHistoryAdd($pdo, (int) $orderId, 'pending', 'pending', 'Nova cobrança gerada.', $changedBy);
     return [true, $gen];
 }
 
 // Cancelamento pelo cliente (só de pedidos ainda não pagos).
-function orderCancelCustomer($pdo, $orderId): bool {
+function orderCancelCustomer($pdo, $orderId, string $changedBy = 'Cliente'): bool {
     $order = orderGetById($pdo, $orderId);
     if (!$order || $order['status'] !== 'pending') return false;
 
@@ -194,6 +225,7 @@ function orderCancelCustomer($pdo, $orderId): bool {
     $stmt->execute([':id' => (int) $orderId]);
     if ($stmt->rowCount() > 0) {
         orderRestoreStock($pdo, $orderId);
+        orderHistoryAdd($pdo, (int) $orderId, 'canceled', (string) $order['payment_status'], 'Pedido cancelado pelo cliente.', $changedBy);
     }
     return true;
 }
@@ -227,6 +259,8 @@ function orderCancelAdmin($pdo, $orderId, string $adminName = '', string $reason
             ':id' => (int) $orderId,
         ]);
         orderRestoreStock($pdo, $orderId);
+        $newPayStatus = $order['payment_status'] === 'paid' ? 'refunded' : (string) $order['payment_status'];
+        orderHistoryAdd($pdo, (int) $orderId, 'canceled', $newPayStatus, 'Pedido cancelado pelo administrador.' . ($reason !== '' ? ' Motivo: ' . $reason : ''), $adminName);
         $pdo->commit();
     } catch (Throwable $e) {
         $pdo->rollBack();
@@ -257,6 +291,7 @@ function orderRefundAdmin($pdo, $orderId, string $adminName = '', string $reason
             ':id' => (int) $orderId,
         ]);
         orderRestoreStock($pdo, $orderId);
+        orderHistoryAdd($pdo, (int) $orderId, (string) $order['status'], 'refunded', 'Pagamento estornado pelo administrador.' . ($reason !== '' ? ' Motivo: ' . $reason : ''), $adminName);
         $pdo->commit();
     } catch (Throwable $e) {
         $pdo->rollBack();

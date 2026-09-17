@@ -39,10 +39,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($form === 'avatar') {
         if (isset($_FILES['avatar']) && $_FILES['avatar']['error'] === UPLOAD_ERR_OK) {
             $allowed = ['image/jpeg' => '.jpg', 'image/png' => '.png', 'image/webp' => '.webp'];
-            $mime = (string) ($_FILES['avatar']['type'] ?? '');
-            if (!isset($allowed[$mime])) {
+            $tmpPath = (string) ($_FILES['avatar']['tmp_name'] ?? '');
+            $size = (int) ($_FILES['avatar']['size'] ?? 0);
+            // Detecta o MIME real pelo conteúdo, ignorando o tipo informado pelo navegador
+            $mime = '';
+            if ($tmpPath !== '' && is_file($tmpPath)) {
+                $finfo = new finfo(FILEINFO_MIME_TYPE);
+                $mime = (string) $finfo->file($tmpPath);
+            }
+            $imageInfo = ($tmpPath !== '' && is_file($tmpPath)) ? @getimagesize($tmpPath) : false;
+            $isRealImage = $imageInfo !== false && (int) $imageInfo[0] > 0 && (int) $imageInfo[1] > 0;
+            if (!isset($allowed[$mime]) || !$isRealImage) {
                 $errorMessage = 'Formato de imagem não suportado. Use JPG, PNG ou WEBP.';
-            } elseif ($_FILES['avatar']['size'] > 2 * 1024 * 1024) {
+            } elseif ($size <= 0 || $size > 2 * 1024 * 1024) {
                 $errorMessage = 'Imagem muito grande. O limite é 2 MB.';
             } else {
                 $ext = $allowed[$mime];

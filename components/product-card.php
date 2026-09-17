@@ -27,6 +27,14 @@ $_pstock = isset($product_stock) ? (int) $product_stock : 1;
 $_pis_new = !empty($product_is_new);
 $_pis_feat = !empty($product_is_featured);
 
+// Estado de favorito: aceita $product_is_favorite explícito ou usa a lista
+// $favoriteIds montada pelo header para o usuário logado.
+if (isset($product_is_favorite)) {
+    $_is_fav = (bool) $product_is_favorite;
+} else {
+    $_is_fav = !empty($favoriteIds) && in_array($_pid, $favoriteIds, true);
+}
+
 $base = $base_path ?? '';
 require_once __DIR__ . '/../includes/image_helpers.php';
 $imageCandidate = renderProductImage((string) $_pimage, $base);
@@ -52,9 +60,9 @@ $_outOfStock = $_pstock <= 0;
             <span class="ml-card-freeship">Frete grátis</span>
         <?php endif; ?>
 
-        <button class="ml-card-wishlist js-require-auth" data-auth-target="favoritos"
-                data-product-id="<?php echo $_pid; ?>" title="Favoritar" aria-label="Favoritar produto">
-            <i class="far fa-heart"></i>
+        <button class="ml-card-wishlist js-require-auth<?php echo $_is_fav ? ' is-active' : ''; ?>" data-auth-target="favoritos"
+                data-product-id="<?php echo $_pid; ?>" title="<?php echo $_is_fav ? 'Remover dos favoritos' : 'Favoritar'; ?>" aria-label="<?php echo $_is_fav ? 'Remover dos favoritos' : 'Favoritar produto'; ?>" aria-pressed="<?php echo $_is_fav ? 'true' : 'false'; ?>">
+            <i class="<?php echo $_is_fav ? 'fas' : 'far'; ?> fa-heart"></i>
         </button>
 
         <a href="<?php echo $base; ?>pages/products/product-detail.php?id=<?php echo $_pid; ?>">

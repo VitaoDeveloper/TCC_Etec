@@ -3,36 +3,58 @@ $page_title = 'Gerenciar Clientes - Royal Tech';
 include 'auth_check.php';
 include '../../database/connection.php';
 require_once __DIR__ . '/../../includes/csrf.php';
+require_once __DIR__ . '/../../includes/pagination.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete') {
     csrf_require_valid();
     $id = (int) ($_POST['id'] ?? 0);
     if ($id > 0) {
-        $pdo->prepare('DELETE FROM e5_users WHERE id = :id AND role = :role')->execute([':id' => $id, ':role' => 'customer']);
-        $_SESSION['admin_message'] = 'Cliente excluído.';
+        // FK fk_orders_user é RESTRICT: preserva o histórico de pedidos do cliente.
+        $linked = $pdo->prepare('SELECT COUNT(*) FROM e5_orders WHERE user_id = :id');
+        $linked->execute([':id' => $id]);
+        $linkedCount = (int) $linked->fetchColumn();
+        if ($linkedCount > 0) {
+            $_SESSION['admin_error'] = 'Não é possível excluir este cliente: há ' . $linkedCount . ' pedido(s) vinculado(s) ao histórico.';
+        } else {
+            $pdo->prepare('DELETE FROM e5_users WHERE id = :id AND role = :role')->execute([':id' => $id, ':role' => 'customer']);
+            $_SESSION['admin_message'] = 'Cliente excluído.';
+        }
     }
     header('Location: customers.php');
     exit;
 }
 
 $search = trim((string) ($_GET['q'] ?? ''));
-$sql = 'SELECT id, name, email, username, created_at FROM e5_users WHERE role = :role';
+$where = "WHERE role = :role";
 $params = [':role' => 'customer'];
 if ($search !== '') {
-    $sql .= ' AND (name LIKE :q_name OR email LIKE :q_email OR username LIKE :q_username)';
+    $where .= ' AND (name LIKE :q_name OR email LIKE :q_email OR username LIKE :q_username)';
     $pattern = '%' . $search . '%';
     $params[':q_name'] = $pattern;
     $params[':q_email'] = $pattern;
     $params[':q_username'] = $pattern;
 }
-$sql .= ' ORDER BY created_at DESC';
+
+$countStmt = $pdo->prepare("SELECT COUNT(*) FROM e5_users $where");
+$countStmt->execute($params);
+$total = (int) $countStmt->fetchColumn();
+
+$page = pagination_page();
+$limit = pagination_limit(20);
+$totalPages = max(1, (int) ceil($total / $limit));
+if ($page > $totalPages) {
+    $page = $totalPages;
+}
+$offset = pagination_offset($page, $limit);
+
+$sql = "SELECT id, name, email, username, created_at FROM e5_users $where ORDER BY created_at DESC LIMIT $limit OFFSET $offset";
 $customers = $pdo->prepare($sql);
 $customers->execute($params);
 $customers = $customers->fetchAll();
 
-$total = count($customers);
 $message = $_SESSION['admin_message'] ?? null;
-unset($_SESSION['admin_message']);
+$error = $_SESSION['admin_error'] ?? null;
+unset($_SESSION['admin_message'], $_SESSION['admin_error']);
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -52,19 +74,26 @@ unset($_SESSION['admin_message']);
                     <p><?php echo $total; ?> cliente(s) cadastrado(s)</p>
                 </div>
                 <div class="admin-actions">
-                    <button class="btn btn-secondary" aria-label="Exportar clientes"><i class="fas fa-file-export"></i> Exportar</button>
+                    <a class="btn btn-secondary" href="customers-export.php?q=<?php echo urlencode($search); ?>" aria-label="Exportar clientes em CSV"><i class="fas fa-file-export"></i> Exportar</a>
                     <?php include 'header_user_inc.php'; ?>
                 </div>
             </header>
             <?php if ($message): ?>
             <div class="auth-feedback auth-feedback-success"><?php echo htmlspecialchars($message, ENT_QUOTES, 'UTF-8'); ?></div>
             <?php endif; ?>
+            <?php if ($error): ?>
+            <div class="auth-feedback auth-feedback-error"><?php echo htmlspecialchars($error, ENT_QUOTES, 'UTF-8'); ?></div>
+            <?php endif; ?>
             <div class="admin-table-container">
                 <div class="admin-table-header">
-                    <form method="GET" style="display:flex; gap:10px;">
-                        <input type="text" name="q" placeholder="Buscar por nome, e-mail ou usuário..." value="<?php echo htmlspecialchars($search, ENT_QUOTES, 'UTF-8'); ?>" style="padding: 8px 15px; border: 1px solid var(--color-border); border-radius: 5px; background: var(--color-black); color: var(--color-white); width: 300px;">
+                    <form method="GET" class="admin-filter-bar">
+                        <input type="text" name="q" placeholder="Buscar por nome, e-mail ou usuário..." value="<?php echo htmlspecialchars($search, ENT_QUOTES, 'UTF-8'); ?>">
                         <button type="submit" class="btn btn-secondary" aria-label="Buscar clientes"><i class="fas fa-search"></i></button>
+                        <?php if ($search !== ''): ?>
+                        <a href="customers.php" class="btn btn-secondary" aria-label="Limpar busca"><i class="fas fa-times"></i> Limpar</a>
+                        <?php endif; ?>
                     </form>
+                    <span class="pagination-summary"><?php echo $total; ?> registro(s)</span>
                 </div>
                 <table class="admin-table">
                     <thead>
@@ -117,6 +146,7 @@ unset($_SESSION['admin_message']);
                         <?php endforeach; endif; ?>
                     </tbody>
                 </table>
+                <?php echo pagination_render($page, $totalPages, ['q' => $search]); ?>
             </div>
         </main>
     </div>

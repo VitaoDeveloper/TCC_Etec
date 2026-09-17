@@ -18,6 +18,7 @@ require_once $base_path . 'includes/coupon_functions.php';
 
 $userId = (int) $_SESSION['user_id'];
 $items = cartGetItems($pdo, $userId);
+$savedItems = cartGetSavedItems($pdo, $userId);
 
 $freeThreshold = max(1, (float) (store_config('free_shipping_threshold') ?? 500));
 
@@ -123,6 +124,7 @@ include $base_path . 'components/header.php';
             <p>Explore nossos produtos e encontre o que precisa.</p>
             <p style="margin-top: 16px;"><a href="../products/products.php" class="ml-btn ml-btn-primary"><i class="fas fa-store"></i> Ver Produtos</a></p>
         </div>
+        <?php include __DIR__ . '/_saved_items.php'; ?>
     <?php else: ?>
 
     <div class="ml-cart-layout" id="mlCartLayout" data-freeship-threshold="<?php echo (float) $freeThreshold; ?>">
@@ -188,6 +190,7 @@ include $base_path . 'components/header.php';
                                     <input type="number" class="cart-qty" value="<?php echo $qty; ?>" min="0" max="<?php echo $stock; ?>" aria-label="Quantidade">
                                     <button type="button" class="cart-qty-btn" data-action="inc" aria-label="Aumentar quantidade">+</button>
                                 </div>
+                                <button type="button" class="ml-item-save" data-product-id="<?php echo (int) $item['product_id']; ?>" title="Salvar para depois" aria-label="Salvar para depois"><i class="far fa-bookmark"></i></button>
                                 <button type="button" class="ml-item-wishlist" data-product-id="<?php echo (int) $item['product_id']; ?>" title="Mover para favoritos" aria-label="Mover para favoritos"><i class="far fa-heart"></i></button>
                                 <button type="button" class="cart-remove ml-item-remove" title="Remover" aria-label="Remover item do carrinho"><i class="fas fa-trash-alt"></i></button>
                             </div>
@@ -269,6 +272,8 @@ include $base_path . 'components/header.php';
             <p class="ml-summary-secure" style="margin-bottom:0;"><i class="fas fa-lock" style="color: var(--ml-accent);"></i> Compra segura com Royal Tech</p>
         </aside>
     </div>
+
+    <?php include __DIR__ . '/_saved_items.php'; ?>
 
     <?php if (!empty($recommendations)): ?>
     <div class="ml-recommend" style="margin-top: 24px;">
@@ -428,6 +433,23 @@ function recalc() {
         updateHeaderBadge(items);
     }
 
+    // Remove visualmente a linha + limpa grupos vazios. Se o carrinho ativo ficar vazio, recarrega.
+    function dropRow(row) {
+        row.style.transition = 'opacity .3s, transform .3s';
+        row.style.opacity = '0';
+        row.style.transform = 'scale(.97)';
+        setTimeout(() => {
+            const group = row.closest('.ml-seller-group');
+            row.remove();
+            if (group && !group.querySelector('.ml-item')) group.remove();
+            if (!document.querySelector('#mlCartLayout .ml-seller-group')) {
+                location.reload();
+            } else {
+                recalcCoupon();
+            }
+        }, 300);
+    }
+
     // Qty
     $$('.ml-item-qty .cart-qty-btn').forEach(btn => {
         btn.addEventListener('click', function () {
@@ -447,6 +469,7 @@ function recalc() {
                 if (d.success) {
                     row.dataset.qty = val;
                     input.value = val;
+                    if (val === 0) { dropRow(row); return; }
                     recalcCoupon();
                 } else {
                     showMsg(d.message || 'Não foi possível atualizar.');
@@ -469,6 +492,7 @@ function recalc() {
             }).then(r => r.json()).then(d => {
                 if (d.success) {
                     row.dataset.qty = val;
+                    if (val === 0) { dropRow(row); return; }
                     recalcCoupon();
                 } else {
                     showMsg(d.message || 'Não foi possível atualizar.');
@@ -560,6 +584,166 @@ function recalc() {
             });
         });
     });
+
+    // ===== Salvar para depois / Salvos para depois =====
+    const savedList = document.getElementById('savedList');
+    const savedBlock = document.getElementById('savedBlock');
+    const savedEmpty = document.getElementById('savedEmpty');
+
+    function refreshSavedCount() {
+        if (!savedList) return;
+        const n = savedList.querySelectorAll('.ml-saved-item').length;
+        const c = document.getElementById('savedCount');
+        if (c) c.textContent = n;
+        if (savedBlock) savedBlock.hidden = n === 0;
+        if (savedEmpty) savedEmpty.hidden = n > 0;
+    }
+
+    function buildSavedItem(info) {
+        const el = document.createElement('div');
+        el.className = 'ml-saved-item';
+        el.dataset.productId = info.id;
+        el.dataset.price = info.price;
+        el.dataset.old = info.old;
+        el.dataset.qty = info.qty;
+        el.dataset.stock = info.stock;
+        el.innerHTML =
+            '<a class="ml-saved-img" href="' + info.href + '"><img src="' + info.img + '" alt=""></a>' +
+            '<div class="ml-saved-body">' +
+                '<a class="ml-saved-name" href="' + info.href + '"></a>' +
+                '<div class="ml-saved-prices"></div>' +
+                '<span class="ml-saved-qty">Qtd.: ' + info.qty + '</span>' +
+            '</div>' +
+            '<div class="ml-saved-actions">' +
+                '<button type="button" class="ml-saved-restore"><i class="fas fa-cart-plus"></i> Mover para o carrinho</button>' +
+                '<button type="button" class="ml-saved-remove cart-remove" title="Remover" aria-label="Remover item dos salvos"><i class="fas fa-trash-alt"></i></button>' +
+            '</div>';
+        el.querySelector('.ml-saved-name').textContent = info.name;
+        const prices = el.querySelector('.ml-saved-prices');
+        if (parseFloat(info.old) > parseFloat(info.price)) {
+            const o = document.createElement('span');
+            o.className = 'ml-saved-old';
+            o.textContent = fmt(parseFloat(info.old));
+            prices.appendChild(o);
+        }
+        const p = document.createElement('span');
+        p.className = 'ml-saved-price';
+        p.textContent = fmt(parseFloat(info.price));
+        prices.appendChild(p);
+        return el;
+    }
+
+    function bindSavedItem(root) {
+        $$('.ml-saved-restore', root).forEach(btn => {
+            if (btn.dataset.bound) return;
+            btn.dataset.bound = '1';
+            btn.addEventListener('click', function () {
+                const item = this.closest('.ml-saved-item');
+                const pid = item.dataset.productId;
+                this.disabled = true;
+                fetch('save-for-later.php', {
+                    method: 'POST', headers: csrfHeaders(), body: 'product_id=' + pid + '&mode=restore'
+                }).then(r => r.json()).then(d => {
+                    if (!d.success) {
+                        this.disabled = false;
+                        if (window.showToast) showToast(d.message || 'Não foi possível mover.', 'error'); else showMsg(d.message || 'Não foi possível mover.');
+                        return;
+                    }
+                    sessionStorage.setItem('rtCartFlash', d.message || 'Produto movido para o carrinho.');
+                    location.reload();
+                }).catch(() => {
+                    this.disabled = false;
+                    if (window.showToast) showToast('Erro ao mover para o carrinho.', 'error');
+                });
+            });
+        });
+        $$('.ml-saved-remove', root).forEach(btn => {
+            if (btn.dataset.bound) return;
+            btn.dataset.bound = '1';
+            btn.addEventListener('click', function () {
+                const item = this.closest('.ml-saved-item');
+                const pid = item.dataset.productId;
+                fetch('remove.php', {
+                    method: 'POST', headers: csrfHeaders(), body: 'product_id=' + pid
+                }).then(r => r.json()).then(d => {
+                    if (!d.success) {
+                        if (window.showToast) showToast(d.message || 'Não foi possível remover.', 'error'); else showMsg(d.message || 'Não foi possível remover.');
+                        return;
+                    }
+                    item.remove();
+                    refreshSavedCount();
+                    if (window.showToast) showToast('Item removido dos salvos.', 'info');
+                }).catch(() => {
+                    if (window.showToast) showToast('Erro ao remover.', 'error');
+                });
+            });
+        });
+    }
+
+    $$('.ml-item-save').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const self = this;
+            const row = this.closest('.ml-item');
+            const pid = row.dataset.productId;
+            self.disabled = true;
+            fetch('save-for-later.php', {
+                method: 'POST', headers: csrfHeaders(), body: 'product_id=' + pid + '&mode=save'
+            }).then(r => r.json()).then(d => {
+                if (!d.success) {
+                    self.disabled = false;
+                    if (window.showToast) showToast(d.message || 'Não foi possível salvar.', 'error'); else showMsg(d.message || 'Não foi possível salvar.');
+                    return;
+                }
+                if (!savedList) { location.reload(); return; }
+                const imgEl = row.querySelector('.ml-item-img img');
+                const linkEl = row.querySelector('.ml-item-img');
+                const nameEl = row.querySelector('.ml-item-name');
+                const node = buildSavedItem({
+                    id: pid,
+                    name: nameEl ? nameEl.textContent : '',
+                    price: row.dataset.price,
+                    old: row.dataset.old,
+                    qty: row.dataset.qty,
+                    stock: row.dataset.stock,
+                    img: imgEl ? imgEl.src : '',
+                    href: linkEl ? linkEl.getAttribute('href') : ('../products/product-detail.php?id=' + pid)
+                });
+                savedList.appendChild(node);
+                bindSavedItem(node);
+                refreshSavedCount();
+                if (window.showToast) showToast('Produto salvo para depois.', 'success'); else showMsg('Produto salvo para depois.');
+
+                const group = row.closest('.ml-seller-group');
+                row.style.transition = 'opacity .3s, transform .3s';
+                row.style.opacity = '0';
+                row.style.transform = 'scale(.97)';
+                setTimeout(() => {
+                    row.remove();
+                    if (group && !group.querySelector('.ml-item')) group.remove();
+                    if (!document.querySelector('#mlCartLayout .ml-seller-group')) {
+                        location.reload();
+                    } else {
+                        recalcCoupon();
+                    }
+                }, 300);
+            }).catch(() => {
+                self.disabled = false;
+                if (window.showToast) showToast('Erro ao salvar para depois.', 'error');
+            });
+        });
+    });
+
+    bindSavedItem(document);
+    refreshSavedCount();
+
+    // Mensagem após recarregar (ex.: item movido de volta para o carrinho)
+    try {
+        const flash = sessionStorage.getItem('rtCartFlash');
+        if (flash) {
+            sessionStorage.removeItem('rtCartFlash');
+            if (window.showToast) showToast(flash, 'success');
+        }
+    } catch (e) {}
 
     // Select All
     const selAll = document.getElementById('selectAllItems');

@@ -40,3 +40,11 @@ if (!isset($GLOBALS['pdo'])) {
     $GLOBALS['pdo'] = $pdo;
 }
 $pdo = $GLOBALS['pdo'];
+
+// Alinha o fuso da sessão MySQL ao fuso da loja (America/Sao_Paulo, UTC-3),
+// para que NOW()/created_at batam com as datas geradas em PHP.
+try {
+    $pdo->exec("SET time_zone = '-03:00'");
+} catch (Throwable $e) {
+    // Servidor sem tabelas de fuso horário: mantém o padrão do sistema.
+}

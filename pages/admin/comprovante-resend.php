@@ -24,18 +24,26 @@ if (!$order) {
     exit;
 }
 
-$compResult = gerarComprovante($orderId);
+$emailSent = false;
+$errorMsg = null;
 
-if ($compResult['success']) {
-    $emailSent = sendComprovanteEmail($orderId, $order['email'], $compResult['filename']);
-    $emailStatus = $emailSent ? 'sent' : 'failed';
-    $errorMsg = $emailSent ? null : 'Falha ao enviar e-mail (verifique logs)';
-} else {
-    $emailStatus = 'failed';
-    $errorMsg = $compResult['error'] ?? 'Falha ao gerar PDF';
+// Reutiliza o PDF já existente; só gera novo se ainda não houver.
+$pdfPath = getComprovantePath($orderId);
+if (!$pdfPath) {
+    $compResult = gerarComprovante($orderId);
+    if (!$compResult['success']) {
+        $_SESSION['admin_message'] = 'Falha ao gerar PDF: ' . ($compResult['error'] ?? 'Erro desconhecido');
+        header('Location: order-detail.php?id=' . $orderId);
+        exit;
+    }
+    $pdfPath = COMPROVANTE_DIR . $compResult['filename'];
 }
 
-salvarStatusEmail($orderId, $emailStatus, $errorMsg);
+$result = sendMailWithAttachment($order['email'], 'Seu comprovante de compra — pedido #' . str_pad((string) $orderId, 4, '0', STR_PAD_LEFT), 'Segue em anexo o comprovante de compra do pedido #' . str_pad((string) $orderId, 4, '0', STR_PAD_LEFT) . '.', $pdfPath);
+$emailSent = (bool) $result;
+$errorMsg = $emailSent ? null : 'Falha ao enviar e-mail (verifique os logs).';
+
+salvarStatusEmail($orderId, $emailSent ? 'sent' : 'failed', $errorMsg);
 
 $_SESSION['admin_message'] = $emailSent ? 'Comprovante reenviado com sucesso!' : 'Falha ao reenviar comprovante: ' . ($errorMsg ?? 'Erro desconhecido');
 header('Location: order-detail.php?id=' . $orderId);

@@ -4,31 +4,86 @@ include 'auth_check.php';
 include '../../database/connection.php';
 require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../includes/status_labels.php';
+require_once __DIR__ . '/../../includes/order_payment_functions.php';
+require_once __DIR__ . '/../../includes/notifications_functions.php';
+require_once __DIR__ . '/../../includes/pagination.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'update_status') {
     csrf_require_valid();
     $orderId = (int) ($_POST['order_id'] ?? 0);
     $newStatus = (string) ($_POST['status'] ?? '');
+    $adminName = trim((string) ($_SESSION['user_name'] ?? '')) ?: 'Administrador';
     $allowed = ['pending', 'paid', 'shipped', 'delivered', 'canceled'];
     if ($orderId > 0 && in_array($newStatus, $allowed, true)) {
-        $stmt = $pdo->prepare('UPDATE e5_orders SET status = :status WHERE id = :id');
-        $stmt->execute([':status' => $newStatus, ':id' => $orderId]);
-        $_SESSION['admin_message'] = 'Status do pedido atualizado.';
+        $target = orderGetById($pdo, $orderId);
+        if ($target && $target['status'] !== $newStatus) {
+            if ($newStatus === 'paid') {
+                // Ao confirmar pagamento, mantém o status e marca payment_status.
+                if (orderMarkPaid($pdo, $orderId, $adminName)) {
+                    notificationTrigger('order_paid', $orderId, [], $pdo);
+                }
+            } elseif ($newStatus === 'canceled') {
+                if (orderCancelAdmin($pdo, $orderId, $adminName, 'Alteração de status pela lista de pedidos.')['ok']) {
+                    notificationTrigger('order_canceled', $orderId, ['reason' => 'Alteração de status pela lista de pedidos.'], $pdo);
+                }
+            } else {
+                $pdo->prepare('UPDATE e5_orders SET status = :status WHERE id = :id')
+                    ->execute([':status' => $newStatus, ':id' => $orderId]);
+                orderHistoryAdd($pdo, $orderId, $newStatus, (string) $target['payment_status'], 'Status alterado pela lista de pedidos.', $adminName);
+                if ($newStatus === 'shipped') {
+                    notificationTrigger('order_shipped', $orderId, ['tracking' => (string) ($target['tracking_code'] ?? '')], $pdo);
+                } elseif ($newStatus === 'delivered') {
+                    notificationTrigger('order_delivered', $orderId, [], $pdo);
+                }
+            }
+            $_SESSION['admin_message'] = 'Status do pedido atualizado.';
+        }
     }
     header('Location: orders.php');
     exit;
 }
 
 $filter = (string) ($_GET['status'] ?? '');
-$sql = 'SELECT o.id, o.status, o.total, o.shipping_method, o.shipping_cost, o.payment_method, o.created_at, u.name AS user_name,
-        (SELECT COUNT(*) FROM e5_order_items oi WHERE oi.order_id = o.id) AS item_count
-        FROM e5_orders o INNER JOIN e5_users u ON u.id = o.user_id';
+if ($filter !== '' && !in_array($filter, array_keys($statusLabels), true)) {
+    $filter = '';
+}
+$search = trim((string) ($_GET['q'] ?? ''));
+
+$whereClauses = [];
 $params = [];
-if ($filter !== '' && in_array($filter, array_keys($statusLabels), true)) {
-    $sql .= ' WHERE o.status = :status';
+if ($filter !== '') {
+    $whereClauses[] = 'o.status = :status';
     $params[':status'] = $filter;
 }
-$sql .= ' ORDER BY o.created_at DESC';
+if ($search !== '') {
+    $clauses = ['u.name LIKE :q_name', 'u.email LIKE :q_email'];
+    $pattern = '%' . $search . '%';
+    $params[':q_name'] = $pattern;
+    $params[':q_email'] = $pattern;
+    if (ctype_digit($search)) {
+        $clauses[] = 'o.id = :q_id';
+        $params[':q_id'] = (int) $search;
+    }
+    $whereClauses[] = '(' . implode(' OR ', $clauses) . ')';
+}
+$where = $whereClauses ? 'WHERE ' . implode(' AND ', $whereClauses) : '';
+
+$countStmt = $pdo->prepare("SELECT COUNT(*) FROM e5_orders o INNER JOIN e5_users u ON u.id = o.user_id $where");
+$countStmt->execute($params);
+$total = (int) $countStmt->fetchColumn();
+
+$page = pagination_page();
+$limit = pagination_limit(20);
+$totalPages = max(1, (int) ceil($total / $limit));
+if ($page > $totalPages) {
+    $page = $totalPages;
+}
+$offset = pagination_offset($page, $limit);
+
+$sql = "SELECT o.id, o.status, o.total, o.shipping_method, o.shipping_cost, o.payment_method, o.created_at, u.name AS user_name,
+        (SELECT COUNT(*) FROM e5_order_items oi WHERE oi.order_id = o.id) AS item_count
+        FROM e5_orders o INNER JOIN e5_users u ON u.id = o.user_id
+        $where ORDER BY o.created_at DESC LIMIT $limit OFFSET $offset";
 $orders = $pdo->prepare($sql);
 $orders->execute($params);
 $orders = $orders->fetchAll();
@@ -51,12 +106,12 @@ unset($_SESSION['admin_message']);
             <header class="admin-header">
                 <div class="admin-title">
                     <h2>Gerenciar Pedidos</h2>
-                    <p><?php echo count($orders); ?> pedido(s) encontrado(s)</p>
+                    <p><?php echo $total; ?> pedido(s) encontrado(s)</p>
                 </div>
                 <div class="admin-actions">
-                    <a href="?status=" class="btn btn-secondary <?php echo $filter === '' ? 'active' : ''; ?>">Todos</a>
+                    <a href="?<?php echo htmlspecialchars(http_build_query(['status' => '', 'q' => $search]), ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-secondary <?php echo $filter === '' ? 'active' : ''; ?>">Todos</a>
                     <?php foreach ($statusLabels as $key => $info): ?>
-                    <a href="?status=<?php echo $key; ?>" class="btn btn-secondary <?php echo $filter === $key ? 'active' : ''; ?>"><?php echo $info['label']; ?></a>
+                    <a href="?<?php echo htmlspecialchars(http_build_query(['status' => $key, 'q' => $search]), ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-secondary <?php echo $filter === $key ? 'active' : ''; ?>"><?php echo $info['label']; ?></a>
                     <?php endforeach; ?>
                     <?php include 'header_user_inc.php'; ?>
                 </div>
@@ -65,6 +120,17 @@ unset($_SESSION['admin_message']);
             <div class="auth-feedback auth-feedback-success"><?php echo htmlspecialchars($message, ENT_QUOTES, 'UTF-8'); ?></div>
             <?php endif; ?>
             <div class="admin-table-container">
+                    <div class="admin-table-header">
+                        <h3>Pedidos <span class="pagination-summary">(<?php echo $total; ?>)</span></h3>
+                        <form method="GET" class="admin-filter-bar">
+                            <input type="hidden" name="status" value="<?php echo htmlspecialchars($filter, ENT_QUOTES, 'UTF-8'); ?>">
+                            <input type="text" name="q" placeholder="Buscar por #ID, cliente ou e-mail..." value="<?php echo htmlspecialchars($search, ENT_QUOTES, 'UTF-8'); ?>">
+                            <button type="submit" class="btn btn-secondary" aria-label="Buscar pedidos"><i class="fas fa-search"></i></button>
+                            <?php if ($search !== ''): ?>
+                            <a href="?<?php echo htmlspecialchars(http_build_query(['status' => $filter]), ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-secondary" aria-label="Limpar busca"><i class="fas fa-times"></i></a>
+                            <?php endif; ?>
+                        </form>
+                    </div>
                     <table class="admin-table">
                         <thead>
                             <tr>
@@ -114,6 +180,7 @@ unset($_SESSION['admin_message']);
                             <?php endforeach; endif; ?>
                         </tbody>
                     </table>
+                    <?php echo pagination_render($page, $totalPages, ['status' => $filter, 'q' => $search]); ?>
             </div>
         </main>
     </div>

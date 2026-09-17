@@ -3,6 +3,7 @@ $page_title = 'Gerenciar Produtos - Royal Tech';
 include 'auth_check.php';
 include '../../database/connection.php';
 require_once __DIR__ . '/../../includes/csrf.php';
+require_once __DIR__ . '/../../includes/pagination.php';
 $activePage = 'products';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -12,9 +13,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'delete') {
         $id = (int) ($_POST['product_id'] ?? 0);
         if ($id > 0) {
-            $stmt = $pdo->prepare('DELETE FROM e5_products WHERE id = :id');
-            $stmt->execute([':id' => $id]);
-            $_SESSION['admin_message'] = 'Produto removido com sucesso.';
+            // FK fk_order_items_product é RESTRICT: preserva o histórico de pedidos.
+            $linked = $pdo->prepare('SELECT COUNT(*) FROM e5_order_items WHERE product_id = :id');
+            $linked->execute([':id' => $id]);
+            $linkedCount = (int) $linked->fetchColumn();
+            if ($linkedCount > 0) {
+                $_SESSION['admin_error'] = 'Não é possível excluir este produto: ele consta em ' . $linkedCount . ' item(ns) de pedido. Zere o estoque para tirá-lo de venda.';
+            } else {
+                $stmt = $pdo->prepare('DELETE FROM e5_products WHERE id = :id');
+                $stmt->execute([':id' => $id]);
+                $_SESSION['admin_message'] = 'Produto removido com sucesso.';
+            }
         }
     }
 
@@ -22,9 +31,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
-$products = $pdo->query('SELECT p.id, p.name, p.price, p.stock, c.name AS category_name FROM e5_products p INNER JOIN e5_categories c ON c.id = p.category_id ORDER BY p.created_at DESC')->fetchAll();
+$search = trim((string) ($_GET['q'] ?? ''));
+$where = '';
+$params = [];
+if ($search !== '') {
+    $where = 'WHERE (p.name LIKE :q_name OR p.brand LIKE :q_brand)';
+    $pattern = '%' . $search . '%';
+    $params[':q_name'] = $pattern;
+    $params[':q_brand'] = $pattern;
+}
+
+$countStmt = $pdo->prepare("SELECT COUNT(*) FROM e5_products p $where");
+$countStmt->execute($params);
+$total = (int) $countStmt->fetchColumn();
+
+$page = pagination_page();
+$limit = pagination_limit(20);
+$totalPages = max(1, (int) ceil($total / $limit));
+if ($page > $totalPages) {
+    $page = $totalPages;
+}
+$offset = pagination_offset($page, $limit);
+
+$products = $pdo->prepare("SELECT p.id, p.name, p.price, p.stock, c.name AS category_name
+    FROM e5_products p INNER JOIN e5_categories c ON c.id = p.category_id
+    $where ORDER BY p.created_at DESC LIMIT $limit OFFSET $offset");
+$products->execute($params);
+$products = $products->fetchAll();
+
 $message = $_SESSION['admin_message'] ?? null;
-unset($_SESSION['admin_message']);
+$error = $_SESSION['admin_error'] ?? null;
+unset($_SESSION['admin_message'], $_SESSION['admin_error']);
 ?><!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -54,11 +91,20 @@ unset($_SESSION['admin_message']);
             <?php if ($message): ?>
             <div class="auth-feedback auth-feedback-success"><?php echo htmlspecialchars($message, ENT_QUOTES, 'UTF-8'); ?></div>
             <?php endif; ?>
+            <?php if ($error): ?>
+            <div class="auth-feedback auth-feedback-error"><?php echo htmlspecialchars($error, ENT_QUOTES, 'UTF-8'); ?></div>
+            <?php endif; ?>
 
             <div class="admin-table-container">
                 <div class="admin-table-header">
-                    <h3>Todos os produtos</h3>
-                    <span style="color:var(--color-gray); font-size:0.85rem;"><?php echo count($products); ?> produto(s)</span>
+                    <h3>Todos os produtos <span class="pagination-summary">(<?php echo $total; ?>)</span></h3>
+                    <form method="GET" class="admin-filter-bar">
+                        <input type="text" name="q" placeholder="Buscar por nome ou marca..." value="<?php echo htmlspecialchars($search, ENT_QUOTES, 'UTF-8'); ?>">
+                        <button type="submit" class="btn btn-secondary" aria-label="Buscar produtos"><i class="fas fa-search"></i></button>
+                        <?php if ($search !== ''): ?>
+                        <a href="products.php" class="btn btn-secondary" aria-label="Limpar busca"><i class="fas fa-times"></i></a>
+                        <?php endif; ?>
+                    </form>
                 </div>
                 <table class="admin-table">
                     <thead>
@@ -96,6 +142,7 @@ unset($_SESSION['admin_message']);
                         <?php endforeach; endif; ?>
                     </tbody>
                 </table>
+                <?php echo pagination_render($page, $totalPages, ['q' => $search]); ?>
             </div>
         </main>
     </div>

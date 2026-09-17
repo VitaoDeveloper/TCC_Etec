@@ -26,6 +26,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             include $base_path . 'database/connection.php';
             $stmt = $pdo->prepare('INSERT INTO e5_contacts (name, email, phone, subject, message) VALUES (:name, :email, :phone, :subject, :message)');
             $stmt->execute([':name' => $name, ':email' => $email, ':phone' => $phone ?: null, ':subject' => $subject, ':message' => $message]);
+            require_once __DIR__ . '/../../includes/notifications_functions.php';
+            notificationContactAutoReply(['id' => (int) $pdo->lastInsertId(), 'name' => $name, 'email' => $email, 'subject' => $subject], $pdo);
             $contactMessage = 'Mensagem enviada com sucesso! Responderemos em breve.';
         } catch (Throwable $e) {
             $contactError = 'Erro ao enviar mensagem. Tente novamente.';

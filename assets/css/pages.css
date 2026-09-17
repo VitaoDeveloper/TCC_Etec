@@ -1,0 +1,273 @@
+/* ============================================================
+   ROYAL TECH — PÁGINAS INSTITUCIONAIS
+   Termos, privacidade, FAQ, frete, trocas e carreiras.
+   Consome os tokens de tokens.css (tema escuro premium preto + dourado).
+   ============================================================ */
+
+.inst-page {
+    padding-bottom: var(--tk-sp-7);
+}
+
+.inst-hero {
+    background: var(--tk-card);
+    border: 1px solid var(--tk-border);
+    border-radius: var(--tk-radius-lg);
+    padding: var(--tk-sp-6) var(--tk-sp-5);
+    margin-bottom: var(--tk-sp-5);
+}
+
+.inst-hero h1 {
+    font-size: 1.9rem;
+    margin-bottom: var(--tk-sp-2);
+}
+
+.inst-hero p {
+    margin: 0;
+    color: var(--tk-text-secondary);
+    max-width: 720px;
+}
+
+.inst-layout {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: var(--tk-sp-5);
+    align-items: start;
+}
+
+.inst-nav {
+    position: sticky;
+    top: calc(var(--tk-header-h) + var(--ml-category-bar-height, 48px) + var(--tk-sp-4));
+    background: var(--tk-card);
+    border: 1px solid var(--tk-border);
+    border-radius: var(--tk-radius-lg);
+    padding: var(--tk-sp-3);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.inst-nav a {
+    display: flex;
+    align-items: center;
+    gap: var(--tk-sp-2);
+    padding: 10px 12px;
+    border-radius: var(--tk-radius);
+    color: var(--tk-text-secondary);
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.inst-nav a:hover {
+    background: var(--tk-card-alt);
+    color: var(--tk-text);
+}
+
+.inst-nav a.active {
+    background: var(--tk-blue-soft);
+    color: var(--tk-blue);
+    font-weight: 600;
+}
+
+.inst-nav a i {
+    width: 16px;
+    text-align: center;
+}
+
+.inst-content {
+    background: var(--tk-card);
+    border: 1px solid var(--tk-border);
+    border-radius: var(--tk-radius-lg);
+    padding: var(--tk-sp-6);
+}
+
+.inst-content > :first-child { margin-top: 0; }
+
+.inst-content h2 {
+    font-size: 1.35rem;
+    margin: var(--tk-sp-6) 0 var(--tk-sp-3);
+    padding-bottom: var(--tk-sp-2);
+    border-bottom: 1px solid var(--tk-border);
+}
+
+.inst-content h2:first-child { margin-top: 0; }
+
+.inst-content h3 {
+    font-size: 1.05rem;
+    margin: var(--tk-sp-5) 0 var(--tk-sp-2);
+}
+
+.inst-content p,
+.inst-content li {
+    color: var(--tk-text-secondary);
+    line-height: 1.7;
+}
+
+.inst-content ul,
+.inst-content ol {
+    margin: 0 0 var(--tk-sp-4);
+    padding-left: 1.4rem;
+}
+
+.inst-content li { margin-bottom: var(--tk-sp-2); }
+
+.inst-content a { color: var(--tk-blue); }
+.inst-content a:hover { text-decoration: underline; }
+
+.inst-content strong { color: var(--tk-text); }
+
+.inst-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--tk-sp-2);
+    margin-top: var(--tk-sp-5);
+    padding-top: var(--tk-sp-4);
+    border-top: 1px solid var(--tk-border);
+    color: var(--tk-text-muted);
+    font-size: 13px;
+}
+
+.inst-callout {
+    display: flex;
+    gap: var(--tk-sp-3);
+    align-items: flex-start;
+    margin: var(--tk-sp-5) 0;
+    padding: var(--tk-sp-4);
+    background: var(--tk-blue-soft);
+    border: 1px solid rgba(52, 131, 250, .25);
+    border-radius: var(--tk-radius);
+    color: var(--tk-text);
+}
+
+.inst-callout i {
+    color: var(--tk-blue);
+    font-size: 1.1rem;
+    margin-top: 2px;
+}
+
+.inst-callout p { margin: 0; color: var(--tk-text); }
+.inst-callout a { color: var(--tk-blue); font-weight: 600; }
+
+/* FAQ — acordeão nativo */
+.inst-faq {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tk-sp-2);
+}
+
+.inst-faq details {
+    background: var(--tk-card);
+    border: 1px solid var(--tk-border);
+    border-radius: var(--tk-radius);
+    overflow: hidden;
+}
+
+.inst-faq summary {
+    display: flex;
+    align-items: center;
+    gap: var(--tk-sp-3);
+    padding: var(--tk-sp-4);
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--tk-text);
+    list-style: none;
+}
+
+.inst-faq summary::-webkit-details-marker { display: none; }
+
+.inst-faq summary::after {
+    content: '\f078';
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    margin-left: auto;
+    font-size: .75rem;
+    color: var(--tk-text-muted);
+    transition: transform .2s ease;
+}
+
+.inst-faq details[open] summary::after { transform: rotate(180deg); }
+
+.inst-faq details[open] summary {
+    border-bottom: 1px solid var(--tk-border);
+    color: var(--tk-blue);
+}
+
+.inst-faq .inst-faq-body {
+    padding: var(--tk-sp-4);
+    color: var(--tk-text-secondary);
+    line-height: 1.7;
+}
+
+.inst-faq .inst-faq-body p:last-child { margin-bottom: 0; }
+
+/* Cards utilitários (frete, carreiras) */
+.inst-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: var(--tk-sp-4);
+    margin: var(--tk-sp-5) 0;
+}
+
+.inst-card {
+    padding: var(--tk-sp-4);
+    background: var(--tk-card-alt);
+    border: 1px solid var(--tk-border);
+    border-radius: var(--tk-radius);
+}
+
+.inst-card i {
+    font-size: 1.4rem;
+    color: var(--tk-blue);
+    margin-bottom: var(--tk-sp-3);
+}
+
+.inst-card h4 { margin: 0 0 var(--tk-sp-1); font-size: 1rem; }
+.inst-card p { margin: 0; font-size: 14px; }
+
+.inst-steps {
+    counter-reset: inst-step;
+    list-style: none;
+    padding: 0;
+    margin: var(--tk-sp-4) 0;
+}
+
+.inst-steps li {
+    position: relative;
+    padding-left: 44px;
+    margin-bottom: var(--tk-sp-4);
+}
+
+.inst-steps li::before {
+    counter-increment: inst-step;
+    content: counter(inst-step);
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--tk-blue);
+    color: #fff;
+    font-weight: 700;
+    font-size: 14px;
+}
+
+.inst-steps li strong {
+    display: block;
+    color: var(--tk-text);
+    margin-bottom: 2px;
+}
+
+@media (max-width: 860px) {
+    .inst-layout { grid-template-columns: 1fr; }
+    .inst-nav {
+        position: static;
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    .inst-nav a { flex: 1 1 auto; }
+    .inst-content { padding: var(--tk-sp-4); }
+    .inst-hero { padding: var(--tk-sp-5) var(--tk-sp-4); }
+}

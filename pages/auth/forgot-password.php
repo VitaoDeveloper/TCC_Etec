@@ -22,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $pdo->prepare('INSERT INTO e5_password_reset_tokens (user_id, token, expires_at) VALUES (:uid, :token, DATE_ADD(NOW(), INTERVAL 1 HOUR))');
             $stmt->execute([':uid' => $user['id'], ':token' => $token]);
 
-            $resetLink = 'https://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/TCC_Etec/pages/auth/reset-password.php?token=' . $token;
+            $resetLink = app_base_url() . '/pages/auth/reset-password.php?token=' . $token;
             $body = '<p>Olá ' . htmlspecialchars($user['name'], ENT_QUOTES, 'UTF-8') . ',</p><p>Recebemos uma solicitação de redefinição de senha para sua conta na Royal Tech.</p><p><a href="' . htmlspecialchars($resetLink, ENT_QUOTES, 'UTF-8') . '" style="display:inline-block; padding:12px 30px; background:#d4af37; color:#1a1a1a; text-decoration:none; font-weight:700; border-radius:30px;">Redefinir Senha</a></p><p>Link válido por 1 hora. Se não foi você, ignore este e-mail.</p>';
             sendMail($email, 'Redefinição de Senha - Royal Tech', $body);
         }

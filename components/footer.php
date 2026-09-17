@@ -22,9 +22,9 @@
                         <h4>Institucional</h4>
                         <ul>
                             <li><a href="<?php echo $base_path ?? ''; ?>pages/products/about.php">Sobre Nós</a></li>
-                            <li><a href="#">Trabalhe Conosco</a></li>
-                            <li><a href="#">Termos de Uso</a></li>
-                            <li><a href="#">Política de Privacidade</a></li>
+                            <li><a href="<?php echo $base_path ?? ''; ?>pages/products/careers.php">Trabalhe Conosco</a></li>
+                            <li><a href="<?php echo $base_path ?? ''; ?>pages/products/terms.php">Termos de Uso</a></li>
+                            <li><a href="<?php echo $base_path ?? ''; ?>pages/products/privacy.php">Política de Privacidade</a></li>
                         </ul>
                     </div>
                     
@@ -32,9 +32,9 @@
                         <h4>Atendimento</h4>
                         <ul>
                             <li><a href="<?php echo $base_path ?? ''; ?>pages/products/contact.php">Fale Conosco</a></li>
-                            <li><a href="#">Perguntas Frequentes</a></li>
-                            <li><a href="#">Frete e Entrega</a></li>
-                            <li><a href="#">Trocas e Devoluções</a></li>
+                            <li><a href="<?php echo $base_path ?? ''; ?>pages/products/faq.php">Perguntas Frequentes</a></li>
+                            <li><a href="<?php echo $base_path ?? ''; ?>pages/products/shipping.php">Frete e Entrega</a></li>
+                            <li><a href="<?php echo $base_path ?? ''; ?>pages/products/returns.php">Trocas e Devoluções</a></li>
                         </ul>
                     </div>
                     
