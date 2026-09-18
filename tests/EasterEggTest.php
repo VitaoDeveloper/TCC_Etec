@@ -7,7 +7,7 @@ namespace TCC\Tests;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Teste automatizado do easter egg "Modo Realeza" (chuva de coroas + icone do Corinthians).
+ * Teste automatizado do easter egg "Modo Realeza" (chuva de coroas + icone da selecao).
  *
  * Verifica:
  *   1. O asset de imagem existe e tem assinatura PNG válida.
@@ -21,7 +21,7 @@ final class EasterEggTest extends TestCase
 
     private const HASHES_FILE = '.github/easter-egg-hashes.json';
 
-    private const ICON_PATH = 'assets/img/corinthians.png';
+    private const ICON_PATH = 'assets/img/ui/effects/textures/selecao.png';
 
     private const HEADER_PATH = 'components/header.php';
 
@@ -46,18 +46,18 @@ final class EasterEggTest extends TestCase
     //  Imagem do icone
     // =====================================================================
 
-    public function testCorinthiansIconFileExists(): void
+    public function testSelecaoIconFileExists(): void
     {
         $this->assertFileExists(self::ROOT . '/' . self::ICON_PATH);
     }
 
-    public function testCorinthiansIconIsValidPng(): void
+    public function testSelecaoIconIsValidPng(): void
     {
         $raw = $this->readAsset(self::ICON_PATH);
         $this->assertStringStartsWith(self::PNG_MAGIC, $raw, 'Arquivo não é PNG válido.');
     }
 
-    public function testCorinthiansIconHashMatchesReference(): void
+    public function testSelecaoIconHashMatchesReference(): void
     {
         $raw   = $this->readAsset(self::ICON_PATH);
         $hash  = hash('sha256', $raw);
@@ -92,7 +92,7 @@ final class EasterEggTest extends TestCase
         );
     }
 
-    public function testHeaderSnippetRendersCorinthiansIcon(): void
+    public function testHeaderSnippetRendersSelecaoIcon(): void
     {
         $snippet = $this->extractSnippet(
             self::HEADER_PATH,
@@ -101,9 +101,9 @@ final class EasterEggTest extends TestCase
         );
         $this->assertStringContainsString("createElement('img')", $snippet);
         $this->assertMatchesRegularExpression(
-            '/el\.src\s*=.*corinthians\.png/',
+            '/el\.src\s*=.*selecao\.png/',
             $snippet,
-            'O trecho deve criar <img> apontando para corinthians.png.'
+            'O trecho deve criar <img> apontando para selecao.png.'
         );
     }
 

@@ -208,7 +208,7 @@ document.addEventListener('DOMContentLoaded', function() {
        EASTER EGG — Modo Realeza (PROTEGIDO / MONITORADO)
 
        Este bloco É INTENCIONAL: a "chuva" de coroas (fa-crown) e do
-       ícone do Corinthians (assets/img/corinthians.png) é um easter
+       ícone da seleção (assets/img/ui/effects/textures/selecao.png) é um easter
        egg acionado ao clicar 10x na busca vazia. Nenhum erro aqui.
 
        Ele é protegido por CI: os hashes SHA-256 deste trecho, do CSS
@@ -246,7 +246,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 el.style.fontSize = size + 'px';
             } else {
                 el = document.createElement('img');
-                el.src = '<?php echo $basePath; ?>assets/img/corinthians.png';
+                el.src = '<?php echo $basePath; ?>assets/img/ui/effects/textures/selecao.png';
                 el.alt = '';
                 el.className = 'royal-crown royal-troll';
                 el.style.width = size + 'px';

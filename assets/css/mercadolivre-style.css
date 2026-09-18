@@ -1772,8 +1772,8 @@ body.ml-layout-active {
    Easter egg — Modo Realeza
    ========================================
    ESTE BLOCO É INTENCIONAL E PROTEGIDO / MONITORADO.
-   Anima a "chuva" de coroas e do ícone do Corinthians
-   (assets/img/corinthians.png, ver components/header.php).
+   Anima a "chuva" de coroas e do ícone da seleção
+   (assets/img/ui/effects/textures/selecao.png, ver components/header.php).
 
    Hashes conferidos por CI em .github/easter-egg-hashes.json
    (workflow .github/workflows/easter-egg-guard.yml, roda em todo

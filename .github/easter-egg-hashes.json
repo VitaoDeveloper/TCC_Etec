@@ -2,19 +2,19 @@
   "version": 1,
   "expected_file_count": 7,
   "protected_by": "@jotaomh",
-  "description": "Hashes SHA-256 esperados do easter egg 'Modo Realeza' (chuva de coroas + icone do Corinthians) e dos efeitos visuais do tema. Conferidos pelo workflow .github/workflows/easter-egg-guard.yml em todo PR. Alteracoes intencionais exigem review de @jotaomh (ver .github/CODEOWNERS).",
+  "description": "Hashes SHA-256 esperados do easter egg 'Modo Realeza' (chuva de coroas + icone da selecao) e dos efeitos visuais do tema. Conferidos pelo workflow .github/workflows/easter-egg-guard.yml em todo PR. Alteracoes intencionais exigem review de @jotaomh (ver .github/CODEOWNERS).",
   "files": {
-    "assets/img/corinthians.png": {
+    "assets/img/ui/effects/textures/selecao.png": {
       "type": "file",
       "sha256": "0c77580f3747bda5388034650633825ba15a5ec365b6d26778c9c2d645f747a1",
-      "note": "Icone do Corinthians exibido na chuva do modo realeza (30% dos elementos)."
+      "note": "Icone da selecao exibido na chuva do modo realeza (30% dos elementos)."
     },
     "components/header.php": {
       "type": "snippet",
       "start_marker": "// === BEGIN EASTER EGG -- MODO REALEZA (PROTEGIDO) ===",
       "end_marker": "// === END EASTER EGG -- MODO REALEZA (PROTEGIDO) ===",
-      "sha256": "19d553349785c7f80e94708d54e4a3b7293b71803394028b88bac95825b4de5f",
-      "note": "Trecho em components/header.php que renderiza as coroas (fa-crown) e referencia assets/img/corinthians.png."
+      "sha256": "f50aefe934e8263521e7ad261f57585e4af3b264bc7942df54686b2fcd906a99",
+      "note": "Trecho em components/header.php que renderiza as coroas (fa-crown) e referencia assets/img/ui/effects/textures/selecao.png."
     },
     "assets/css/mercadolivre-style.css": {
       "type": "snippet",
