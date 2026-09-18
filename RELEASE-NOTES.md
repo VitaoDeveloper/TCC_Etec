@@ -6,6 +6,18 @@
 
 ---
 
+## Correção de CI — infra de integridade duplicada
+
+Os checks "Easter Egg Guard" e "PHPUnit" estavam falhando na PR #85 porque o
+rename da infra de proteção (`easter-egg-*` → `asset-integrity-*`) deixou os
+arquivos antigos no repositório, ainda referenciando os marcadores de texto
+antigos que foram renomeados. Os arquivos órfãos (`easter-egg-hashes.json`,
+`easter-egg-guard.yml`, `check/update-easter-egg-hashes.sh`,
+`EasterEggTest.php`) foram removidos; a versão neutra (`asset-integrity-*`)
+já cobria os mesmos arquivos protegidos e passou a ser a única fonte de verdade.
+
+---
+
 ## Visão geral
 
 Este PR consolida as entregas:
