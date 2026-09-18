@@ -1,6 +1,5 @@
 <?php
 $page_title = 'Produtos - Royal Tech';
-$breadcrumb_title = 'Produtos';
 $current_page = 'produtos';
 $base_path = '../../';
 
@@ -75,10 +74,8 @@ function buildQueryString($overrides) {
 if ($searchTerm === '' && $categoryFilter === 0) {
     if ($offersOnly) {
         $page_title = 'Ofertas - Royal Tech';
-        $breadcrumb_title = 'Ofertas';
     } elseif ($sortOrder === 'newest') {
         $page_title = 'Novidades - Royal Tech';
-        $breadcrumb_title = 'Novidades';
     }
 }
 

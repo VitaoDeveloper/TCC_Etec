@@ -2700,7 +2700,7 @@ body.royal-glow::after {
 }
 
 .ml-summary-card .ml-coupon-toggle:hover {
-    color: var(--ml-breadcrumb, var(--ml-accent-dark));
+    color: var(--ml-accent-dark);
 }
 
 .ml-summary-card .ml-coupon-toggle i {

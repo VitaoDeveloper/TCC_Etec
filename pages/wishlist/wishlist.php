@@ -1,6 +1,5 @@
 <?php
 $page_title = 'Meus Favoritos - Royal Tech';
-$breadcrumb_title = 'Favoritos';
 $current_page = 'favoritos';
 $base_path = '../../';
 

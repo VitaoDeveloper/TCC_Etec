@@ -1,6 +1,5 @@
 <?php
 $page_title = 'Sobre Nós - Royal Tech';
-$breadcrumb_title = 'Sobre Nós';
 $current_page = 'sobre';
 $base_path = '../../';
 

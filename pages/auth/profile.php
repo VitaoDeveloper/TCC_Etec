@@ -1,6 +1,5 @@
 <?php
 $page_title = 'Meu Perfil - Royal Tech';
-$breadcrumb_title = 'Meu Perfil';
 $current_page = 'perfil';
 $base_path = '../../';
 
