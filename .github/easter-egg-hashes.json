@@ -13,7 +13,7 @@
       "type": "snippet",
       "start_marker": "// === BEGIN EASTER EGG -- MODO REALEZA (PROTEGIDO) ===",
       "end_marker": "// === END EASTER EGG -- MODO REALEZA (PROTEGIDO) ===",
-      "sha256": "f50aefe934e8263521e7ad261f57585e4af3b264bc7942df54686b2fcd906a99",
+      "sha256": "e18196258d1227d390a57e8e03980c208c9aaf608ee4e98a3aebb605fa8c6cc3",
       "note": "Trecho em components/header.php que renderiza as coroas (fa-crown) e referencia assets/img/ui/effects/textures/selecao.png."
     },
     "assets/css/mercadolivre-style.css": {

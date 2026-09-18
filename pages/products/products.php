@@ -314,7 +314,7 @@ include '../../components/header.php';
                     $product_name = $product['name'];
                     $product_price = (float)$product['price'];
                     $product_old_price = $product['old_price'] !== null ? (float)$product['old_price'] : null;
-                    $product_image = $product['image_path'] ?: '../../assets/img/placeholder-product.svg';
+                    $product_image = $product['image_path'] ?: 'assets/img/placeholder-product.svg';
                     $product_category = $product['category_name'];
                     $product_brand = $product['brand'] ?? 'Royal Tech';
                     $product_installments = '12x';

@@ -201,7 +201,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function doSearch() {
         var q = searchInput.value.trim();
         if (q) {
-            window.location.href = '<?php echo $basePath; ?>pages/products/products.php?q=' + encodeURIComponent(q);
+            window.location.href = <?php echo json_encode($basePath . 'pages/products/products.php?q=', JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?> + encodeURIComponent(q);
         }
     }
     /* ============================================================
@@ -246,7 +246,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 el.style.fontSize = size + 'px';
             } else {
                 el = document.createElement('img');
-                el.src = '<?php echo $basePath; ?>assets/img/ui/effects/textures/selecao.png';
+                el.src = <?php echo json_encode($basePath . 'assets/img/ui/effects/textures/selecao.png', JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
                 el.alt = '';
                 el.className = 'royal-crown royal-troll';
                 el.style.width = size + 'px';

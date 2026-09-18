@@ -69,13 +69,13 @@ $next = $_GET['next'] ?? '../products/products.php';
                     <div class="auth-field">
                         <label class="auth-label" for="identifier">E-mail ou Nome de Usuário</label>
                         <div class="auth-input-wrap">
-                            <input type="text" id="identifier" name="identifier" value="<?php echo htmlspecialchars($old['identifier'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" required>
+                            <input type="text" id="identifier" name="identifier" autocomplete="username" value="<?php echo htmlspecialchars($old['identifier'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" required>
                         </div>
                     </div>
                     <div class="auth-field">
                         <label class="auth-label" for="senha">Senha</label>
                         <div class="auth-input-wrap">
-                            <input type="password" id="senha" name="password" required minlength="8">
+                            <input type="password" id="senha" name="password" autocomplete="current-password" required minlength="8">
                             <button type="button" class="password-toggle" id="togglePassword" aria-label="Mostrar ou ocultar senha"><i class="fas fa-eye"></i></button>
                         </div>
                     </div>
