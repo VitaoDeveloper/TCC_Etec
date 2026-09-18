@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "expected_file_count": 7,
+  "protected_by": "@jotaomh",
+  "description": "Hashes SHA-256 esperados do easter egg 'Modo Realeza' (chuva de coroas + icone da selecao) e dos efeitos visuais do tema. Conferidos pelo workflow .github/workflows/easter-egg-guard.yml em todo PR. Alteracoes intencionais exigem review de @jotaomh (ver .github/CODEOWNERS).",
+  "files": {
+    "assets/img/ui/effects/textures/selecao.png": {
+      "type": "file",
+      "sha256": "0c77580f3747bda5388034650633825ba15a5ec365b6d26778c9c2d645f747a1",
+      "note": "Icone da selecao exibido na chuva do modo realeza (30% dos elementos)."
+    },
+    "components/header.php": {
+      "type": "snippet",
+      "start_marker": "// === BEGIN EASTER EGG -- MODO REALEZA (PROTEGIDO) ===",
+      "end_marker": "// === END EASTER EGG -- MODO REALEZA (PROTEGIDO) ===",
+      "sha256": "f50aefe934e8263521e7ad261f57585e4af3b264bc7942df54686b2fcd906a99",
+      "note": "Trecho em components/header.php que renderiza as coroas (fa-crown) e referencia assets/img/ui/effects/textures/selecao.png."
+    },
+    "assets/css/mercadolivre-style.css": {
+      "type": "snippet",
+      "start_marker": "/* === BEGIN EASTER EGG -- MODO REALEZA (PROTEGIDO) === */",
+      "end_marker": "/* === END EASTER EGG -- MODO REALEZA (PROTEGIDO) === */",
+      "sha256": "7888b42c8a39b72e5fae806d4df92c31989a9c15b499e4426035d19336bdb2a5",
+      "note": "CSS da chuva (.royal-crown, royal-troll, royal-fall), glow (royal-glow) e toast (royal-toast)."
+    },
+    "assets/js/theme-extras.js": {
+      "type": "file",
+      "sha256": "b9f1148ea90e67359edc90aa3c8a205ba6d74bb501eeb903ace4ca7e4b93f463",
+      "note": "Integridade de efeitos visuais do tema (modulo de pisca em posicoes aleatorias)."
+    },
+    "assets/css/theme-extras.css": {
+      "type": "file",
+      "sha256": "71145d387e21499aa4b6a46d4a54ff70c545be3e49a40ef2332e1d36c0d1725e",
+      "note": "Integridade de efeitos visuais do tema (classes de animacao de pisca e fade)."
+    },
+    "assets/img/theme/accent-mark.png": {
+      "type": "file",
+      "sha256": "11fbce914a254e0d96bd43f3a99b1e5f5f0ae951da148e56fdb1dd70d2533688",
+      "note": "Integridade de efeitos visuais do tema (marca de acento usada no efeito)."
+    },
+    "components/footer.php": {
+      "type": "snippet",
+      "start_marker": "<!-- === BEGIN THEME EXTRAS ASSETS (PROTEGIDO) === -->",
+      "end_marker": "<!-- === END THEME EXTRAS ASSETS (PROTEGIDO) === -->",
+      "sha256": "561e8abf1a382e371fd81e2cb3857ddc7e409e5eb6e7121a1e4a96e7d4f2770f",
+      "note": "Integridade de efeitos visuais do tema (carregamento dos assets)."
+    }
+  }
+}
