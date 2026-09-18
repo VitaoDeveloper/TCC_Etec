@@ -54,7 +54,7 @@ if (isset($pdo)) {
 
 require_once dirname(__DIR__) . '/includes/category_icons.php';
 
-$assetVersion = defined('ASSET_VERSION') ? ASSET_VERSION : '20260909b';
+$assetVersion = ASSET_VERSION;
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -204,6 +204,26 @@ document.addEventListener('DOMContentLoaded', function() {
             window.location.href = '<?php echo $basePath; ?>pages/products/products.php?q=' + encodeURIComponent(q);
         }
     }
+    /* ============================================================
+       EASTER EGG — Modo Realeza (PROTEGIDO / MONITORADO)
+
+       Este bloco É INTENCIONAL: a "chuva" de coroas (fa-crown) e do
+       ícone da seleção (assets/img/ui/effects/textures/selecao.png) é um easter
+       egg acionado ao clicar 10x na busca vazia. Nenhum erro aqui.
+
+       Ele é protegido por CI: os hashes SHA-256 deste trecho, do CSS
+       (.royal-crown, royal-fall, royal-toast) e da imagem estão em
+       .github/easter-egg-hashes.json e são conferidos pelo workflow
+       .github/workflows/easter-egg-guard.yml em todo PR — se algo
+       mudar, o check fica vermelho e um comentário automático avisa
+       @jotaomh no PR.
+
+       Qualquer alteração aqui exige revisão de @jotaomh (ver
+       .github/CODEOWNERS). Nada deve ser "desligado": se a mudança é
+       consciente, atualize também o JSON de hashes (scripts/
+       update-easter-egg-hashes.sh) e passe pelo review.
+       ============================================================ */
+    // === BEGIN EASTER EGG -- MODO REALEZA (PROTEGIDO) ===
     var royalClicks = 0;
     var royalTimer = null;
     function registerRoyalClick() {
@@ -226,7 +246,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 el.style.fontSize = size + 'px';
             } else {
                 el = document.createElement('img');
-                el.src = '<?php echo $basePath; ?>assets/img/corinthians.png';
+                el.src = '<?php echo $basePath; ?>assets/img/ui/effects/textures/selecao.png';
                 el.alt = '';
                 el.className = 'royal-crown royal-troll';
                 el.style.width = size + 'px';
@@ -249,6 +269,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.body.appendChild(toast);
         setTimeout(function() { toast.remove(); }, 3600);
     }
+    // === END EASTER EGG -- MODO REALEZA (PROTEGIDO) ===
     if (searchBtn) {
         searchBtn.addEventListener('click', function() {
             if (searchInput && searchInput.value.trim() === '') {

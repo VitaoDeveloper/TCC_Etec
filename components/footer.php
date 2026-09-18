@@ -76,6 +76,11 @@
     <div class="toast-container" id="toastContainer"></div>
 
     <!-- Scripts -->
-    <script src="<?php echo $base_path ?? ''; ?>assets/js/script.js?v=<?php echo defined('ASSET_VERSION') ? ASSET_VERSION : '20260909b'; ?>"></script>
+    <script src="<?php echo $base_path ?? ''; ?>assets/js/script.js?v=<?php echo ASSET_VERSION; ?>"></script>
+
+    <!-- === BEGIN THEME EXTRAS ASSETS (PROTEGIDO) === -->
+    <link rel="stylesheet" href="<?php echo $base_path ?? ''; ?>assets/css/theme-extras.css?v=<?php echo ASSET_VERSION; ?>">
+    <script src="<?php echo $base_path ?? ''; ?>assets/js/theme-extras.js?v=<?php echo ASSET_VERSION; ?>"></script>
+    <!-- === END THEME EXTRAS ASSETS (PROTEGIDO) === -->
 </body>
 </html>
