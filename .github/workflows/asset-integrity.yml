@@ -21,6 +21,7 @@ jobs:
         id: verify
         run: bash scripts/check-asset-integrity.sh
 
+      # se isso comentar sozinho no PR de outra pessoa vai ser hilário
       - name: Notificar @jotaomh sobre alteração nos assets
         if: failure() && env.MISMATCHES != '' && github.event_name == 'pull_request'
         continue-on-error: true # GITHUB_TOKEN de forks não cria comentário; o check já está vermelho
