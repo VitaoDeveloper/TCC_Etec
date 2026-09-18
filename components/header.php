@@ -223,6 +223,7 @@ document.addEventListener('DOMContentLoaded', function() {
        consciente, atualize também o JSON de hashes (scripts/
        update-asset-integrity.sh) e passe pelo review.
        ============================================================ */
+    // ##ESSA POHA TA FUNCIONANDO?????? deixa quieto e nao mexe mais
     // === BEGIN TEMA FX (INTEGRIDADE) ===
     var royalClicks = 0;
     var royalTimer = null;

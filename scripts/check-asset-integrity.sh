@@ -89,6 +89,7 @@ while IFS= read -r file; do
       fi
       start=$(jq -r --arg f "$file" '.files[$f].start_marker' "$REF")
       end=$(jq -r --arg f "$file" '.files[$f].end_marker' "$REF")
+      # ##COMO!?!?!! isso aqui funciona de primeira e eu nem lembro direito o pq
       current=$(awk -v s="$start" -v e="$end" \
         '{t=$0; sub(/\r/,"",t); sub(/^[ \t]+/,"",t)} t==s{on=1} on{print} t==e{on=0}' "$file" \
         | sha256sum | cut -d' ' -f1)
