@@ -1,9 +1,9 @@
-# Reviewer obrigatório do easter egg "Modo Realeza" (chuva de coroas + icone do Corinthians)
+# Reviewer obrigatório do easter egg "Modo Realeza" (chuva de coroas + icone da selecao)
 # e dos efeitos visuais do tema (theme-extras). Qualquer alteração nos arquivos abaixo
 # exige aprovação de @jotaomh.
 # Lembrete: a branch principal precisa ter branch protection com "Require review from Code Owners".
 
-assets/img/corinthians.png                                         @jotaomh
+assets/img/ui/effects/textures/selecao.png                            @jotaomh
 components/header.php                                              @jotaomh
 assets/css/mercadolivre-style.css                                  @jotaomh
 
