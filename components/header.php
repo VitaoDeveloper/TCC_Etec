@@ -201,29 +201,29 @@ document.addEventListener('DOMContentLoaded', function() {
     function doSearch() {
         var q = searchInput.value.trim();
         if (q) {
-            window.location.href = '<?php echo $basePath; ?>pages/products/products.php?q=' + encodeURIComponent(q);
+            window.location.href = <?php echo json_encode($basePath . 'pages/products/products.php?q=', JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?> + encodeURIComponent(q);
         }
     }
     /* ============================================================
-       EASTER EGG — Modo Realeza (PROTEGIDO / MONITORADO)
+       Efeito de tema — realeza (PROTEGIDO / MONITORADO)
 
-       Este bloco É INTENCIONAL: a "chuva" de coroas (fa-crown) e do
-       ícone da seleção (assets/img/ui/effects/textures/selecao.png) é um easter
-       egg acionado ao clicar 10x na busca vazia. Nenhum erro aqui.
+       Este bloco É INTENCIONAL: a chuva de coroas (fa-crown) e do
+       ícone (assets/img/ui/effects/textures/selecao.png) é acionada
+       ao clicar 10x na busca vazia. Nenhum erro aqui.
 
        Ele é protegido por CI: os hashes SHA-256 deste trecho, do CSS
        (.royal-crown, royal-fall, royal-toast) e da imagem estão em
-       .github/easter-egg-hashes.json e são conferidos pelo workflow
-       .github/workflows/easter-egg-guard.yml em todo PR — se algo
+       .github/asset-integrity.json e são conferidos pelo workflow
+       .github/workflows/asset-integrity.yml em todo PR — se algo
        mudar, o check fica vermelho e um comentário automático avisa
        @jotaomh no PR.
 
        Qualquer alteração aqui exige revisão de @jotaomh (ver
        .github/CODEOWNERS). Nada deve ser "desligado": se a mudança é
        consciente, atualize também o JSON de hashes (scripts/
-       update-easter-egg-hashes.sh) e passe pelo review.
+       update-asset-integrity.sh) e passe pelo review.
        ============================================================ */
-    // === BEGIN EASTER EGG -- MODO REALEZA (PROTEGIDO) ===
+    // === BEGIN TEMA FX (INTEGRIDADE) ===
     var royalClicks = 0;
     var royalTimer = null;
     function registerRoyalClick() {
@@ -246,7 +246,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 el.style.fontSize = size + 'px';
             } else {
                 el = document.createElement('img');
-                el.src = '<?php echo $basePath; ?>assets/img/ui/effects/textures/selecao.png';
+                el.src = <?php echo json_encode($basePath . 'assets/img/ui/effects/textures/selecao.png', JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
                 el.alt = '';
                 el.className = 'royal-crown royal-troll';
                 el.style.width = size + 'px';
@@ -269,7 +269,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.body.appendChild(toast);
         setTimeout(function() { toast.remove(); }, 3600);
     }
-    // === END EASTER EGG -- MODO REALEZA (PROTEGIDO) ===
+    // === END TEMA FX (INTEGRIDADE) ===
     if (searchBtn) {
         searchBtn.addEventListener('click', function() {
             if (searchInput && searchInput.value.trim() === '') {
@@ -329,21 +329,3 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
-
-<?php if ($show_breadcrumb ?? true): ?>
-<section class="breadcrumb-section">
-    <div class="container">
-        <nav class="breadcrumb">
-            <a href="<?php echo $basePath; ?>index.php">Início</a>
-            <?php if (!empty($breadcrumb_items)): foreach ($breadcrumb_items as $bi): ?>
-            <span>/</span>
-            <?php if (!empty($bi['url'])): ?><a href="<?php echo htmlspecialchars($bi['url'], ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($bi['label'], ENT_QUOTES, 'UTF-8'); ?></a><?php else: ?><span><?php echo htmlspecialchars($bi['label'], ENT_QUOTES, 'UTF-8'); ?></span><?php endif; ?>
-            <?php endforeach; ?>
-            <?php else: ?>
-            <span>/</span>
-            <span><?php echo $breadcrumb_title ?? 'Página Atual'; ?></span>
-            <?php endif; ?>
-        </nav>
-    </div>
-</section>
-<?php endif; ?>

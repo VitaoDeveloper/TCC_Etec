@@ -1,6 +1,5 @@
 <?php
 $page_title = 'Royal Tech - Loja de Tecnologia Premium';
-$show_breadcrumb = false;
 $current_page = 'inicio';
 $base_path = '';
 require_once __DIR__ . '/includes/csrf.php';

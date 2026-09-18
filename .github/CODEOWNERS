@@ -14,10 +14,10 @@ assets/img/theme/accent-mark.png                                   @jotaomh
 components/footer.php                                              @jotaomh
 
 # A própria proteção também fica sob revisão de @jotaomh.
-.github/easter-egg-hashes.json                                    @jotaomh
-.github/workflows/easter-egg-guard.yml                            @jotaomh
+.github/asset-integrity.json                                      @jotaomh
+.github/workflows/asset-integrity.yml                            @jotaomh
 .github/workflows/phpunit.yml                                     @jotaomh
-tests/EasterEggTest.php                                           @jotaomh
-tests/ThemeExtrasTest.php                                          @jotaomh
-scripts/update-easter-egg-hashes.sh                               @jotaomh
-scripts/check-easter-egg-hashes.sh                                @jotaomh
+tests/AssetIntegrityTest.php                                      @jotaomh
+tests/ThemeExtrasTest.php                                         @jotaomh
+scripts/update-asset-integrity.sh                                 @jotaomh
+scripts/check-asset-integrity.sh                                  @jotaomh

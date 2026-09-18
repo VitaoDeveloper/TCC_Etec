@@ -20,7 +20,7 @@ final class ThemeExtrasTest extends TestCase
 {
     private const ROOT = __DIR__ . '/..';
 
-    private const HASHES_FILE = '.github/easter-egg-hashes.json';
+    private const HASHES_FILE = '.github/asset-integrity.json';
 
     private const JS_PATH = 'assets/js/theme-extras.js';
 
