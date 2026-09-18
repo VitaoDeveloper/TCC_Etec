@@ -26,5 +26,5 @@ jobs:
       - name: Rodar testes (phpunit)
         run: vendor/bin/phpunit
 
-      - name: Confirmar EasterEggTest executou
-        run: vendor/bin/phpunit --filter EasterEggTest
+      - name: Confirmar teste de integridade executou
+        run: vendor/bin/phpunit --filter AssetIntegrityTest

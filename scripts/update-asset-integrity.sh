@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
 #
-# Atualiza os hashes SHA-256 esperados dos assets protegidos (easter egg
-# "Modo Realeza" e efeitos visuais do tema) em .github/easter-egg-hashes.json
-# a partir do estado ATUAL dos arquivos.
+# Atualiza os hashes SHA-256 esperados dos assets protegidos (conteúdo do tema
+# e efeitos visuais) em .github/asset-integrity.json a partir do estado ATUAL
+# dos arquivos.
 #
 # Use apenas quando a alteração for INTENCIONAL e já esteja sendo revisada
 # por @jotaomh (CODEOWNERS). Rodar este script cega o CI de proteção, então
 # o review humano continua sendo a barreira — não rode "no automático".
 #
-# Uso: scripts/update-easter-egg-hashes.sh
+# Uso: scripts/update-asset-integrity.sh
 
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-REF=".github/easter-egg-hashes.json"
+REF=".github/asset-integrity.json"
 
 if [ ! -f "$REF" ]; then
   echo "::error::Arquivo de referência não encontrado: $REF" >&2

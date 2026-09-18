@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 #
 # Verifica os hashes SHA-256 dos assets protegidos contra
-# .github/easter-egg-hashes.json — a MESMA lógica usada pelo CI
-# (.github/workflows/easter-egg-guard.yml).
+# .github/asset-integrity.json — a MESMA lógica usada pelo CI
+# (.github/workflows/asset-integrity.yml).
 #
 # Exit 0 = tudo confere | Exit 1 = algum asset protegido foi alterado ou integridade do JSON falhou.
 #
 # Em ambiente GitHub Actions, o script também exporta a lista de arquivos
 # divergentes em $GITHUB_ENV (MISMATCHES) para o passo de notificação no PR.
 #
-# Uso: bash scripts/check-easter-egg-hashes.sh
+# Uso: bash scripts/check-asset-integrity.sh
 
 set -euo pipefail
 
@@ -26,7 +26,7 @@ done
 
 cd "$(dirname "$0")/.."
 
-REF=".github/easter-egg-hashes.json"
+REF=".github/asset-integrity.json"
 
 if [ ! -f "$REF" ]; then
   echo "::error::Arquivo de referência não encontrado: $REF" >&2
@@ -60,7 +60,7 @@ fi
 
 if [ "$actual_count" -ne "$expected_count" ]; then
   echo "::error::Contagem de entradas inconsistente: esperado $expected_count, encontrado $actual_count em $REF." >&2
-  echo "Se você adicionou ou removeu um asset protegido, atualize 'expected_file_count' e rode scripts/update-easter-egg-hashes.sh." >&2
+  echo "Se você adicionou ou removeu um asset protegido, atualize 'expected_file_count' e rode scripts/update-asset-integrity.sh." >&2
   exit 1
 fi
 

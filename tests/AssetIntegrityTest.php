@@ -7,7 +7,7 @@ namespace TCC\Tests;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Teste automatizado do easter egg "Modo Realeza" (chuva de coroas + icone da selecao).
+ * Teste automatizado de integridade dos assets protegidos do tema.
  *
  * Verifica:
  *   1. O asset de imagem existe e tem assinatura PNG válida.
@@ -15,11 +15,11 @@ use PHPUnit\Framework\TestCase;
  *   3. O trecho JS contém os elementos esperados (criação da imagem, referência ao ícone, toast).
  *   4. O trecho CSS contém as regras de animação e classes esperadas.
  */
-final class EasterEggTest extends TestCase
+final class AssetIntegrityTest extends TestCase
 {
     private const ROOT = __DIR__ . '/..';
 
-    private const HASHES_FILE = '.github/easter-egg-hashes.json';
+    private const HASHES_FILE = '.github/asset-integrity.json';
 
     private const ICON_PATH = 'assets/img/ui/effects/textures/selecao.png';
 

@@ -2,26 +2,26 @@
   "version": 1,
   "expected_file_count": 7,
   "protected_by": "@jotaomh",
-  "description": "Hashes SHA-256 esperados do easter egg 'Modo Realeza' (chuva de coroas + icone da selecao) e dos efeitos visuais do tema. Conferidos pelo workflow .github/workflows/easter-egg-guard.yml em todo PR. Alteracoes intencionais exigem review de @jotaomh (ver .github/CODEOWNERS).",
+  "description": "Hashes SHA-256 esperados dos assets protegidos do tema (efeito de coroas + icone da selecao) e dos efeitos visuais. Conferidos pelo workflow .github/workflows/asset-integrity.yml em todo PR. Alteracoes intencionais exigem review de @jotaomh (ver .github/CODEOWNERS).",
   "files": {
     "assets/img/ui/effects/textures/selecao.png": {
       "type": "file",
       "sha256": "0c77580f3747bda5388034650633825ba15a5ec365b6d26778c9c2d645f747a1",
-      "note": "Icone da selecao exibido na chuva do modo realeza (30% dos elementos)."
+      "note": "Icone exibido no efeito de chuva (30% dos elementos)."
     },
     "components/header.php": {
       "type": "snippet",
-      "start_marker": "// === BEGIN EASTER EGG -- MODO REALEZA (PROTEGIDO) ===",
-      "end_marker": "// === END EASTER EGG -- MODO REALEZA (PROTEGIDO) ===",
-      "sha256": "e18196258d1227d390a57e8e03980c208c9aaf608ee4e98a3aebb605fa8c6cc3",
-      "note": "Trecho em components/header.php que renderiza as coroas (fa-crown) e referencia assets/img/ui/effects/textures/selecao.png."
+      "start_marker": "// === BEGIN TEMA FX (INTEGRIDADE) ===",
+      "end_marker": "// === END TEMA FX (INTEGRIDADE) ===",
+      "sha256": "9d21136ed40b3a52db9b8cecd49a71b18383450b986c013a5825407e710a4a30",
+      "note": "Trecho em components/header.php que renderiza o efeito de coroas e referencia assets/img/ui/effects/textures/selecao.png."
     },
     "assets/css/mercadolivre-style.css": {
       "type": "snippet",
-      "start_marker": "/* === BEGIN EASTER EGG -- MODO REALEZA (PROTEGIDO) === */",
-      "end_marker": "/* === END EASTER EGG -- MODO REALEZA (PROTEGIDO) === */",
-      "sha256": "7888b42c8a39b72e5fae806d4df92c31989a9c15b499e4426035d19336bdb2a5",
-      "note": "CSS da chuva (.royal-crown, royal-troll, royal-fall), glow (royal-glow) e toast (royal-toast)."
+      "start_marker": "/* === BEGIN TEMA FX (INTEGRIDADE) === */",
+      "end_marker": "/* === END TEMA FX (INTEGRIDADE) === */",
+      "sha256": "b3c106e1bc0d13e1e8195003498d6b01bcb39cfc30e4d76c22a5b69669f09310",
+      "note": "CSS do efeito (royal-crown, royal-troll, royal-fall), glow (royal-glow) e toast (royal-toast)."
     },
     "assets/js/theme-extras.js": {
       "type": "file",

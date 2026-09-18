@@ -212,7 +212,7 @@ include '../../components/header.php';
 
         if (buffer === SEQUENCE) {
             reset();
-            window.open(basePath + 'pages/memes/vai-sao-paulo.php', '_blank');
+            window.open(basePath + 'pages/conteudo/especial.php', '_blank');
             return;
         }
 

@@ -21,7 +21,7 @@ $page_title = 'VAI SÃO PAULO';
             gap: 32px;
             padding: 24px;
             box-sizing: border-box;
-            background: #000 url('../../assets/img/memes/paulo-vitor-vai-sao-paulo.gif?v=20260918b') no-repeat center / 100% 100% fixed;
+            background: #000 url('../../assets/img/conteudo/especial.gif?v=20260918c') no-repeat center / 100% 100% fixed;
         }
         h1 {
             margin: 0;

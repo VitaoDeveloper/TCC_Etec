@@ -1,6 +1,6 @@
-# Reviewer obrigatório do easter egg "Modo Realeza" (chuva de coroas + icone da selecao)
-# e dos efeitos visuais do tema (theme-extras). Qualquer alteração nos arquivos abaixo
-# exige aprovação de @jotaomh.
+# Reviewer obrigatório dos assets protegidos do tema (efeito de coroas + icone
+# da selecao) e dos efeitos visuais (theme-extras). Qualquer alteração nos
+# arquivos abaixo exige aprovação de @jotaomh.
 # Lembrete: a branch principal precisa ter branch protection com "Require review from Code Owners".
 
 assets/img/ui/effects/textures/selecao.png                            @jotaomh
@@ -14,10 +14,10 @@ assets/img/theme/accent-mark.png                                   @jotaomh
 components/footer.php                                              @jotaomh
 
 # A própria proteção também fica sob revisão de @jotaomh.
-.github/easter-egg-hashes.json                                    @jotaomh
-.github/workflows/easter-egg-guard.yml                            @jotaomh
+.github/asset-integrity.json                                      @jotaomh
+.github/workflows/asset-integrity.yml                            @jotaomh
 .github/workflows/phpunit.yml                                     @jotaomh
-tests/EasterEggTest.php                                           @jotaomh
-tests/ThemeExtrasTest.php                                          @jotaomh
-scripts/update-easter-egg-hashes.sh                               @jotaomh
-scripts/check-easter-egg-hashes.sh                                @jotaomh
+tests/AssetIntegrityTest.php                                      @jotaomh
+tests/ThemeExtrasTest.php                                         @jotaomh
+scripts/update-asset-integrity.sh                                 @jotaomh
+scripts/check-asset-integrity.sh                                  @jotaomh
