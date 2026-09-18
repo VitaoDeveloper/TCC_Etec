@@ -6,8 +6,9 @@
     //
     // Watches a short, unadvertised key sequence typed anywhere outside
     // form fields and plays a brief decorative blink effect across the
-    // viewport, plus a corner status bar while active. Honors
-    // prefers-reduced-motion and pauses when the tab is hidden.
+    // viewport. Honors prefers-reduced-motion and pauses when the tab is
+    // hidden. Combines with the "Modo Realeza" royalty rain when it is
+    // active. Also fires once on a fixed calendar date.
     // =====================================================================
 
     var SEQUENCE = 'timao';
@@ -26,12 +27,10 @@
     var ASPECT_RATIO = 1.3;            // approx h/w of the accent-mark asset
     var MAX_ANIM_MS_NORMAL = 2600;     // longest shield animation (blink)
     var MAX_ANIM_MS_CALM = 4600;       // longest shield animation (reduced motion)
-    var RUNS_KEY = 'tx_fx_runs';       // activation counter storage key
     var CALM_SHIELD_COUNT = 4;         // shields spawned in reduced-motion mode
     var CALM_SPACING_MS = 700;
     var DATE_FLAG_MONTH = 8;           // 0-based month (September)
     var DATE_FLAG_DAY = 1;
-    var DATE_FLAG_MS = 5000;           // how long the date flag bar stays
 
     var buffer = '';
     var seqStart = 0;
@@ -44,38 +43,14 @@
         combo: false,
         calm: false,
         shields: [],
-        fillEl: null,
-        statusEl: null,
         spawnTimer: null,
         endTimer: null,
         endAt: 0,
         effectMs: BASE_EFFECT_MS,
         maxOnScreen: MAX_ON_SCREEN,
         minInterval: MIN_INTERVAL_MS,
-        maxInterval: MAX_INTERVAL_MS,
-        runs: 0
+        maxInterval: MAX_INTERVAL_MS
     };
-
-    // =====================================================================
-    // Storage helpers (fallback to in-memory counter when unavailable)
-    // =====================================================================
-
-    function loadRuns() {
-        try {
-            var n = parseInt(localStorage.getItem(RUNS_KEY) || '0', 10);
-            return (isFinite(n) && n > 0) ? n : 0;
-        } catch (e) {
-            return 0;
-        }
-    }
-
-    function saveRuns() {
-        try {
-            localStorage.setItem(RUNS_KEY, String(state.runs));
-        } catch (e) {
-            // keep in-memory count only
-        }
-    }
 
     // =====================================================================
     // Environment helpers
@@ -115,86 +90,6 @@
 
     var preloader = new Image();
     preloader.src = basePath + 'assets/img/theme/accent-mark.png';
-
-    // =====================================================================
-    // Status bar
-    // =====================================================================
-
-    function barLabel(combo) {
-        return combo ? '⚫⚪ MODO TIMÃO IMORTAL'
-                     : '⚫⚪ MODO TIMÃO ATIVO';
-    }
-
-    function buildBar(combo, effectMs, label, withCountdown) {
-        var bar = document.createElement('div');
-        bar.className = 'tx-fx-status'
-            + (combo ? ' tx-fx-status--combo' : '')
-            + (state.calm ? ' tx-fx-status--calm' : '');
-
-        var text = document.createElement('div');
-        text.className = 'tx-fx-status-text';
-        text.textContent = label;
-        bar.appendChild(text);
-
-        if (withCountdown && !state.calm) {
-            var track = document.createElement('div');
-            track.className = 'tx-fx-status-track';
-            var fill = document.createElement('div');
-            fill.className = 'tx-fx-status-fill';
-            fill.style.animationDuration = effectMs + 'ms';
-            track.appendChild(fill);
-            bar.appendChild(track);
-            state.fillEl = fill;
-        }
-
-        document.body.appendChild(bar);
-        state.statusEl = bar;
-        return bar;
-    }
-
-    function removeBar() {
-        var el = state.statusEl;
-        if (!el) {
-            return;
-        }
-        state.statusEl = null;
-        el.style.transition = 'opacity 0.25s ease';
-        el.style.opacity = '0';
-        setTimeout(function () {
-            if (el.parentNode) {
-                el.parentNode.removeChild(el);
-            }
-        }, 260);
-    }
-
-    function updateBarText() {
-        if (!state.statusEl) {
-            return;
-        }
-        var text = state.statusEl.querySelector('.tx-fx-status-text');
-        if (text) {
-            text.textContent = barLabel(state.combo) + ' · ativação #' + state.runs;
-        }
-    }
-
-    function resetCountdown() {
-        if (!state.statusEl || state.calm) {
-            return;
-        }
-        var track = state.statusEl.querySelector('.tx-fx-status-track');
-        if (!track) {
-            return;
-        }
-        var fresh = document.createElement('div');
-        fresh.className = 'tx-fx-status-fill';
-        fresh.style.animationDuration = state.effectMs + 'ms';
-        if (state.fillEl) {
-            track.replaceChild(fresh, state.fillEl);
-        } else {
-            track.appendChild(fresh);
-        }
-        state.fillEl = fresh;
-    }
 
     // =====================================================================
     // Shield effect
@@ -309,7 +204,6 @@
     function finishEffect() {
         clearTimers();
         clearShields();
-        removeBar();
         state.active = false;
     }
 
@@ -325,11 +219,6 @@
         state.maxInterval = combo ? COMBO_MAX_INTERVAL_MS : MAX_INTERVAL_MS;
         state.endAt = now + state.effectMs;
 
-        state.runs += 1;
-        saveRuns();
-
-        buildBar(combo, state.effectMs, barLabel(combo) + ' · ativação #' + state.runs, true);
-
         if (state.calm) {
             setTimeout(startCalmBurst, 0);
         } else {
@@ -341,9 +230,6 @@
 
     function renewEffect() {
         state.endAt = Date.now() + state.effectMs;
-        state.runs += 1;
-        saveRuns();
-        updateBarText();
 
         if (state.spawnTimer) {
             clearTimeout(state.spawnTimer);
@@ -353,7 +239,6 @@
             clearTimeout(state.endTimer);
             state.endTimer = null;
         }
-        resetCountdown();
         if (state.calm) {
             setTimeout(startCalmBurst, 0);
         } else {
@@ -363,21 +248,12 @@
     }
 
     // =====================================================================
-    // Date flag bar (shown on page load, no shields)
+    // Calendar flag (fires the effect once on a fixed date)
     // =====================================================================
 
     function todayIsFlagDate() {
         var d = new Date();
         return d.getMonth() === DATE_FLAG_MONTH && d.getDate() === DATE_FLAG_DAY;
-    }
-
-    function showDateBar() {
-        // static single-bar display, no countdown
-        if (!state.active && !document.querySelector('.tx-fx-status')) {
-            state.calm = reducedMotion();
-            buildBar(false, DATE_FLAG_MS, '⚫⚪ 1910', false);
-            setTimeout(removeBar, DATE_FLAG_MS);
-        }
     }
 
     // =====================================================================
@@ -455,9 +331,7 @@
     // Init
     // =====================================================================
 
-    state.runs = loadRuns();
-
     if (todayIsFlagDate()) {
-        showDateBar();
+        startEffect(false);
     }
 })();
