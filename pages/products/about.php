@@ -167,6 +167,62 @@ include '../../components/header.php';
     </div>
 </section>
 
+<script>
+(function () {
+    'use strict';
+    var SEQUENCE = 'SP';
+    var WINDOW_MS = 1500;
+    var basePath = document.body.getAttribute('data-base-path') || '../../';
+    var buffer = '';
+    var seqStart = 0;
+    var resetTimer = null;
+
+    function isTypingTarget(el) {
+        return el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+    }
+
+    function reset() {
+        buffer = '';
+        seqStart = 0;
+        if (resetTimer) {
+            clearTimeout(resetTimer);
+            resetTimer = null;
+        }
+    }
+
+    document.addEventListener('keydown', function (e) {
+        if (e.metaKey || e.ctrlKey || e.altKey) return;
+        if (isTypingTarget(e.target)) return;
+        if (e.getModifierState && e.getModifierState('CapsLock')) { reset(); return; }
+        if (e.key !== 'S' && e.key !== 'P') { reset(); return; }
+
+        var now = Date.now();
+        if (buffer.length === 0) {
+            seqStart = now;
+        } else if (now - seqStart > WINDOW_MS) {
+            reset();
+            seqStart = now;
+        }
+
+        buffer += e.key;
+
+        if (SEQUENCE.indexOf(buffer) !== 0) {
+            reset();
+            return;
+        }
+
+        if (buffer === SEQUENCE) {
+            reset();
+            window.open(basePath + 'pages/memes/vai-sao-paulo.php', '_blank');
+            return;
+        }
+
+        if (resetTimer) clearTimeout(resetTimer);
+        resetTimer = setTimeout(reset, WINDOW_MS);
+    });
+})();
+</script>
+
 <?php
 include '../../components/footer.php';
 ?>
