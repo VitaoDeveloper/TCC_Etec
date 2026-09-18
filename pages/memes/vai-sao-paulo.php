@@ -12,7 +12,6 @@ $page_title = 'VAI SÃO PAULO';
             margin: 0;
             padding: 0;
             min-height: 100vh;
-            background: #0b090a;
         }
         body {
             display: flex;
@@ -22,16 +21,7 @@ $page_title = 'VAI SÃO PAULO';
             gap: 32px;
             padding: 24px;
             box-sizing: border-box;
-        }
-        .gif-wrap {
-            max-width: 360px;
-            width: 100%;
-        }
-        .gif-wrap img {
-            display: block;
-            width: 100%;
-            height: auto;
-            border-radius: 14px;
+            background: #000 url('../../assets/img/memes/paulo-vitor-vai-sao-paulo.gif') no-repeat center / 100% 100% fixed;
         }
         h1 {
             margin: 0;
@@ -53,9 +43,6 @@ $page_title = 'VAI SÃO PAULO';
     </style>
 </head>
 <body>
-    <div class="gif-wrap">
-        <img src="../../assets/img/memes/paulo-vitor-vai-sao-paulo.gif" alt="VAI SÃO PAULO">
-    </div>
     <h1>VAI SÃO PAULO <span class="w">📣</span><span class="w">⚪</span><span class="r">🔴</span></h1>
     <a class="back" href="../products/about.php">← Voltar</a>
 </body>
