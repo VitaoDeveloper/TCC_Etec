@@ -5,6 +5,7 @@ $base_path = '../../';
 require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../includes/config.php';
 require_once __DIR__ . '/../../includes/rate_limit.php';
+require_once __DIR__ . '/../../includes/contact_functions.php';
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -27,6 +28,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $contactError = 'Preencha todos os campos obrigatórios.';
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $contactError = 'E-mail inválido.';
+    } elseif (existeContatoPendente($email)) {
+        $contactError = 'Você já possui um contato aguardando resposta. Assim que nossa equipe responder, você poderá enviar uma nova mensagem.';
     } else {
         try {
             include $base_path . 'database/connection.php';
