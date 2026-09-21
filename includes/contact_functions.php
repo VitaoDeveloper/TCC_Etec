@@ -39,6 +39,10 @@ function salvarStatusEmailContato(int $contactId, string $status, ?string $error
 // Reutiliza o mecanismo de envio existente (sendMail em includes/mail.php).
 function enviarRespostaContato(int $contactId, string $name, string $email, string $subject, string $responseMessage): bool
 {
+    // $contactSubjectLabels é global do arquivo; funções não enxergam
+    // escopo global sem a declaração — sem isso o e-mail mandava a chave crua
+    // (ex.: "support") em vez do rótulo ("Suporte Técnico").
+    global $contactSubjectLabels;
     $storeName = store_config('store_name');
 
     $body = '<h2>Resposta ao seu contato - ' . htmlspecialchars($storeName, ENT_QUOTES, 'UTF-8') . '</h2>';
