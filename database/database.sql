@@ -140,6 +140,7 @@ CREATE TABLE IF NOT EXISTS e5_contacts (
   response_email_error TEXT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_contacts_email_status (email, status),
   CONSTRAINT fk_contacts_user FOREIGN KEY (user_id) REFERENCES e5_users(id) ON DELETE SET NULL,
   CONSTRAINT fk_contacts_responded_by FOREIGN KEY (responded_by) REFERENCES e5_users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

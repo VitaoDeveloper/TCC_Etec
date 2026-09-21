@@ -35,6 +35,26 @@ function salvarStatusEmailContato(int $contactId, string $status, ?string $error
     }
 }
 
+// Regra de negócio: um contato por e-mail até o admin dar a devolutiva.
+// Enquanto o e-mail tiver um contato com status 'pending' (sem resposta),
+// novos envios ficam bloqueados; quando o admin responde (status 'answered'),
+// o e-mail volta a poder enviar. Consulta pelo e-mail digitado no formulário.
+// Em caso de falha na consulta, libera o envio (não trava o site por erro de banco).
+function existeContatoPendente(string $email): bool
+{
+    if (!isset($GLOBALS['pdo'])) {
+        include_once __DIR__ . '/../database/connection.php';
+    }
+    try {
+        $stmt = $GLOBALS['pdo']->prepare("SELECT COUNT(*) FROM e5_contacts WHERE email = :email AND status = 'pending'");
+        $stmt->execute([':email' => $email]);
+        return (int) $stmt->fetchColumn() > 0;
+    } catch (Throwable $e) {
+        error_log('Pending contact check failed: ' . $e->getMessage());
+        return false;
+    }
+}
+
 // Envia ao cliente o retorno do admin sobre o contato.
 // Reutiliza o mecanismo de envio existente (sendMail em includes/mail.php).
 function enviarRespostaContato(int $contactId, string $name, string $email, string $subject, string $responseMessage): bool
