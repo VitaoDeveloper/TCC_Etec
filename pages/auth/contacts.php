@@ -65,7 +65,7 @@ include '../../components/header.php';
                         <td><span class="status-badge <?php echo $statusInfo['class']; ?>"><?php echo htmlspecialchars($statusInfo['label'], ENT_QUOTES, 'UTF-8'); ?></span></td>
                         <td style="max-width:300px;">
                             <?php if ($c['status'] === 'answered' && $c['response_message']): ?>
-                                <div class="ml-reply-box" style="background:#f9f9f9; border-left:4px solid var(--ml-accent, #d4af37); padding:10px 12px; border-radius:4px;">
+                                <div class="ml-reply-box" style="background:var(--ml-bg-card); border-left:4px solid var(--ml-accent, #d4af37); padding:10px 12px; border-radius:4px; color:var(--ml-text);">
                                     <small style="color:var(--ml-text-muted); display:block; margin-bottom:4px;"><i class="fas fa-reply"></i> Resposta em <?php echo date('d/m/Y H:i', strtotime($c['responded_at'])); ?></small>
                                     <?php echo nl2br(htmlspecialchars($c['response_message'], ENT_QUOTES, 'UTF-8')); ?>
                                 </div>
