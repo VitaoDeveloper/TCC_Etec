@@ -10,6 +10,21 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+// Usuário autenticado: os dados pessoais vêm do cadastro (e5_users) e o form
+// exibe somente mensagem (+ assunto). Usados também no POST, ignorando o que
+// for enviado pelo formulário (nunca confiar em campos "travados" só na UI).
+$authUser = null;
+if (isset($_SESSION['user_id'])) {
+    try {
+        include_once $base_path . 'database/connection.php';
+        $stmt = $GLOBALS['pdo']->prepare('SELECT id, name, email FROM e5_users WHERE id = :id LIMIT 1');
+        $stmt->execute([':id' => (int) $_SESSION['user_id']]);
+        $authUser = $stmt->fetch() ?: null;
+    } catch (Throwable $e) {
+        error_log('Contact auth user fetch failed: ' . $e->getMessage());
+    }
+}
+
 $contactMessage = null;
 $contactError = null;
 
@@ -20,6 +35,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $phone = trim((string) ($_POST['phone'] ?? ''));
     $subject = trim((string) ($_POST['subject'] ?? ''));
     $message = trim((string) ($_POST['message'] ?? ''));
+
+    // Autenticado: usa os dados do cadastro, não os campos do formulário.
+    if ($authUser) {
+        $name = $authUser['name'];
+        $email = $authUser['email'];
+        $phone = '';
+    }
 
     if (!rate_limit_check('contact_' . $_SERVER['REMOTE_ADDR'], 5, 15)) {
         $contactError = 'Muitas mensagens enviadas. Aguarde alguns minutos e tente novamente.';
@@ -65,6 +87,19 @@ include '../../components/header.php';
             <div>
                 <h3 style="margin-bottom: 24px;">Enviar Mensagem</h3>
                 <form class="contact-form" method="POST">
+                    <?php if ($authUser): ?>
+                    <div class="auth-field">
+                        <label class="auth-label" for="name">Seu Nome *</label>
+                        <div class="auth-input-wrap"><input type="text" id="name" name="name" value="<?php echo htmlspecialchars($authUser['name'], ENT_QUOTES, 'UTF-8'); ?>" disabled></div>
+                    </div>
+                    <div class="auth-field">
+                        <label class="auth-label" for="email">E-mail *</label>
+                        <div class="auth-input-wrap"><input type="email" id="email" name="email" value="<?php echo htmlspecialchars($authUser['email'], ENT_QUOTES, 'UTF-8'); ?>" disabled></div>
+                    </div>
+                    <p style="color: var(--ml-text-secondary); font-size: .9rem; margin: -6px 0 16px;">
+                        <i class="fas fa-lock" style="margin-right: 4px;"></i>Dados do seu perfil utilizados automaticamente. Para alterá-los, acesse <strong>Minha Conta → Perfil</strong>.
+                    </p>
+                    <?php else: ?>
                     <div class="auth-field">
                         <label class="auth-label" for="name">Seu Nome *</label>
                         <div class="auth-input-wrap"><input type="text" id="name" name="name" placeholder="Nome completo" required></div>
@@ -77,6 +112,7 @@ include '../../components/header.php';
                         <label class="auth-label" for="phone">Telefone</label>
                         <div class="auth-input-wrap"><input type="tel" id="phone" name="phone" placeholder="(11) 99999-9999"></div>
                     </div>
+                    <?php endif; ?>
                     <div class="auth-field">
                         <label class="auth-label" for="subject">Assunto *</label>
                         <select id="subject" name="subject" required>
