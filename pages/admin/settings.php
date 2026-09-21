@@ -10,7 +10,9 @@ $defaults = [
     'store_currency'=>'BRL','store_description'=>'','social_facebook'=>'','social_instagram'=>'',
     'social_twitter'=>'','social_youtube'=>'','store_logo'=>'','store_favicon'=>'',
     'pix_key'=>'','boleto_days'=>'3',
+    'pix_discount_percent'=>'5',
     'free_shipping_threshold'=>'500',
+    'vip_spend_threshold'=>'2000',
 ];
 
 $tab = (string) ($_GET['tab'] ?? 'store');
@@ -21,25 +23,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_require_valid();
 
     $values = [];
-    if (isset($_FILES['store_logo']) && is_uploaded_file($_FILES['store_logo']['tmp_name'])) {
-        $ext = strtolower(pathinfo($_FILES['store_logo']['name'], PATHINFO_EXTENSION));
-        if (in_array($ext, ['png','jpg','jpeg','webp'], true)) {
-            $name = 'logo-' . time() . '.' . $ext;
-            $target = __DIR__ . '/../../assets/img/' . $name;
-            if (move_uploaded_file($_FILES['store_logo']['tmp_name'], $target)) {
-                $values['store_logo'] = 'assets/img/' . $name;
+    $errors = [];
+
+    // Upload de logo/favicon seguindo o padrão dos banners: sem novo arquivo
+    // (UPLOAD_ERR_NO_FILE) mantém o imagem atual, sem gerar erro.
+    $saveUpload = function (string $field, string $prefix, array $allowedExt) use (&$errors): ?string {
+        $hasFile = isset($_FILES[$field]);
+        $uploadError = $hasFile ? (int) $_FILES[$field]['error'] : UPLOAD_ERR_NO_FILE;
+        if ($uploadError === UPLOAD_ERR_NO_FILE) {
+            return null;
+        }
+        if ($uploadError !== UPLOAD_ERR_OK) {
+            $errors[] = uploadErrorMessage($uploadError);
+            return null;
+        }
+        if ((int) $_FILES[$field]['size'] > 2097152) {
+            $errors[] = 'O arquivo deve ter no máximo 2MB.';
+            return null;
+        }
+        $ext = strtolower(pathinfo((string) $_FILES[$field]['name'], PATHINFO_EXTENSION));
+        if (!in_array($ext, $allowedExt, true)) {
+            $errors[] = 'Formato de arquivo inválido. Formatos permitidos: ' . implode(', ', $allowedExt) . '.';
+            return null;
+        }
+        $uploadDirAbsolute = realpath(__DIR__ . '/../../assets/img');
+        if ($uploadDirAbsolute === false) {
+            $errors[] = 'Diretório de imagens não encontrado.';
+            return null;
+        }
+        $targetDir = $uploadDirAbsolute . '/site';
+        if (!is_dir($targetDir)) {
+            if (!@mkdir($targetDir, 0775, true) && !is_dir($targetDir)) {
+                $errors[] = 'Não foi possível criar o diretório de uploads (' . $targetDir . '). Verifique as permissões de escrita da pasta assets/img.';
+                return null;
             }
         }
+        if (!is_writable($targetDir)) {
+            $errors[] = 'O diretório de uploads não tem permissão de escrita (' . $targetDir . ').';
+            return null;
+        }
+        $fileName = $prefix . '-' . time() . '.' . $ext;
+        $targetAbsolute = $targetDir . '/' . $fileName;
+        if (!move_uploaded_file($_FILES[$field]['tmp_name'], $targetAbsolute)) {
+            $errors[] = 'Falha no upload do arquivo.';
+            return null;
+        }
+        return '/assets/img/site/' . $fileName;
+    };
+
+    $logoPath = $saveUpload('store_logo', 'logo', ['png', 'jpg', 'jpeg', 'webp']);
+    if ($logoPath !== null) {
+        $values['store_logo'] = $logoPath;
     }
-    if (isset($_FILES['store_favicon']) && is_uploaded_file($_FILES['store_favicon']['tmp_name'])) {
-        $ext = strtolower(pathinfo($_FILES['store_favicon']['name'], PATHINFO_EXTENSION));
-        if (in_array($ext, ['png','jpg','jpeg','ico','webp'], true)) {
-            $name = 'favicon-' . time() . '.' . $ext;
-            $target = __DIR__ . '/../../assets/img/' . $name;
-            if (move_uploaded_file($_FILES['store_favicon']['tmp_name'], $target)) {
-                $values['store_favicon'] = 'assets/img/' . $name;
-            }
-        }
+    $faviconPath = $saveUpload('store_favicon', 'favicon', ['png', 'ico', 'webp']);
+    if ($faviconPath !== null) {
+        $values['store_favicon'] = $faviconPath;
     }
 
     foreach ($defaults as $k => $_) {
@@ -47,18 +85,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $values[$k] = trim((string) ($_POST[$k] ?? ''));
     }
 
-    try {
-        store_config_save($values);
-        $_SESSION['admin_message'] = 'Configurações salvas com sucesso.';
-    } catch (Throwable $e) {
-        $_SESSION['admin_message'] = 'Erro ao salvar configurações: banco indisponível.';
+    if (!empty($errors)) {
+        $_SESSION['admin_message'] = implode(' ', $errors);
+        $_SESSION['admin_message_type'] = 'error';
+    } else {
+        try {
+            store_config_save($values);
+            $_SESSION['admin_message'] = 'Configurações salvas com sucesso.';
+            $_SESSION['admin_message_type'] = 'success';
+        } catch (Throwable $e) {
+            $_SESSION['admin_message'] = 'Erro ao salvar configurações: banco indisponível.';
+            $_SESSION['admin_message_type'] = 'error';
+        }
     }
     header('Location: settings.php?tab=' . urlencode($tab));
     exit;
 }
 
 $message = $_SESSION['admin_message'] ?? null;
-unset($_SESSION['admin_message']);
+$messageType = $_SESSION['admin_message_type'] ?? 'success';
+unset($_SESSION['admin_message'], $_SESSION['admin_message_type']);
 
 function val($key) { global $settings; return htmlspecialchars($settings[$key] ?? '', ENT_QUOTES, 'UTF-8'); }
 function sel($key, $val) { global $settings; return ($settings[$key] ?? '') === $val ? 'selected' : ''; }
@@ -93,7 +139,7 @@ function sel($key, $val) { global $settings; return ($settings[$key] ?? '') === 
                 </div>
             </header>
             <?php if ($message): ?>
-            <div class="auth-feedback auth-feedback-success"><?php echo htmlspecialchars($message, ENT_QUOTES, 'UTF-8'); ?></div>
+            <div class="auth-feedback auth-feedback-<?php echo $messageType === 'error' ? 'error' : 'success'; ?>"><?php echo htmlspecialchars($message, ENT_QUOTES, 'UTF-8'); ?></div>
             <?php endif; ?>
             <form id="settingsForm" method="POST" enctype="multipart/form-data">
             <?php echo csrf_field(); ?>
@@ -131,14 +177,14 @@ function sel($key, $val) { global $settings; return ($settings[$key] ?? '') === 
                                     <i class="fas fa-cloud-upload-alt"></i><h5>Logo da Loja</h5><p style="color:var(--color-gray);">PNG, JPG ou WEBP - 200x60px</p>
                                 </div>
                                 <input type="file" id="logoInput" name="store_logo" accept=".png,.jpg,.jpeg,.webp" style="display:none">
-                                <?php if (!empty($settings['store_logo'])): ?><img src="../../<?php echo htmlspecialchars($settings['store_logo'], ENT_QUOTES, 'UTF-8'); ?>" class="logo-preview" alt="Logo"><?php endif; ?>
+                                <?php if (!empty($settings['store_logo'])): ?><img src="../../<?php echo htmlspecialchars(ltrim($settings['store_logo'], '/'), ENT_QUOTES, 'UTF-8'); ?>" class="logo-preview" alt="Logo"><?php endif; ?>
                             </div>
                             <div>
                                 <div class="admin-file-upload" onclick="document.getElementById('faviconInput').click()" style="cursor:pointer;">
                                     <i class="fas fa-cloud-upload-alt"></i><h5>Favicon</h5><p style="color:var(--color-gray);">PNG, ICO ou WEBP - 32x32px</p>
                                 </div>
-                                <input type="file" id="faviconInput" name="store_favicon" accept=".png,.jpg,.jpeg,.ico,.webp" style="display:none">
-                                <?php if (!empty($settings['store_favicon'])): ?><img src="../../<?php echo htmlspecialchars($settings['store_favicon'], ENT_QUOTES, 'UTF-8'); ?>" class="favicon-preview" alt="Favicon"><?php endif; ?>
+                                <input type="file" id="faviconInput" name="store_favicon" accept=".png,.ico,.webp" style="display:none">
+                                <?php if (!empty($settings['store_favicon'])): ?><img src="../../<?php echo htmlspecialchars(ltrim($settings['store_favicon'], '/'), ENT_QUOTES, 'UTF-8'); ?>" class="favicon-preview" alt="Favicon"><?php endif; ?>
                             </div>
                         </div>
 
@@ -173,6 +219,10 @@ function sel($key, $val) { global $settings; return ($settings[$key] ?? '') === 
                         <h4 style="margin-bottom:25px;">Configurações de Pagamento</h4>
                         <div class="admin-form-group"><label for="pix_key">Chave Pix</label><input type="text" id="pix_key" name="pix_key" value="<?php echo val('pix_key'); ?>" placeholder="CNPJ, CPF, e-mail, telefone ou chave aleatória"></div>
                         <div class="admin-form-group"><label for="boleto_days">Vencimento do Boleto (dias)</label><input type="number" id="boleto_days" name="boleto_days" value="<?php echo val('boleto_days'); ?>" min="1" max="30"></div>
+                        <div class="admin-form-group"><label for="pix_discount_percent">Desconto Pix (%)</label><input type="number" id="pix_discount_percent" name="pix_discount_percent" value="<?php echo val('pix_discount_percent'); ?>" min="0" max="100" step="0.5"></div>
+                        <p style="color:var(--color-gray); font-size:0.85rem; margin-top:-10px;">Desconto aplicado quando o cliente paga com Pix. Deixe 0 para não dar desconto.</p>
+                        <div class="admin-form-group"><label for="vip_spend_threshold">Gasto mínimo p/ Cliente VIP (R$)</label><input type="number" id="vip_spend_threshold" name="vip_spend_threshold" value="<?php echo val('vip_spend_threshold'); ?>" min="0" step="0.01"></div>
+                        <p style="color:var(--color-gray); font-size:0.85rem; margin-top:-10px;">Acumulado de pedidos que classifica o cliente como VIP. Usado pelos cupons de segmento "VIP".</p>
                     </div>
 
                     <!-- Frete -->
@@ -210,5 +260,36 @@ function sel($key, $val) { global $settings; return ($settings[$key] ?? '') === 
         </main>
     </div>
     <script src="../../assets/js/script.js"></script>
+    <script>
+    (function() {
+        var MAX_SIZE = 2 * 1024 * 1024;
+        function checkUpload(input, allowedExt, label) {
+            if (!input || !input.files || input.files.length === 0) return;
+            var file = input.files[0];
+            var ext = file.name.split('.').pop().toLowerCase();
+            if (allowedExt.indexOf(ext) === -1) {
+                alert('Formato inválido para ' + label + '. Use: ' + allowedExt.join(', ') + '.');
+                input.value = '';
+                return;
+            }
+            if (file.size > MAX_SIZE) {
+                alert(label + ' deve ter no máximo 2MB.');
+                input.value = '';
+            }
+        }
+        var logoInput = document.getElementById('logoInput');
+        if (logoInput) {
+            logoInput.addEventListener('change', function() {
+                checkUpload(logoInput, ['png', 'jpg', 'jpeg', 'webp'], 'o Logo da Loja');
+            });
+        }
+        var faviconInput = document.getElementById('faviconInput');
+        if (faviconInput) {
+            faviconInput.addEventListener('change', function() {
+                checkUpload(faviconInput, ['png', 'ico', 'webp'], 'o Favicon');
+            });
+        }
+    })();
+    </script>
 </body>
 </html>

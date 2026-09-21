@@ -1,14 +1,20 @@
 <?php
 $activePage = $activePage ?? '';
 
+require_once dirname(dirname(__DIR__)) . '/includes/config.php';
+
 // Caminho base do site (ex.: /TCC_Etec/) calculado a partir do script atual,
 // para links absolutos como "Voltar ao site" (mesma lógica usada em pages/404.php).
 $adminSiteBase = rtrim(dirname(dirname(dirname($_SERVER['SCRIPT_NAME'] ?? 'index.php'))), '/\\') . '/';
+
+$siteLogo = get_site_logo();
 
 $navItems = [
     'dashboard'  => ['href' => 'index.php',     'icon' => 'fa-tachometer-alt', 'label' => 'Dashboard'],
     'products'   => ['href' => 'products.php',   'icon' => 'fa-box',           'label' => 'Produtos'],
     'categories' => ['href' => 'categories.php', 'icon' => 'fa-tags',          'label' => 'Categorias'],
+    'package-sizes' => ['href' => 'package-sizes.php', 'icon' => 'fa-box-open', 'label' => 'Embalagens'],
+    'coupons'    => ['href' => 'coupons.php',     'icon' => 'fa-tag',           'label' => 'Cupons'],
     'orders'     => ['href' => 'orders.php',     'icon' => 'fa-shopping-cart', 'label' => 'Pedidos'],
     'customers'  => ['href' => 'customers.php',  'icon' => 'fa-users',         'label' => 'Clientes'],
     'contacts'   => ['href' => 'contacts.php',   'icon' => 'fa-envelope',      'label' => 'Contatos'],
@@ -21,8 +27,12 @@ $navItems = [
 <aside class="admin-sidebar">
     <div class="admin-logo">
         <a href="index.php">
+            <?php if ($siteLogo !== ''): ?>
+            <img src="<?php echo htmlspecialchars($adminSiteBase . ltrim($siteLogo, '/'), ENT_QUOTES, 'UTF-8'); ?>" class="admin-logo-img" alt="<?php echo htmlspecialchars(store_config('store_name') ?: 'Royal Tech', ENT_QUOTES, 'UTF-8'); ?>">
+            <?php else: ?>
             <span class="logo-icon"><i class="fas fa-crown"></i></span>
             <span class="logo-text">Royal<span>Tech</span></span>
+            <?php endif; ?>
         </a>
     </div>
     <nav class="admin-nav">

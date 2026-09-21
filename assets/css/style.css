@@ -348,33 +348,6 @@ textarea:focus:valid {
 }
 
 /* ========================================
-   Breadcrumb
-   ======================================== */
-.breadcrumb-section {
-    padding: 14px 0 16px;
-    background: var(--color-black-light);
-}
-
-.breadcrumb {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 0.9rem;
-}
-
-.breadcrumb a {
-    color: var(--color-gray-light);
-}
-
-.breadcrumb a:hover {
-    color: var(--color-primary);
-}
-
-.breadcrumb span:last-child {
-    color: var(--color-primary);
-}
-
-/* ========================================
    Auth Feedback (usado globalmente)
    ======================================== */
 .auth-feedback {

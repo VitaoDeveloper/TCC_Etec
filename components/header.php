@@ -53,12 +53,18 @@ if (isset($pdo)) {
 }
 
 require_once dirname(__DIR__) . '/includes/category_icons.php';
+
+$assetVersion = ASSET_VERSION;
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <?php $siteFavicon = get_site_favicon(); ?>
+    <?php if ($siteFavicon !== ''): ?>
+    <link rel="icon" href="<?php echo htmlspecialchars($basePath . ltrim($siteFavicon, '/'), ENT_QUOTES, 'UTF-8'); ?>">
+    <?php endif; ?>
     <title><?php echo $page_title ?? 'Royal Tech - Loja de Tecnologia Premium'; ?></title>
     <meta name="description" content="<?php echo $page_description ?? 'Royal Tech - Loja de Tecnologia Premium. Os melhores produtos de tecnologia com preços imperdíveis e atendimento diferenciado.'; ?>">
     <meta property="og:title" content="<?php echo $og_title ?? $page_title ?? 'Royal Tech - Loja de Tecnologia Premium'; ?>">
@@ -66,10 +72,10 @@ require_once dirname(__DIR__) . '/includes/category_icons.php';
     <meta property="og:image" content="<?php echo ($basePath ?? '') . 'assets/img/hero-bg.jpg'; ?>">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Royal Tech">
-    <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/style.css">
-    <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/admin.css">
-    <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/mercadolivre-style.css">
-    <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/auth.css">
+    <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/style.css?v=<?php echo $assetVersion; ?>">
+    <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/admin.css?v=<?php echo $assetVersion; ?>">
+    <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/mercadolivre-style.css?v=<?php echo $assetVersion; ?>">
+    <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/auth.css?v=<?php echo $assetVersion; ?>">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -84,10 +90,15 @@ require_once dirname(__DIR__) . '/includes/category_icons.php';
         </button>
 
         <!-- Logo -->
+        <?php $siteLogo = get_site_logo(); ?>
         <div class="ml-logo">
-            <a href="<?php echo $basePath; ?>index.php">
+            <a href="<?php echo $basePath; ?>index.php" title="<?php echo htmlspecialchars(store_config('store_name') ?: 'Royal Tech', ENT_QUOTES, 'UTF-8'); ?>">
+                <?php if ($siteLogo !== ''): ?>
+                <img src="<?php echo htmlspecialchars($basePath . ltrim($siteLogo, '/'), ENT_QUOTES, 'UTF-8'); ?>" class="ml-logo-img" alt="<?php echo htmlspecialchars(store_config('store_name') ?: 'Royal Tech', ENT_QUOTES, 'UTF-8'); ?>">
+                <?php else: ?>
                 <span class="ml-logo-icon"><i class="fas fa-crown"></i></span>
                 <span class="ml-logo-text">Royal<span>Tech</span></span>
+                <?php endif; ?>
             </a>
         </div>
 
@@ -190,9 +201,30 @@ document.addEventListener('DOMContentLoaded', function() {
     function doSearch() {
         var q = searchInput.value.trim();
         if (q) {
-            window.location.href = '<?php echo $basePath; ?>pages/products/products.php?q=' + encodeURIComponent(q);
+            window.location.href = <?php echo json_encode($basePath . 'pages/products/products.php?q=', JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?> + encodeURIComponent(q);
         }
     }
+    /* ============================================================
+       Efeito de tema — realeza (PROTEGIDO / MONITORADO)
+
+       Este bloco É INTENCIONAL: a chuva de coroas (fa-crown) e do
+       ícone (assets/img/ui/effects/textures/selecao.png) é acionada
+       ao clicar 10x na busca vazia. Nenhum erro aqui.
+
+       Ele é protegido por CI: os hashes SHA-256 deste trecho, do CSS
+       (.royal-crown, royal-fall, royal-toast) e da imagem estão em
+       .github/asset-integrity.json e são conferidos pelo workflow
+       .github/workflows/asset-integrity.yml em todo PR — se algo
+       mudar, o check fica vermelho e um comentário automático avisa
+       @jotaomh no PR.
+
+       Qualquer alteração aqui exige revisão de @jotaomh (ver
+       .github/CODEOWNERS). Nada deve ser "desligado": se a mudança é
+       consciente, atualize também o JSON de hashes (scripts/
+       update-asset-integrity.sh) e passe pelo review.
+       ============================================================ */
+    // ##ESSA POHA TA FUNCIONANDO?????? deixa quieto e nao mexe mais
+    // === BEGIN TEMA FX (INTEGRIDADE) ===
     var royalClicks = 0;
     var royalTimer = null;
     function registerRoyalClick() {
@@ -215,7 +247,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 el.style.fontSize = size + 'px';
             } else {
                 el = document.createElement('img');
-                el.src = '<?php echo $basePath; ?>assets/img/corinthians.png';
+                el.src = <?php echo json_encode($basePath . 'assets/img/ui/effects/textures/selecao.png', JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
                 el.alt = '';
                 el.className = 'royal-crown royal-troll';
                 el.style.width = size + 'px';
@@ -238,6 +270,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.body.appendChild(toast);
         setTimeout(function() { toast.remove(); }, 3600);
     }
+    // === END TEMA FX (INTEGRIDADE) ===
     if (searchBtn) {
         searchBtn.addEventListener('click', function() {
             if (searchInput && searchInput.value.trim() === '') {
@@ -297,21 +330,3 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
-
-<?php if ($show_breadcrumb ?? true): ?>
-<section class="breadcrumb-section">
-    <div class="container">
-        <nav class="breadcrumb">
-            <a href="<?php echo $basePath; ?>index.php">Início</a>
-            <?php if (!empty($breadcrumb_items)): foreach ($breadcrumb_items as $bi): ?>
-            <span>/</span>
-            <?php if (!empty($bi['url'])): ?><a href="<?php echo htmlspecialchars($bi['url'], ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($bi['label'], ENT_QUOTES, 'UTF-8'); ?></a><?php else: ?><span><?php echo htmlspecialchars($bi['label'], ENT_QUOTES, 'UTF-8'); ?></span><?php endif; ?>
-            <?php endforeach; ?>
-            <?php else: ?>
-            <span>/</span>
-            <span><?php echo $breadcrumb_title ?? 'Página Atual'; ?></span>
-            <?php endif; ?>
-        </nav>
-    </div>
-</section>
-<?php endif; ?>

@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS e5_users (
   id INT PRIMARY KEY AUTO_INCREMENT,
   name VARCHAR(80) NOT NULL,
   email VARCHAR(120) UNIQUE NOT NULL,
+  cpf VARCHAR(14) NULL,
   username VARCHAR(40) UNIQUE NOT NULL,
   password VARCHAR(255) NOT NULL,
   role ENUM('customer','admin') NOT NULL DEFAULT 'customer',
@@ -27,6 +28,25 @@ CREATE TABLE IF NOT EXISTS e5_categories (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS e5_package_sizes (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(60) NOT NULL UNIQUE,
+  height_cm DECIMAL(5,1) NOT NULL,
+  width_cm DECIMAL(5,1) NOT NULL,
+  length_cm DECIMAL(5,1) NOT NULL,
+  max_weight_kg DECIMAL(5,2) NOT NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+INSERT IGNORE INTO e5_package_sizes (name, height_cm, width_cm, length_cm, max_weight_kg) VALUES
+('Micro', 10.0, 10.0, 10.0, 0.50),
+('Pequena', 15.0, 10.0, 20.0, 1.00),
+('Média', 25.0, 15.0, 25.0, 3.00),
+('Grande', 30.0, 25.0, 30.0, 8.00),
+('Extra Grande', 45.0, 35.0, 35.0, 12.00);
+
 CREATE TABLE IF NOT EXISTS e5_products (
   id INT PRIMARY KEY AUTO_INCREMENT,
   category_id INT NOT NULL,
@@ -38,9 +58,15 @@ CREATE TABLE IF NOT EXISTS e5_products (
   old_price DECIMAL(10,2) NULL,
   stock INT NOT NULL DEFAULT 0,
   is_featured TINYINT(1) NOT NULL DEFAULT 0,
+  package_size_id INT NULL,
+  weight_kg DECIMAL(5,2) NULL,
+  height_cm DECIMAL(5,1) NULL,
+  width_cm DECIMAL(5,1) NULL,
+  length_cm DECIMAL(5,1) NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  CONSTRAINT fk_products_category FOREIGN KEY (category_id) REFERENCES e5_categories(id)
+  CONSTRAINT fk_products_category FOREIGN KEY (category_id) REFERENCES e5_categories(id),
+  CONSTRAINT fk_products_package_size FOREIGN KEY (package_size_id) REFERENCES e5_package_sizes(id)
 );
 
 CREATE TABLE IF NOT EXISTS e5_product_images (
@@ -60,6 +86,8 @@ CREATE TABLE IF NOT EXISTS e5_orders (
   shipping_method VARCHAR(50) NULL,
   shipping_cost DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   payment_method VARCHAR(50) NULL,
+  coupon_code VARCHAR(50) NULL,
+  payment_card_last_four CHAR(4) NULL,
   payment_status ENUM('pending','paid','refunded') NOT NULL DEFAULT 'pending',
   shipping_neighborhood VARCHAR(80) NULL,
   shipping_city VARCHAR(80) NULL,
@@ -98,12 +126,23 @@ CREATE TABLE IF NOT EXISTS e5_cart (
 
 CREATE TABLE IF NOT EXISTS e5_contacts (
   id INT PRIMARY KEY AUTO_INCREMENT,
+  user_id INT NULL,
   name VARCHAR(80) NOT NULL,
   email VARCHAR(120) NOT NULL,
   phone VARCHAR(20) NULL,
   subject VARCHAR(60) NOT NULL,
   message TEXT NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  status ENUM('pending','answered') NOT NULL DEFAULT 'pending',
+  response_message TEXT NULL,
+  responded_by INT NULL,
+  responded_at TIMESTAMP NULL,
+  response_email_status ENUM('sent','failed','skipped') NULL,
+  response_email_error TEXT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_contacts_email_status (email, status),
+  CONSTRAINT fk_contacts_user FOREIGN KEY (user_id) REFERENCES e5_users(id) ON DELETE SET NULL,
+  CONSTRAINT fk_contacts_responded_by FOREIGN KEY (responded_by) REFERENCES e5_users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE IF NOT EXISTS e5_newsletter (
@@ -149,6 +188,44 @@ CREATE TABLE IF NOT EXISTS e5_settings (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+-- =====================================================================
+-- CHECKOUT ESTILO MERCADO LIVRE
+-- =====================================================================
+
+-- Cartões salvos do cliente (bloco Pagamento, cartão de crédito)
+CREATE TABLE IF NOT EXISTS e5_saved_cards (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  user_id INT NOT NULL,
+  card_brand VARCHAR(20) NOT NULL DEFAULT 'others',
+  holder_name VARCHAR(80) NOT NULL,
+  last_four CHAR(4) NOT NULL,
+  exp_month TINYINT UNSIGNED NOT NULL,
+  exp_year SMALLINT UNSIGNED NOT NULL,
+  max_installments TINYINT UNSIGNED NOT NULL DEFAULT 12,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_saved_cards_user FOREIGN KEY (user_id) REFERENCES e5_users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Cupons de desconto (campo "Inserir código do cupom")
+-- type: percent | fixed
+CREATE TABLE IF NOT EXISTS e5_coupons (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  code VARCHAR(50) NOT NULL UNIQUE,
+  type ENUM('percent','fixed') NOT NULL DEFAULT 'percent',
+  value DECIMAL(10,2) NOT NULL,
+  min_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  max_discount DECIMAL(10,2) NULL,
+  valid_from DATE NULL,
+  valid_until DATE NULL,
+  active TINYINT(1) NOT NULL DEFAULT 1,
+  -- customer_scope: all = todos | new = cliente novo (sem pedidos) | vip = alto ticket (>= gasto mínimo)
+  customer_scope ENUM('all','new','vip') NOT NULL DEFAULT 'all',
+  max_uses INT NOT NULL DEFAULT 0,
+  used_count INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 -- ======================================================================
 -- REGISTROS DE EXEMPLO (SEED) -- senha padrão: password123 (hash bcrypt)
 -- ======================================================================
@@ -164,6 +241,9 @@ INSERT INTO e5_users (name, email, username, password, role, postal_code, street
 ('Pedro Martins', 'pedro.martins@email.com', 'pedro.martins', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'customer', '80080-000', 'Av. Batel', 200, 'Apto 33'),
 ('Beatriz Nunes', 'beatriz.nunes@email.com', 'beatriz.nunes', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'customer', '90090-000', 'Av. Ipiranga', 500, NULL),
 ('admin', 'admin@royaltech.com', 'admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', '01310-100', 'Av. Paulista', 1, 'Sede');
+
+-- CPF demo (bloco Faturamento do checkout) — os demais usuários podem preencher no perfil
+UPDATE e5_users SET cpf = '52998224725' WHERE name = 'Maria Silva' AND cpf IS NULL;
 
 /* Contas admin dos colaboradores (senhas temporárias entregues à parte) */
 INSERT INTO e5_users (name, email, username, password, role, postal_code, street, number, complement) VALUES
@@ -238,9 +318,9 @@ INSERT INTO e5_newsletter (email) VALUES
 ('news3@email.com');
 
 INSERT INTO e5_banners (title, subtitle, image_path, link_url, is_active) VALUES
-('Promoção Smartphones', 'Até 30% OFF em smartphones selecionados', '/assets/img/banners/smartphones.jpg', '/produtos/smartphones', 1),
-('Semana do Consumidor', 'Ofertas imperdíveis por tempo limitado', '/assets/img/banners/semana-consumidor.jpg', '/ofertas', 1),
-('Frete Grátis', 'Em compras acima de R$ 499,00', '/assets/img/banners/frete-gratis.jpg', NULL, 0);
+('Promoção Smartphones', 'Até 30% OFF em smartphones selecionados', '/assets/img/banners/smartphones.jpg', '/pages/products/products.php?category_id=1', 1),
+('Semana do Consumidor', 'Ofertas imperdíveis por tempo limitado', '/assets/img/banners/semana-consumidor.jpg', '/pages/products/products.php?offers=1', 1),
+('Frete Grátis', 'Em compras acima de R$ 499,00', '/assets/img/banners/frete-gratis.jpg', '/pages/products/products.php', 0);
 
 INSERT INTO e5_wishlist (user_id, product_id) VALUES
 (1, 3),
@@ -249,4 +329,33 @@ INSERT INTO e5_wishlist (user_id, product_id) VALUES
 (3, 1);
 
 INSERT INTO e5_settings (setting_key, setting_value) VALUES
-('comprovante_counter', '0');
+('comprovante_counter', '0'),
+('vip_spend_threshold', '2000');
+
+-- =====================================================================
+-- INTEGRAÇÕES / SUPERFRETE
+-- =====================================================================
+
+-- =====================================================================
+-- superfrete_webhook_log
+-- Tabela de IDEMPOTÊNCIA para webhooks recebidos da SuperFrete.
+-- A SuperFrete reenvia o mesmo evento em caso de timeout/falha
+-- (timeout 30s, retry a cada 15 min, até 5x).
+-- Se o event_id já existir, responder HTTP 200 sem reprocessar.
+-- =====================================================================
+CREATE TABLE IF NOT EXISTS superfrete_webhook_log (
+    id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    event_id      VARCHAR(128) NOT NULL,
+    event_type    VARCHAR(64)  NOT NULL,
+    order_id      VARCHAR(128) DEFAULT NULL,
+    payload_hash  CHAR(64)     NOT NULL,
+    processed_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_event_id (event_id),
+    KEY idx_order_id (order_id),
+    KEY idx_created_at (created_at)
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_unicode_ci
+  COMMENT='Log de idempotência (event_id + payload_hash) para webhooks SuperFrete';

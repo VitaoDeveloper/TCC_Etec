@@ -1,0 +1,16 @@
+{
+  "id": "FQvQPoeSW83QC24fl6ww",
+  "name": "TCC RoyalTech Webhook",
+  "url": "https://example.com/webhook/superfrete",
+  "secret_token": "MASKED_FOR_SECURITY_...76d8",
+  "events": [
+    "order.created",
+    "order.released",
+    "order.generated",
+    "order.posted",
+    "order.delivered",
+    "order.cancelled"
+  ],
+  "is_active": true,
+  "created_at": "2026-09-08T14:10:33.897Z"
+}

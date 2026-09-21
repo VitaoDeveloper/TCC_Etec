@@ -1,6 +1,5 @@
 <?php
 $page_title = 'Página Não Encontrada - Royal Tech';
-$show_breadcrumb = false;
 $current_page = '';
 
 $scriptDir = dirname($_SERVER['SCRIPT_NAME']);

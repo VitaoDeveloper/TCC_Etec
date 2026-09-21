@@ -22,12 +22,26 @@ document.addEventListener('DOMContentLoaded', function() {
         var currentSlide = 0;
         var totalSlides = slides.length;
         var autoPlayInterval = null;
+        var isHovered = false;
 
         function goToSlide(index) {
+            if (totalSlides === 0) return;
             if (index < 0) index = totalSlides - 1;
             if (index >= totalSlides) index = 0;
+
+            // Pulo circular (último → primeiro e vice-versa): desabilita a
+            // transição para não "rebobinar" atravessando todos os slides.
+            var crossEdge = (currentSlide === 0 && index === totalSlides - 1) ||
+                            (currentSlide === totalSlides - 1 && index === 0);
+            if (crossEdge) {
+                carouselTrack.style.transition = 'none';
+            }
             currentSlide = index;
             carouselTrack.style.transform = 'translateX(-' + (currentSlide * 100) + '%)';
+            if (crossEdge) {
+                void carouselTrack.offsetWidth;
+                carouselTrack.style.transition = '';
+            }
 
             if (dotsContainer) {
                 var dots = dotsContainer.querySelectorAll('.ml-carousel-dot');
@@ -60,14 +74,22 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
+        function stopAutoPlay() {
+            if (autoPlayInterval !== null) {
+                clearInterval(autoPlayInterval);
+                autoPlayInterval = null;
+            }
+        }
+
         function startAutoPlay() {
+            if (autoPlayInterval !== null || isHovered || totalSlides <= 1) return;
             autoPlayInterval = setInterval(function() {
                 goToSlide(currentSlide + 1);
             }, 5000);
         }
 
         function resetAutoPlay() {
-            clearInterval(autoPlayInterval);
+            stopAutoPlay();
             startAutoPlay();
         }
 
@@ -75,10 +97,12 @@ document.addEventListener('DOMContentLoaded', function() {
             startAutoPlay();
 
             carousel.addEventListener('mouseenter', function() {
-                clearInterval(autoPlayInterval);
+                isHovered = true;
+                stopAutoPlay();
             });
 
             carousel.addEventListener('mouseleave', function() {
+                isHovered = false;
                 startAutoPlay();
             });
         }
@@ -214,6 +238,42 @@ document.addEventListener('DOMContentLoaded', function() {
                             cartBtn.appendChild(span);
                         }
                     }
+                } else if (window.showToast) {
+                    showToast(data.message, 'error');
+                }
+            })
+            .catch(function() {
+                self.classList.remove('btn-loading');
+                if (window.showToast) showToast('Erro ao adicionar ao carrinho.', 'error');
+            });
+        });
+    });
+
+    // ========================================
+    // Buy Now — adiciona ao carrinho e vai direto ao checkout
+    // ========================================
+    document.querySelectorAll('.btn-buy-now').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (!loggedFlag) return;
+
+            var card = this.closest('[data-product-id]');
+            var productId = card ? card.getAttribute('data-product-id') : null;
+            if (!productId) return;
+
+            var self = this;
+            self.classList.add('btn-loading');
+
+            fetch(basePath + 'pages/cart/add.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: new URLSearchParams({product_id: productId, quantity: (parseInt((document.getElementById('pdp-qty') || {}).value, 10) || 1)})
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                self.classList.remove('btn-loading');
+                if (data.success) {
+                    window.location.href = basePath + 'pages/cart/checkout.php';
                 } else if (window.showToast) {
                     showToast(data.message, 'error');
                 }

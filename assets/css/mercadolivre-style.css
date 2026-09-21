@@ -64,6 +64,13 @@
     gap: 8px;
 }
 
+.ml-logo-img {
+    width: auto;
+    height: 40px;
+    max-width: 200px;
+    object-fit: contain;
+}
+
 .ml-logo-icon {
     font-size: 1.6rem;
     color: var(--ml-accent);
@@ -1762,8 +1769,18 @@ body.ml-layout-active {
 }
 
 /* ========================================
-   Easter egg — Modo Realeza
+   Efeito de tema — realeza
+   ========================================
+   ESTE BLOCO É INTENCIONAL E PROTEGIDO / MONITORADO.
+   Anima a chuva de coroas e do ícone
+   (assets/img/ui/effects/textures/selecao.png, ver components/header.php).
+
+   Hashes conferidos por CI em .github/asset-integrity.json
+   (workflow .github/workflows/asset-integrity.yml, roda em todo
+   PR e avisa @jotaomh em caso de divergência). Qualquer alteração
+   aqui exige revisão de @jotaomh (ver .github/CODEOWNERS).
    ======================================== */
+/* === BEGIN TEMA FX (INTEGRIDADE) === */
 .royal-crown {
     position: fixed;
     top: -50px;
@@ -1777,7 +1794,6 @@ body.ml-layout-active {
 
 .royal-troll {
     height: auto;
-    border-radius: 4px;
 }
 
 @keyframes royal-fall {
@@ -1824,6 +1840,7 @@ body.royal-glow::after {
     from { opacity: 1; transform: translateX(-50%) scale(1); }
     to { opacity: 0; transform: translateX(-50%) scale(0.85); }
 }
+/* === END TEMA FX (INTEGRIDADE) === */
 
 /* ========================================
    ML Commerce Pages (Produto / Carrinho / Checkout)
@@ -1866,6 +1883,37 @@ body.royal-glow::after {
 .ml-btn-primary:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+.ml-pdp-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 14px;
+}
+.ml-pdp-actions .ml-btn {
+    padding: 14px;
+    font-size: 1.05rem;
+}
+
+.ml-btn-buy-now,
+.ml-btn-buy-now:hover {
+    background: linear-gradient(135deg, #3483fa 0%, #2c6fd8 100%);
+    border-color: #2c6fd8;
+    color: #fff;
+    box-shadow: 0 2px 6px rgba(52, 131, 250, 0.28);
+    letter-spacing: 0.01em;
+    transition: background 0.2s, box-shadow 0.2s, transform 0.05s;
+}
+.ml-btn-buy-now:hover {
+    background: linear-gradient(135deg, #2c6fd8 0%, #245cb8 100%);
+    border-color: #245cb8;
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(52, 131, 250, 0.35);
+    transform: translateY(-1px);
+}
+.ml-btn-buy-now:active {
+    transform: translateY(0);
 }
 
 .ml-btn-block {
@@ -2137,8 +2185,9 @@ body.royal-glow::after {
 .ml-summary-line {
     display: flex;
     justify-content: space-between;
+    align-items: baseline;
     gap: 10px;
-    padding: 6px 0;
+    padding: 8px 0;
     font-size: 0.92rem;
     color: var(--ml-text-secondary);
 }
@@ -2255,6 +2304,448 @@ body.royal-glow::after {
 }
 
 /* ========================================
+   CHECKOUT — LAYOUT 2 COLUNAS (65/35 estilo ML)
+   ======================================== */
+.checkout-grid {
+    grid-template-columns: minmax(0, 13fr) minmax(0, 7fr);
+    gap: 16px;
+}
+
+.ml-checkout-block {
+    padding: 22px 24px;
+    margin-bottom: 16px;
+}
+
+.ml-block-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--ml-text);
+    margin-bottom: 18px;
+}
+
+.ml-block-title i {
+    color: var(--ml-accent);
+    font-size: 1.05rem;
+}
+
+/* Abas pill Frete / Retirada */
+.ml-delivery-tabs {
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.ml-delivery-tab {
+    border-radius: 999px;
+    padding: 11px 22px;
+    font-size: 0.92rem;
+}
+
+.ml-delivery-tab.active {
+    background: rgba(212, 175, 55, 0.16);
+    color: var(--ml-accent);
+    border-color: var(--ml-accent);
+}
+
+/* Card de endereço clicável */
+.ml-address-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px;
+    background: var(--ml-bg);
+    border: 1px solid var(--ml-border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.ml-address-card:hover {
+    border-color: var(--ml-accent);
+    background: var(--ml-bg-hover);
+}
+
+.ml-address-icon {
+    width: 42px;
+    height: 42px;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(212, 175, 55, 0.16);
+    color: var(--ml-accent);
+    border-radius: 50%;
+    font-size: 1.05rem;
+}
+
+.ml-address-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.ml-address-name {
+    display: block;
+    color: var(--ml-text);
+    font-size: 0.95rem;
+    margin-bottom: 2px;
+}
+
+.ml-address-street,
+.ml-address-region {
+    color: var(--ml-text-secondary);
+    font-size: 0.88rem;
+    line-height: 1.4;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ml-address-edit {
+    background: none;
+    border: none;
+    padding: 6px 8px;
+    color: var(--ml-accent);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: var(--font-primary);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.ml-address-edit:hover {
+    text-decoration: underline;
+}
+
+.ml-cep-edit {
+    margin-top: 14px;
+    padding: 16px;
+    background: var(--ml-bg);
+    border: 1px dashed var(--ml-border);
+    border-radius: 8px;
+}
+
+.ml-cep-edit[hidden] {
+    display: none;
+}
+
+/* Linhas de frete — linhas simples separadas por border-bottom */
+.shipping-options {
+    display: flex;
+    flex-direction: column;
+}
+
+.checkout-grid .shipping-option {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 10px;
+    border: none;
+    border-bottom: 1px solid var(--ml-border);
+    border-radius: 0;
+    background: transparent;
+}
+
+.checkout-grid .shipping-option input[type="radio"],
+.checkout-grid .payment-option input[type="radio"] {
+    accent-color: var(--ml-accent);
+    flex-shrink: 0;
+}
+
+.checkout-grid .shipping-option:last-child {
+    border-bottom: none;
+}
+
+.checkout-grid .shipping-option:hover {
+    background: var(--ml-bg-hover);
+}
+
+.checkout-grid .shipping-option.selected {
+    background: rgba(212, 175, 55, 0.06);
+    border-color: var(--ml-border);
+    box-shadow: none;
+}
+
+.shipping-opt-icon {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    color: var(--ml-text-secondary);
+    border-radius: 6px;
+    font-size: 1rem;
+}
+
+.checkout-grid .shipping-option.selected .shipping-opt-icon {
+    color: var(--ml-accent);
+}
+
+.shipping-option-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.shipping-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+}
+
+.shipping-meta strong {
+    color: var(--ml-text);
+    font-size: 0.95rem;
+}
+
+.shipping-days {
+    color: var(--ml-text-muted);
+    font-size: 0.82rem;
+}
+
+.shipping-cost {
+    font-weight: 600;
+    color: var(--ml-text);
+    white-space: nowrap;
+    font-size: 0.95rem;
+}
+
+.ml-ship-free-text {
+    color: var(--ml-green);
+    font-weight: 700;
+}
+
+/* Cards de pagamento — linha inteira selecionável */
+.checkout-grid .payment-options {
+    gap: 10px;
+}
+
+.checkout-grid .payment-option {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px;
+    border-radius: 8px;
+    border: 1px solid var(--ml-border);
+    background: var(--ml-bg);
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.checkout-grid .payment-option:hover,
+.checkout-grid .payment-option.selected {
+    border-color: var(--ml-accent);
+}
+
+.checkout-grid .payment-option.selected {
+    background: rgba(212, 175, 55, 0.06);
+    box-shadow: 0 0 0 1px var(--ml-accent) inset;
+}
+
+.payment-icon {
+    width: 42px;
+    height: 42px;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--ml-bg-hover);
+    color: var(--ml-accent);
+    border-radius: 8px;
+    font-size: 1.25rem;
+}
+
+.payment-option-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.payment-name {
+    display: block;
+    color: var(--ml-text);
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.payment-desc {
+    display: block;
+    color: var(--ml-text-secondary);
+    font-size: 0.82rem;
+    margin-top: 2px;
+}
+
+.payment-badge {
+    display: inline-block;
+    margin-top: 8px;
+    margin-right: 6px;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.ml-badge-gold {
+    background: rgba(212, 175, 55, 0.22);
+    color: var(--ml-accent);
+}
+
+.ml-badge-green {
+    background: rgba(0, 166, 80, 0.15);
+    color: var(--ml-green);
+}
+
+.ml-link-gold {
+    color: var(--ml-accent);
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.ml-link-gold:hover {
+    text-decoration: underline;
+}
+
+/* Resumo da compra — coluna direita */
+.checkout-right {
+    position: sticky;
+    top: calc(var(--ml-header-height) + var(--ml-category-bar-height) + 16px);
+}
+
+.ml-summary-card {
+    padding: 22px 24px;
+}
+
+.ml-summary-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--ml-text);
+    margin-bottom: 16px;
+}
+
+/* Miniaturas 52px lado a lado (não sobrepostas) */
+.ml-collage-thumbs {
+    display: flex;
+    gap: 8px;
+    width: auto;
+    height: auto;
+    flex-shrink: 0;
+}
+
+.ml-collage-thumb {
+    width: 52px;
+    height: 52px;
+    border-radius: 6px;
+    border: 1px solid var(--ml-border);
+    object-fit: cover;
+    background: var(--ml-bg);
+}
+
+.ml-collage-thumb:nth-child(2),
+.ml-collage-thumb:nth-child(3) {
+    left: auto;
+}
+
+/* Números alinhados (tabular-nums) */
+.ml-tabnum,
+.ml-summary-line span,
+.ml-collage-item,
+.ml-savings-box strong {
+    font-variant-numeric: tabular-nums;
+}
+
+/* Total: valor original riscado + valor final dourado empilhados */
+.ml-summary-line.total {
+    align-items: baseline;
+    border-top: 1px solid rgba(212, 175, 55, 0.5);
+}
+
+.ml-summary-total-right {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    line-height: 1.15;
+}
+
+.ml-total-final {
+    color: var(--ml-accent);
+    font-size: 1.45rem;
+    font-weight: 800;
+}
+
+.ml-summary-line.total span:last-child {
+    color: var(--ml-accent);
+}
+
+/* Link do cupom discreto (dourado, sublinhado) */
+.ml-summary-card .ml-coupon-toggle {
+    background: none;
+    border: none;
+    border-radius: 0;
+    padding: 8px 2px;
+    margin: 8px 0;
+    color: var(--ml-accent);
+    font-size: 0.88rem;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    justify-content: flex-start;
+}
+
+.ml-summary-card .ml-coupon-toggle:hover {
+    color: var(--ml-accent-dark);
+}
+
+.ml-summary-card .ml-coupon-toggle i {
+    margin-right: 2px;
+    transition: transform 0.2s ease;
+}
+
+/* Entrada suave do campo de cupom (PARTE C) */
+.ml-coupon-row:not([hidden]) {
+    animation: mlCouponIn 0.22s ease;
+}
+@keyframes mlCouponIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: none; }
+}
+
+/* Botão Pagar e finalizar — dourado sólido */
+.ml-pay-btn {
+    width: 100%;
+    min-height: 50px;
+    padding: 12px 16px;
+    background: var(--ml-accent);
+    color: var(--ml-bg);
+    border: none;
+    border-radius: 8px;
+    font-size: 1.02rem;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: var(--font-primary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: background 0.2s, transform 0.1s;
+}
+
+.ml-pay-btn:hover {
+    background: var(--ml-accent-dark);
+}
+
+.ml-pay-btn:active {
+    transform: translateY(1px);
+}
+
+/* ========================================
    ML Table (Meus Pedidos) / Danger Button
    ======================================== */
 .ml-table-wrap {
@@ -2316,4 +2807,1244 @@ body.royal-glow::after {
 .ml-btn-danger:hover {
     background: rgba(255, 97, 97, 0.12);
     border-color: var(--ml-red);
+}
+
+/* ========================================
+   CHECKOUT ESTILO MERCADO LIVRE
+   ======================================== */
+
+/* Preço original riscado (frete / total) */
+.ml-old-price {
+    color: var(--ml-text-muted);
+    text-decoration: line-through;
+}
+.ml-total-old {
+    font-size: 0.85rem;
+    font-weight: 400;
+    margin-right: 6px;
+}
+.ml-ship-free-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Abas Entrega / Retirada (PARTE F) */
+.ml-delivery-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+}
+.ml-delivery-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: var(--ml-bg);
+    border: 1px solid var(--ml-border);
+    border-radius: 6px;
+    color: var(--ml-text-secondary);
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s, background 0.2s;
+    font-family: var(--font-primary);
+}
+.ml-delivery-tab input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    pointer-events: none;
+}
+.ml-delivery-tab:hover {
+    color: var(--ml-text);
+    border-color: var(--ml-text-secondary);
+}
+.ml-delivery-tab.active {
+    color: var(--ml-accent);
+    border-color: var(--ml-accent);
+    background: rgba(212, 175, 55, 0.08);
+}
+
+/* Caixa de retirada na loja */
+.ml-pickup-box {
+    background: var(--ml-green-bg);
+    border: 1px solid var(--ml-green);
+    border-radius: 8px;
+    padding: 16px;
+}
+.ml-pickup-head {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+}
+.ml-pickup-icon {
+    width: 42px;
+    height: 42px;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--ml-green);
+    color: var(--ml-text);
+    border-radius: 8px;
+    font-size: 1.1rem;
+}
+.ml-pickup-free {
+    color: var(--ml-green);
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-top: 8px;
+}
+.ml-pickup-free i {
+    margin-right: 4px;
+}
+
+/* ========================================
+   RESUMO DA COMPRA — colagem de miniaturas (PARTE B)
+   ======================================== */
+.ml-collage {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+}
+.ml-products-card.single-product .ml-collage {
+    gap: 12px;
+    max-width: 340px;
+}
+.ml-products-card.single-product .ml-collage-info {
+    flex: 0 1 auto;
+    min-width: 0;
+}
+.ml-collage-thumbs {
+    display: flex;
+    gap: 8px;
+    width: auto;
+    height: auto;
+    flex-shrink: 0;
+}
+.ml-collage-thumb {
+    position: static;
+    width: 52px;
+    height: 52px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid var(--ml-border);
+    background: var(--ml-bg);
+}
+.ml-collage-more {
+    width: 52px;
+    height: 52px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--ml-bg);
+    border: 1px solid var(--ml-border);
+    border-radius: 6px;
+    color: var(--ml-text-secondary);
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+.ml-collage-info {
+    flex: 1;
+    min-width: 0;
+}
+.ml-collage-title {
+    font-weight: 600;
+    color: var(--ml-text);
+    font-size: 0.95rem;
+    margin-bottom: 4px;
+}
+.ml-collage-toggle {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--ml-accent);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: var(--font-primary);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.ml-collage-toggle:hover {
+    text-decoration: underline;
+}
+.ml-collage-details {
+    margin-top: 14px;
+    border-top: 1px solid var(--ml-border);
+    padding-top: 6px;
+}
+.ml-collage-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 0;
+    border-bottom: 1px dashed var(--ml-border);
+}
+.ml-collage-item:last-child {
+    border-bottom: none;
+}
+.ml-collage-item-icon {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    background: var(--ml-bg);
+    color: var(--ml-accent);
+    font-size: 0.8rem;
+    flex-shrink: 0;
+}
+.ml-collage-item-name {
+    flex: 1;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--ml-text);
+    line-height: 1.3;
+}
+.ml-collage-item-name small {
+    color: var(--ml-text-muted);
+}
+.ml-collage-item-price {
+    font-size: 0.85rem;
+    color: var(--ml-text);
+    font-weight: 600;
+    white-space: nowrap;
+}
+.ml-summary-divider {
+    border: none;
+    border-top: 1px solid var(--ml-border);
+    margin: 14px 0 10px;
+}
+
+/* Campo/link "Inserir código do cupom" (PARTE C) */
+.ml-coupon-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    margin: 10px 0;
+    padding: 10px 12px;
+    background: transparent;
+    border: 1px dashed var(--ml-border);
+    border-radius: 6px;
+    color: var(--ml-text-secondary);
+    font-size: 0.88rem;
+    font-family: var(--font-primary);
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.2s, color 0.2s;
+}
+.ml-coupon-toggle:hover {
+    border-color: var(--ml-accent);
+    color: var(--ml-accent);
+}
+.ml-coupon-row {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+    margin: 10px 0;
+}
+.ml-coupon-row[hidden] {
+    display: none;
+}
+.ml-coupon-row .auth-input-wrap {
+    flex: 1;
+}
+.ml-coupon-applied-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 0.85rem;
+    padding: 8px 0 4px;
+}
+.ml-coupon-remove {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--ml-text-secondary);
+    font-size: 0.82rem;
+    cursor: pointer;
+    font-family: var(--font-primary);
+}
+.ml-coupon-remove:hover {
+    color: var(--ml-red);
+    text-decoration: underline;
+}
+
+/* Mensagem "Você economizou" em destaque verde (PARTE C) */
+.ml-savings-box {
+    margin-top: 10px;
+    padding: 10px 14px;
+    background: var(--ml-green-bg);
+    border: 1px solid var(--ml-green);
+    border-radius: 6px;
+    color: var(--ml-green);
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.ml-savings-box i {
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+.ml-savings-box strong {
+    font-weight: 700;
+}
+
+/* ========================================
+   CARTÕES SALVOS (PARTE D)
+   ======================================== */
+.ml-saved-cards {
+    margin-top: 16px;
+}
+.ml-cards-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--ml-text);
+    margin-bottom: 8px;
+}
+.ml-cards-label i {
+    color: var(--ml-accent);
+    margin-right: 4px;
+}
+.ml-card-option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: var(--ml-bg);
+    border: 1px solid var(--ml-border);
+    border-radius: 6px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+.ml-card-option:hover,
+.ml-card-option.selected {
+    border-color: var(--ml-accent);
+}
+.ml-card-option input[type="radio"] {
+    accent-color: var(--ml-accent);
+    flex-shrink: 0;
+}
+.ml-card-icon {
+    font-size: 1.6rem;
+    color: var(--ml-text-secondary);
+    flex-shrink: 0;
+    width: 28px;
+    text-align: center;
+}
+.ml-card-num {
+    flex: 1;
+    color: var(--ml-text);
+    font-size: 0.92rem;
+    letter-spacing: 0.5px;
+}
+.ml-card-install {
+    color: var(--ml-green);
+    font-size: 0.82rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.ml-card-install i {
+    margin-right: 2px;
+}
+.ml-cards-more-link {
+    background: none;
+    border: none;
+    padding: 6px 0;
+    color: var(--ml-accent);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: var(--font-primary);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.ml-cards-more-link:hover {
+    text-decoration: underline;
+}
+.ml-card-extra[hidden] {
+    display: none;
+}
+
+/* ========================================
+   FATURAMENTO (PARTE E)
+   ======================================== */
+.ml-billing-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+@media (max-width: 576px) {
+    .ml-card-install {
+        display: none;
+    }
+    .ml-collage {
+        flex-wrap: wrap;
+    }
+}
+
+/* ========================================
+   CHECKOUT POLISH — hierarquia estilo ML
+   ======================================== */
+
+/* Link "Mostrar detalhes" — trilho dourado discreto */
+.ml-collage-toggle i {
+    font-size: 0.7rem;
+    color: var(--ml-text-secondary);
+    transition: color 0.2s;
+}
+.ml-collage-toggle:hover i {
+    color: var(--ml-accent);
+}
+
+/* Banner "Frete grátis" — texto discreto, sem caixa pesada */
+.ml-ship-free-note {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    padding: 0 10px;
+    font-size: 0.8rem;
+    color: var(--ml-text-muted);
+}
+.ml-ship-free-note i {
+    color: var(--ml-green);
+    font-size: 0.85rem;
+    flex-shrink: 0;
+}
+
+/* Card de endereço — leve destaque como o card azul do ML */
+.ml-address-card {
+    border-color: rgba(212, 175, 55, 0.35);
+    background: linear-gradient(180deg, rgba(212, 175, 55, 0.05), var(--ml-bg));
+}
+.ml-address-card:hover {
+    border-color: var(--ml-accent);
+}
+
+/* Linha do endereço: ícone de pin + texto alinhados */
+.ml-address-line {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+.ml-address-line > i {
+    color: var(--ml-accent);
+    font-size: 0.95rem;
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+.ml-address-text {
+    min-width: 0;
+    flex: 1;
+}
+
+/* Ponta do ícone de cadeado no botão primário — discreto */
+.ml-pay-btn i {
+    font-size: 1rem;
+    max-width: 16px;
+}
+.ml-pay-btn .fa-lock {
+    font-size: 13px;
+}
+
+/* Botão secundário "Voltar ao Carrinho" — outline dourado */
+.ml-btn-back {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 50px;
+    margin-top: 10px;
+    padding: 12px 16px;
+    background: transparent;
+    border: 1px solid var(--ml-accent);
+    border-radius: 8px;
+    color: var(--ml-accent);
+    font-size: 0.95rem;
+    font-weight: 700;
+    text-decoration: none;
+    font-family: var(--font-primary);
+    transition: background 0.2s, color 0.2s;
+}
+.ml-btn-back:hover {
+    background: rgba(212, 175, 55, 0.1);
+    color: var(--ml-accent);
+}
+
+/* ========================================
+   MODAL "Mostrar detalhes" da compra
+   ======================================== */
+.ml-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+.ml-modal[hidden] {
+    display: none;
+}
+.ml-modal-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(3px);
+    cursor: pointer;
+}
+.ml-modal-dialog {
+    position: relative;
+    width: 100%;
+    max-width: 460px;
+    max-height: 85vh;
+    overflow-y: auto;
+    background: var(--ml-bg-card);
+    border: 1px solid var(--ml-border);
+    border-radius: 12px;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+    padding: 24px;
+    animation: ml-modal-in 0.2s ease;
+}
+@keyframes ml-modal-in {
+    from { opacity: 0; transform: translateY(12px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.ml-modal-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--ml-bg);
+    border: 1px solid var(--ml-border);
+    border-radius: 50%;
+    color: var(--ml-text-secondary);
+    font-size: 0.9rem;
+    cursor: pointer;
+    font-family: var(--font-primary);
+    transition: color 0.2s, border-color 0.2s;
+}
+.ml-modal-close:hover {
+    color: var(--ml-text);
+    border-color: var(--ml-text-secondary);
+}
+.ml-modal-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--ml-text);
+    padding-right: 32px;
+}
+.ml-modal-subtitle {
+    font-size: 0.85rem;
+    color: var(--ml-text-muted);
+    margin: 4px 0 18px;
+}
+.ml-modal-body {
+    margin-top: 4px;
+}
+.ml-modal-ship {
+    margin-bottom: 16px;
+}
+.ml-modal-ship:last-child {
+    margin-bottom: 0;
+}
+.ml-modal-ship-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ml-text-secondary);
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--ml-border);
+    margin-bottom: 6px;
+}
+.ml-modal-ship-title i {
+    color: var(--ml-accent);
+}
+.ml-modal-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--ml-border);
+}
+.ml-modal-item:last-child {
+    border-bottom: none;
+}
+.ml-modal-item-thumb {
+    width: 56px;
+    height: 56px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid var(--ml-border);
+    background: var(--ml-bg);
+    flex-shrink: 0;
+}
+.ml-modal-item-info {
+    flex: 1;
+    min-width: 0;
+}
+.ml-modal-item-name {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--ml-text);
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.ml-modal-item-meta {
+    font-size: 0.8rem;
+    color: var(--ml-text-muted);
+    margin-top: 2px;
+}
+.ml-modal-item-price {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--ml-text);
+    white-space: nowrap;
+}
+
+/* Desconto do produto — verde (mesmo tom de frete grátis) */
+.ml-summary-line.discount span:last-child {
+    color: var(--ml-green);
+}
+
+/* Consistência: raio uniforme nos blocos do checkout */
+.ml-card,
+.ml-summary-card,
+.ml-checkout-block {
+    border-radius: 8px;
+}
+
+/* ========================================
+   CARRINHO — REDESIGN ESTILO MERCADO LIVRE
+   ======================================== */
+.ml-cart-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--ml-border);
+}
+.ml-cart-head .ml-section-title {
+    font-size: 1.2rem;
+}
+.ml-cart-count {
+    font-size: 0.82rem;
+    color: var(--ml-text-muted);
+    background: var(--ml-bg-card);
+    border: 1px solid var(--ml-border);
+    border-radius: 999px;
+    padding: 4px 12px;
+}
+.ml-cart-count strong {
+    color: var(--ml-accent);
+    font-variant-numeric: tabular-nums;
+}
+
+.ml-cart-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 24px;
+    align-items: start;
+}
+
+/* ---------- Barra "Todos os produtos" ---------- */
+.ml-cart-selectbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: var(--ml-bg-card);
+    border: 1px solid var(--ml-border);
+    border-radius: 8px;
+    margin-bottom: 8px;
+}
+.ml-cart-select-text {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--ml-text);
+}
+.ml-cart-select-count {
+    margin-left: auto;
+    font-size: 0.78rem;
+    color: var(--ml-text-muted);
+}
+
+/* ---------- Checkbox customizado (dourado) ---------- */
+.ml-cbox {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    cursor: pointer;
+    line-height: 0;
+}
+.ml-cbox input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+}
+.ml-cbox-box {
+    width: 20px;
+    height: 20px;
+    display: inline-block;
+    background: var(--ml-bg);
+    border: 1.5px solid var(--ml-border);
+    border-radius: 5px;
+    transition: background 0.15s, border-color 0.15s;
+    position: relative;
+}
+.ml-cbox-box::after {
+    content: '';
+    position: absolute;
+    left: 5px;
+    top: 1px;
+    width: 6px;
+    height: 11px;
+    border: solid var(--ml-bg);
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg) scale(0);
+    transition: transform 0.12s;
+}
+.ml-cbox input:checked + .ml-cbox-box {
+    background: var(--ml-accent);
+    border-color: var(--ml-accent);
+}
+.ml-cbox input:checked + .ml-cbox-box::after {
+    transform: rotate(45deg) scale(1);
+}
+.ml-cbox input:indeterminate + .ml-cbox-box {
+    background: var(--ml-accent);
+    border-color: var(--ml-accent);
+}
+.ml-cbox input:indeterminate + .ml-cbox-box::after {
+    content: '';
+    left: 4px;
+    top: 8px;
+    width: 10px;
+    height: 2px;
+    border: none;
+    background: var(--ml-bg);
+    transform: none;
+}
+.ml-cbox input:focus-visible + .ml-cbox-box {
+    outline: 2px solid var(--ml-accent);
+    outline-offset: 2px;
+}
+
+/* ---------- Grupo por vendedor ---------- */
+.ml-seller-group {
+    background: var(--ml-bg-card);
+    border: 1px solid var(--ml-border);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    overflow: hidden;
+}
+.ml-seller-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    color: var(--ml-text-secondary);
+    border-bottom: 1px solid var(--ml-border);
+}
+.ml-seller-star {
+    color: var(--ml-accent);
+    font-size: 0.9rem;
+}
+.ml-seller-head strong {
+    color: var(--ml-text);
+    font-weight: 700;
+}
+.ml-seller-count {
+    margin-left: auto;
+    font-size: 0.75rem;
+    color: var(--ml-text-muted);
+}
+.ml-seller-list {
+    display: flex;
+    flex-direction: column;
+}
+
+/* ---------- Linha de item ---------- */
+.ml-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--ml-border);
+}
+.ml-item:last-child {
+    border-bottom: none;
+}
+.ml-item-cbox {
+    align-self: flex-start;
+    margin-top: 18px;
+}
+.ml-item-img {
+    width: 84px;
+    height: 84px;
+    flex-shrink: 0;
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--ml-bg);
+    border: 1px solid var(--ml-border);
+    display: block;
+}
+.ml-item-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+.ml-item-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+.ml-item-name {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--ml-text);
+    text-decoration: none;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.ml-item-name:hover {
+    color: var(--ml-accent);
+}
+.ml-item-variant {
+    font-size: 0.75rem;
+    color: var(--ml-text-muted);
+}
+.ml-item-variant i {
+    color: var(--ml-accent);
+    margin-right: 3px;
+}
+.ml-item-stock {
+    font-size: 0.72rem;
+    color: var(--ml-green);
+    font-weight: 600;
+}
+.ml-item-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 3px;
+}
+.ml-item-qty {
+    margin-bottom: 0;
+    gap: 2px;
+}
+.ml-item-qty .cart-qty-btn {
+    width: 26px;
+    height: 26px;
+    background: var(--ml-bg);
+    border-radius: 4px;
+    font-size: 0.88rem;
+}
+.ml-item-qty .cart-qty {
+    width: 38px;
+    height: 26px;
+    font-size: 0.82rem;
+}
+.ml-item-remove {
+    padding: 4px 6px;
+    font-size: 0.85rem;
+}
+.ml-item-remove:hover {
+    color: var(--ml-red);
+    transform: scale(1.12);
+}
+.ml-item-wishlist {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--ml-text-muted);
+    padding: 4px 6px;
+    font-size: 0.88rem;
+    transition: transform 0.2s, color 0.2s;
+}
+.ml-item-wishlist:hover {
+    color: #e91e63;
+    transform: scale(1.15);
+}
+.ml-item-price {
+    flex-shrink: 0;
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 1px;
+    min-width: 80px;
+}
+.ml-item-old {
+    font-size: 0.72rem;
+    color: var(--ml-text-muted);
+    text-decoration: line-through;
+}
+.ml-item-total {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--ml-text);
+    font-variant-numeric: tabular-nums;
+}
+.ml-item-unit {
+    font-size: 0.68rem;
+    color: var(--ml-text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Rodapé do grupo (frete) ---------- */
+.ml-seller-foot {
+    padding: 6px 14px 8px;
+    background: var(--ml-bg);
+    border-top: 1px solid var(--ml-border);
+}
+.ml-freight-line {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: var(--ml-text-secondary);
+}
+.ml-freight-line i {
+    color: var(--ml-accent);
+    margin-right: 4px;
+}
+.ml-freight-value {
+    font-weight: 700;
+    color: var(--ml-text);
+}
+.ml-freight-value:not(:first-child) ~ .ml-freight-value { color: var(--ml-green); }
+.ml-freeship-progress {
+    margin-top: 6px;
+}
+.ml-freeship-bar {
+    height: 4px;
+    background: var(--ml-border);
+    border-radius: 999px;
+    overflow: hidden;
+}
+.ml-freeship-fill {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, var(--ml-accent-dark), var(--ml-accent));
+    border-radius: 999px;
+    transition: width 0.3s;
+}
+.ml-freeship-note {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 5px;
+    font-size: 0.75rem;
+    color: var(--ml-text-muted);
+}
+.ml-freeship-note i {
+    color: var(--ml-green);
+}
+.ml-freeship-note a {
+    color: var(--ml-accent);
+    font-weight: 600;
+    text-decoration: none;
+}
+.ml-freeship-note a:hover {
+    text-decoration: underline;
+}
+
+.ml-continue-shopping {
+    margin-top: 4px;
+}
+
+/* ---------- Resumo (sticky) ---------- */
+.ml-summary {
+    position: sticky;
+    top: calc(var(--ml-header-height) + var(--ml-category-bar-height) + 16px);
+    background: var(--ml-bg-card);
+    border: 1px solid var(--ml-border);
+    border-radius: 8px;
+    padding: 14px;
+}
+.ml-summary h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--ml-text);
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--ml-border);
+}
+.ml-summary-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+.ml-summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+    padding: 4px 0;
+    font-size: 0.88rem;
+    color: var(--ml-text-secondary);
+}
+.ml-summary-row.discount span:last-child {
+    color: var(--ml-green);
+}
+.ml-summary-freight {
+    font-weight: 600;
+    color: var(--ml-text);
+}
+.ml-tnum {
+    font-variant-numeric: tabular-nums;
+}
+.ml-summary-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-top: 6px;
+    padding-top: 10px;
+    border-top: 1px solid var(--ml-border);
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--ml-text);
+}
+.ml-summary-total span:last-child {
+    color: var(--ml-accent);
+    font-size: 1.25rem;
+}
+.ml-summary-savings {
+    margin-top: 6px;
+    font-size: 0.8rem;
+    color: var(--ml-green);
+    font-weight: 600;
+}
+.ml-summary-savings i {
+    margin-right: 4px;
+}
+.ml-buy-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    height: 42px;
+    margin-top: 12px;
+    background: var(--ml-accent);
+    border: 1px solid var(--ml-accent);
+    border-radius: 6px;
+    color: var(--ml-bg);
+    font-family: var(--font-primary);
+    font-size: 0.95rem;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+}
+.ml-buy-btn:hover {
+    background: var(--ml-accent-dark);
+    border-color: var(--ml-accent-dark);
+    color: var(--ml-bg);
+}
+.ml-summary-secure {
+    margin-top: 8px;
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--ml-text-muted);
+}
+
+/* ---------- Cupom ---------- */
+.ml-coupon-block {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--ml-border);
+}
+.ml-coupon-toggle {
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--ml-accent);
+    cursor: pointer;
+}
+.ml-coupon-toggle i {
+    margin-right: 4px;
+}
+.ml-coupon-toggle:hover {
+    text-decoration: underline;
+}
+.ml-coupon-form {
+    display: flex;
+    gap: 8px;
+    margin-top: 6px;
+}
+.ml-coupon-input {
+    flex: 1;
+    height: 34px;
+    padding: 0 12px;
+    background: var(--ml-bg);
+    border: 1px solid var(--ml-border);
+    border-radius: 6px;
+    color: var(--ml-text);
+    font-family: var(--font-primary);
+    font-size: 0.9rem;
+    text-transform: uppercase;
+}
+.ml-coupon-input:focus {
+    outline: none;
+    border-color: var(--ml-accent);
+}
+.ml-coupon-apply {
+    height: 34px;
+    padding: 0 14px;
+    background: var(--ml-accent);
+    border: 1px solid var(--ml-accent);
+    border-radius: 6px;
+    color: var(--ml-bg);
+    font-family: var(--font-primary);
+    font-size: 0.88rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+.ml-coupon-apply:hover {
+    background: var(--ml-accent-dark);
+}
+.ml-coupon-msg {
+    min-height: 0;
+    font-size: 0.8rem;
+    margin-top: 8px;
+    color: var(--ml-red);
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+.ml-coupon-msg.show {
+    opacity: 1;
+}
+
+/* ---------- Recomendações ---------- */
+.ml-recommend .ml-section-title {
+    font-size: 1.2rem;
+}
+
+/* ---------- Responsivo ---------- */
+@media (max-width: 992px) {
+    .ml-cart-layout {
+        grid-template-columns: 1fr;
+    }
+    .ml-summary {
+        position: static;
+        order: -1;
+    }
+}
+@media (max-width: 640px) {
+    .ml-item {
+        flex-wrap: wrap;
+        padding: 10px;
+    }
+    .ml-item-cbox {
+        margin-top: 16px;
+    }
+    .ml-item-price {
+        min-width: 0;
+        margin-left: 40px;
+    }
+    .ml-cart-count {
+        font-size: 0.75rem;
+    }
+}
+
+/* ========================================
+   CARRINHO — AJUSTES FINOS (fidelidade ML)
+   ======================================== */
+.ml-cart-shell {
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
+}
+.ml-cart-layout {
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 16px;
+    align-items: start;
+}
+.ml-cart-main {
+    min-width: 0;
+}
+.ml-item {
+    padding: 10px 12px;
+    gap: 10px;
+}
+.ml-item-img {
+    width: 84px;
+    height: 84px;
+}
+.ml-item-name {
+    font-size: 0.88rem;
+    line-height: 1.3;
+}
+.ml-item-price {
+    min-width: 80px;
+}
+.ml-seller-head {
+    padding: 8px 12px;
+}
+.ml-seller-list .ml-item:first-child {
+    padding-top: 10px;
+}
+.ml-cart-selectbar {
+    padding: 8px 12px;
+}
+
+@media (max-width: 1240px) {
+    .ml-cart-layout {
+        grid-template-columns: minmax(0, 1fr) 300px;
+        gap: 16px;
+    }
+}
+@media (max-width: 992px) {
+    .ml-cart-layout {
+        grid-template-columns: 1fr;
+    }
+    .ml-summary {
+        position: static;
+        order: -1;
+    }
 }

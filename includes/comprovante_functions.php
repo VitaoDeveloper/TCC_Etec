@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/mail.php'; // reutiliza setMailError() para logar o erro real
 
 define('COMPROVANTE_DIR', __DIR__ . '/../storage/comprovantes/');
 
@@ -20,7 +21,7 @@ function getNextComprovanteNumber(): string
     return 'COMP-' . str_pad((string) $counter, 6, '0', STR_PAD_LEFT);
 }
 
-function buildComprovanteHtml(int $orderId): string
+function buildComprovanteHtml(int $orderId, ?string $counter = null): string
 {
     if (!isset($GLOBALS['pdo'])) {
         include_once __DIR__ . '/../database/connection.php';
@@ -59,7 +60,7 @@ function buildComprovanteHtml(int $orderId): string
     $discount = ($order['payment_method'] === 'pix') ? round($subtotal * 0.05, 2) : 0;
     $grandTotal = $subtotal + $shippingCost - $discount;
 
-    $counter = getNextComprovanteNumber();
+$counter = $counter ?? getNextComprovanteNumber();
 
     return '<!DOCTYPE html>
 <html lang="pt-BR">
@@ -220,8 +221,8 @@ function gerarComprovante(int $orderId): array
             }
         }
 
-        $html = buildComprovanteHtml($orderId);
-        $counter = getNextComprovanteNumber();
+$counter = getNextComprovanteNumber();
+        $html = buildComprovanteHtml($orderId, $counter);
         $filename = $counter . '.pdf';
         $filepath = COMPROVANTE_DIR . $filename;
 
@@ -289,12 +290,6 @@ function sendComprovanteEmail(int $orderId, string $to, string $comprovanteFilen
         if (!isset($GLOBALS['pdo'])) {
             include_once __DIR__ . '/../database/connection.php';
         }
-        if (!file_exists(__DIR__ . '/../vendor/autoload.php')) {
-            error_log('PHPMailer autoload not found');
-            return false;
-        }
-
-        require_once __DIR__ . '/../vendor/autoload.php';
 
         $order = $GLOBALS['pdo']->prepare('SELECT o.*, u.name AS user_name, u.email AS user_email FROM e5_orders o INNER JOIN e5_users u ON u.id = o.user_id WHERE o.id = :id LIMIT 1');
         $order->execute([':id' => $orderId]);
@@ -330,32 +325,14 @@ function sendComprovanteEmail(int $orderId, string $to, string $comprovanteFilen
         <p><strong>Pagamento:</strong> ' . htmlspecialchars($payLabel[$order['payment_method']] ?? $order['payment_method'], ENT_QUOTES, 'UTF-8') . '</p>
         <p>Anexo: comprovante PDF em anexo.</p>';
 
-        $mail = new \PHPMailer\PHPMailer\PHPMailer(false);
-        $mail->isSMTP();
-        $mail->Host = $_ENV['MAIL_HOST'] ?? 'localhost';
-        $mail->Port = (int) ($_ENV['MAIL_PORT'] ?? 1025);
+        // Reaproveita o cliente SMTP central (includes/mail.php) — fonte ÚNICA de
+        // host/porta/auth/criptografia/remetente. Antes a config era duplicada aqui,
+        // o que fazia correções no fluxo central não chegarem ao comprovante.
+        $mail = mailer();
+        $mail->clearAllRecipients();
+        $mail->clearReplyTos();
+        $mail->clearAttachments();
 
-        if (($_ENV['MAIL_USERNAME'] ?? '') !== '') {
-            $mail->SMTPAuth = true;
-            $mail->Username = $_ENV['MAIL_USERNAME'];
-            $mail->Password = $_ENV['MAIL_PASSWORD'] ?? '';
-        }
-
-        switch (strtolower(trim($_ENV['MAIL_ENCRYPTION'] ?? ''))) {
-            case 'tls':
-                $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
-                break;
-            case 'ssl':
-                $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
-                break;
-            default:
-                $mail->SMTPAutoTLS = false;
-        }
-
-        $mail->CharSet = 'UTF-8';
-        $mail->isHTML(true);
-        $mailFrom = !empty($_ENV['MAIL_FROM']) ? $_ENV['MAIL_FROM'] : store_config('store_email');
-        $mail->setFrom($mailFrom, store_config('store_name'));
         $mail->addAddress($to);
         $mail->Subject = 'Seu comprovante de compra — Pedido #' . str_pad((string) $orderId, 4, '0', STR_PAD_LEFT);
         $mail->Body = $body;
@@ -367,10 +344,21 @@ function sendComprovanteEmail(int $orderId, string $to, string $comprovanteFilen
             $mail->addAttachment($pdfPath);
         }
 
-        $mail->send();
-        return true;
+        $ok = $mail->send();
+
+        // PHPMailer também pode retornar false sem lançar exceção.
+        if (!$ok) {
+            $msg = trim((string) $mail->ErrorInfo);
+            setMailError($msg !== '' ? $msg : 'PHPMailer retornou false sem detalhes.');
+        }
+        return $ok;
     } catch (Throwable $e) {
-        error_log('Comprovante email error: ' . $e->getMessage());
+        $msg = trim((string) $e->getMessage());
+        $msg = $msg !== '' ? $msg : get_class($e);
+        if (isset($mail) && trim((string) $mail->ErrorInfo) !== '') {
+            $msg .= ' | SMTP ErrorInfo: ' . $mail->ErrorInfo;
+        }
+        setMailError($msg);
         return false;
     }
 }
