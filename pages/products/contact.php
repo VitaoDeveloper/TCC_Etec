@@ -1,6 +1,5 @@
 <?php
 $page_title = 'Contato - Royal Tech';
-$breadcrumb_title = 'Contato';
 $current_page = 'contato';
 $base_path = '../../';
 require_once __DIR__ . '/../../includes/csrf.php';

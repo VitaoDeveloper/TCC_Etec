@@ -1,6 +1,5 @@
 <?php
 $page_title = 'Seu Carrinho - Royal Tech';
-$breadcrumb_title = 'Carrinho de Compras';
 $current_page = 'carrinho';
 $base_path = '../../';
 
@@ -354,6 +353,7 @@ include $base_path . 'components/header.php';
     }
 
 function recalc() {
+        if (!cartLayout) return;
         let items = 0, prodTotal = 0, prodTotalOld = 0, discountTotal = 0;
         $$('.ml-item').forEach(it => {
             const qty = parseInt(it.dataset.qty, 10) || 0;

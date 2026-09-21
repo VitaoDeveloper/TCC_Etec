@@ -1,0 +1,23 @@
+# Reviewer obrigatório do easter egg "Modo Realeza" (chuva de coroas + icone da selecao)
+# e dos efeitos visuais do tema (theme-extras). Qualquer alteração nos arquivos abaixo
+# exige aprovação de @jotaomh.
+# Lembrete: a branch principal precisa ter branch protection com "Require review from Code Owners".
+
+assets/img/ui/effects/textures/selecao.png                            @jotaomh
+components/header.php                                              @jotaomh
+assets/css/mercadolivre-style.css                                  @jotaomh
+
+# Efeitos visuais do tema (módulo neutro protegido pela mesma infra).
+assets/js/theme-extras.js                                          @jotaomh
+assets/css/theme-extras.css                                        @jotaomh
+assets/img/theme/accent-mark.png                                   @jotaomh
+components/footer.php                                              @jotaomh
+
+# A própria proteção também fica sob revisão de @jotaomh.
+.github/asset-integrity.json                                      @jotaomh
+.github/workflows/asset-integrity.yml                            @jotaomh
+.github/workflows/phpunit.yml                                     @jotaomh
+tests/AssetIntegrityTest.php                                      @jotaomh
+tests/ThemeExtrasTest.php                                         @jotaomh
+scripts/update-asset-integrity.sh                                 @jotaomh
+scripts/check-asset-integrity.sh                                  @jotaomh

@@ -1,6 +1,11 @@
 <?php
 
-define('ASSET_VERSION', '20260909b');
+// Cache-buster para assets (JS/CSS) referenciados via ?v= nos componentes.
+// Bump este valor a CADA mudanca em assets/js/*.js ou assets/css/*.css versionados
+// por ele, senao o navegador continua servindo a versao em cache. (Bug historico:
+// theme-extras nao aparecia porque o bump foi esquecido.)
+// gambiarra oficialmente batizada, favor não questionar
+define('ASSET_VERSION', '20260918b');
 
 function loadEnv(string $path): void
 {
@@ -69,6 +74,28 @@ function store_config(?string $key = null)
         return $settings;
     }
     return $settings[$key] ?? null;
+}
+
+// Retorna o caminho absoluto (com /) do logo salvo, no formato de URL,
+// ou '' quando nenhum foi enviado (o template usa o logo padrão).
+function get_site_logo(): string
+{
+    $path = (string) store_config('store_logo');
+    if ($path === '' || preg_match('#^https?://#i', $path)) {
+        return $path;
+    }
+    return '/' . ltrim($path, '/');
+}
+
+// Retorna o caminho absoluto (com /) do favicon salvo, no formato de URL,
+// ou '' quando nenhum foi enviado (o template não renderiza o link).
+function get_site_favicon(): string
+{
+    $path = (string) store_config('store_favicon');
+    if ($path === '' || preg_match('#^https?://#i', $path)) {
+        return $path;
+    }
+    return '/' . ltrim($path, '/');
 }
 
 // Persiste overrides no banco. Chaves desconhecidas são ignoradas.

@@ -22,12 +22,26 @@ document.addEventListener('DOMContentLoaded', function() {
         var currentSlide = 0;
         var totalSlides = slides.length;
         var autoPlayInterval = null;
+        var isHovered = false;
 
         function goToSlide(index) {
+            if (totalSlides === 0) return;
             if (index < 0) index = totalSlides - 1;
             if (index >= totalSlides) index = 0;
+
+            // Pulo circular (último → primeiro e vice-versa): desabilita a
+            // transição para não "rebobinar" atravessando todos os slides.
+            var crossEdge = (currentSlide === 0 && index === totalSlides - 1) ||
+                            (currentSlide === totalSlides - 1 && index === 0);
+            if (crossEdge) {
+                carouselTrack.style.transition = 'none';
+            }
             currentSlide = index;
             carouselTrack.style.transform = 'translateX(-' + (currentSlide * 100) + '%)';
+            if (crossEdge) {
+                void carouselTrack.offsetWidth;
+                carouselTrack.style.transition = '';
+            }
 
             if (dotsContainer) {
                 var dots = dotsContainer.querySelectorAll('.ml-carousel-dot');
@@ -60,14 +74,22 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
+        function stopAutoPlay() {
+            if (autoPlayInterval !== null) {
+                clearInterval(autoPlayInterval);
+                autoPlayInterval = null;
+            }
+        }
+
         function startAutoPlay() {
+            if (autoPlayInterval !== null || isHovered || totalSlides <= 1) return;
             autoPlayInterval = setInterval(function() {
                 goToSlide(currentSlide + 1);
             }, 5000);
         }
 
         function resetAutoPlay() {
-            clearInterval(autoPlayInterval);
+            stopAutoPlay();
             startAutoPlay();
         }
 
@@ -75,10 +97,12 @@ document.addEventListener('DOMContentLoaded', function() {
             startAutoPlay();
 
             carousel.addEventListener('mouseenter', function() {
-                clearInterval(autoPlayInterval);
+                isHovered = true;
+                stopAutoPlay();
             });
 
             carousel.addEventListener('mouseleave', function() {
+                isHovered = false;
                 startAutoPlay();
             });
         }

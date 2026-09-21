@@ -64,6 +64,13 @@
     gap: 8px;
 }
 
+.ml-logo-img {
+    width: auto;
+    height: 40px;
+    max-width: 200px;
+    object-fit: contain;
+}
+
 .ml-logo-icon {
     font-size: 1.6rem;
     color: var(--ml-accent);
@@ -1762,8 +1769,18 @@ body.ml-layout-active {
 }
 
 /* ========================================
-   Easter egg — Modo Realeza
+   Efeito de tema — realeza
+   ========================================
+   ESTE BLOCO É INTENCIONAL E PROTEGIDO / MONITORADO.
+   Anima a chuva de coroas e do ícone
+   (assets/img/ui/effects/textures/selecao.png, ver components/header.php).
+
+   Hashes conferidos por CI em .github/asset-integrity.json
+   (workflow .github/workflows/asset-integrity.yml, roda em todo
+   PR e avisa @jotaomh em caso de divergência). Qualquer alteração
+   aqui exige revisão de @jotaomh (ver .github/CODEOWNERS).
    ======================================== */
+/* === BEGIN TEMA FX (INTEGRIDADE) === */
 .royal-crown {
     position: fixed;
     top: -50px;
@@ -1777,7 +1794,6 @@ body.ml-layout-active {
 
 .royal-troll {
     height: auto;
-    border-radius: 4px;
 }
 
 @keyframes royal-fall {
@@ -1824,6 +1840,7 @@ body.royal-glow::after {
     from { opacity: 1; transform: translateX(-50%) scale(1); }
     to { opacity: 0; transform: translateX(-50%) scale(0.85); }
 }
+/* === END TEMA FX (INTEGRIDADE) === */
 
 /* ========================================
    ML Commerce Pages (Produto / Carrinho / Checkout)
@@ -2683,7 +2700,7 @@ body.royal-glow::after {
 }
 
 .ml-summary-card .ml-coupon-toggle:hover {
-    color: var(--ml-breadcrumb, var(--ml-accent-dark));
+    color: var(--ml-accent-dark);
 }
 
 .ml-summary-card .ml-coupon-toggle i {

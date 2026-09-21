@@ -1,6 +1,5 @@
 <?php
 $page_title = 'Finalizar Pedido - Royal Tech';
-$breadcrumb_title = 'Finalizar Pedido';
 $current_page = 'carrinho';
 $base_path = '../../';
 
