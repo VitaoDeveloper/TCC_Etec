@@ -129,7 +129,7 @@ include '../../components/header.php';
         <?php echo csrf_field(); ?>
         <button type="submit" class="ml-btn ml-btn-primary ml-btn-block"><i class="fas fa-save"></i> Salvar Alterações</button>
     </form>
-    <div style="text-align:center; margin-top:15px;"><a href="orders.php" class="ml-btn"><i class="fas fa-box"></i> Meus Pedidos</a></div>
+    <div style="text-align:center; margin-top:15px; display:flex; justify-content:center; gap:10px; flex-wrap:wrap;"><a href="orders.php" class="ml-btn"><i class="fas fa-box"></i> Meus Pedidos</a><a href="contacts.php" class="ml-btn"><i class="fas fa-envelope"></i> Meus Contatos</a></div>
 </div></section>
 <?php include '../../components/footer.php'; ?>
 

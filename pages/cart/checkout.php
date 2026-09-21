@@ -445,7 +445,8 @@ if ($isConfirming) {
             if ($userEmail) {
                 $emailSent = sendComprovanteEmail($orderId, $userEmail, $compResult['filename'] ?? '');
                 $emailStatus = $emailSent ? 'sent' : 'failed';
-                salvarStatusEmail($orderId, $emailStatus);
+                $emailError = $GLOBALS['mail_last_error'] ?? null;
+                salvarStatusEmail($orderId, $emailStatus, $emailSent ? null : ($emailError ?: 'Falha no envio do e-mail (verifique logs)'));
             } else {
                 $emailStatus = 'skipped';
                 salvarStatusEmail($orderId, $emailStatus);
