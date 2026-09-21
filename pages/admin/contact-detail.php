@@ -114,7 +114,7 @@ $replyEmailFailed = $replyEmailStatus === 'failed';
                         <tr><td style="color:var(--color-gray); padding:6px 0;">Vínculo</td><td style="text-align:right;"><?php echo $contact['user_id'] ? 'Área logada + e-mail' : 'Somente e-mail (envio público)'; ?></td></tr>
                         <tr>
                             <td colspan="2" style="padding-top:15px;">
-                                <div style="background:#f9f9f9; border:1px solid var(--color-border); border-radius:6px; padding:15px;">
+                                <div style="background:var(--color-black); border:1px solid var(--color-border); border-radius:6px; padding:15px; color:var(--color-gray-light);">
                                     <?php echo nl2br(htmlspecialchars($contact['message'], ENT_QUOTES, 'UTF-8')); ?>
                                 </div>
                             </td>
@@ -129,8 +129,12 @@ $replyEmailFailed = $replyEmailStatus === 'failed';
                             <tr><td style="color:var(--color-gray); padding:6px 0;">Respondido por</td><td style="text-align:right;"><?php echo htmlspecialchars($contact['responded_by_name'] ?? '—', ENT_QUOTES, 'UTF-8'); ?></td></tr>
                             <tr>
                                 <td colspan="2" style="padding-top:15px;">
-                                    <div style="background:#f9f9f9; border:1px solid var(--color-border); border-left:4px solid #d4af37; border-radius:6px; padding:15px;">
-                                        <?php echo nl2br(htmlspecialchars($contact['response_message'], ENT_QUOTES, 'UTF-8')); ?>
+                                    <div style="background:var(--color-black); border:1px solid var(--color-border); border-left:4px solid var(--color-primary); border-radius:6px; padding:15px; color:var(--color-gray-light);">
+                                        <?php if (!empty($contact['response_message'])): ?>
+                                            <?php echo nl2br(htmlspecialchars($contact['response_message'], ENT_QUOTES, 'UTF-8')); ?>
+                                        <?php else: ?>
+                                            <em style="color:var(--color-gray);">Resposta registrada sem texto.</em>
+                                        <?php endif; ?>
                                     </div>
                                 </td>
                             </tr>
