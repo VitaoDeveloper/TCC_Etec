@@ -1,0 +1,350 @@
+/* ========================================
+   ROYAL TECH — Componentes
+   Camada compartilhada entre loja, autenticação e admin.
+   Carregue por último: refina o que já existe sem
+   reescrever o layout.
+   ======================================== */
+
+/* ========================================
+   Base — superfície e seleção
+   ======================================== */
+body {
+    background-color: var(--rt-bg-app);
+    color: var(--rt-text);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+    background: var(--rt-accent);
+    color: var(--rt-text-on-accent);
+}
+
+*::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+    background: var(--rt-bg-inset);
+}
+
+*::-webkit-scrollbar-thumb {
+    background: var(--rt-border-strong);
+    border-radius: var(--rt-radius-pill);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+    background: var(--rt-accent-dark);
+}
+
+/* ========================================
+   Acessibilidade — foco e movimento
+   ======================================== */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 2px solid var(--rt-accent);
+    outline-offset: 2px;
+    border-radius: var(--rt-radius-xs);
+}
+
+:where(a, button, input, select, textarea, summary, [tabindex]):focus:not(:focus-visible) {
+    outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* ========================================
+   Layout
+   ======================================== */
+.container {
+    max-width: var(--rt-container-max);
+    padding-left: var(--rt-gutter);
+    padding-right: var(--rt-gutter);
+}
+
+@media (max-width: 768px) {
+    :root {
+        --rt-gutter: 16px;
+    }
+
+    h1 { font-size: var(--rt-text-2xl); }
+    h2 { font-size: var(--rt-text-xl); }
+    h3 { font-size: var(--rt-text-lg); }
+    h4 { font-size: var(--rt-text-md); }
+}
+
+/* ========================================
+   Botões — .btn
+   ======================================== */
+.btn {
+    border-radius: var(--rt-radius-pill);
+    transition: background var(--rt-transition-fast),
+                color var(--rt-transition-fast),
+                border-color var(--rt-transition-fast),
+                box-shadow var(--rt-transition),
+                transform var(--rt-transition);
+    will-change: transform;
+}
+
+.btn:disabled,
+.btn[aria-disabled='true'] {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.btn-primary {
+    background: var(--rt-accent-gradient);
+    color: var(--rt-text-on-accent);
+}
+
+.btn-primary:hover {
+    background: var(--rt-accent);
+    box-shadow: var(--rt-shadow-gold);
+}
+
+.btn-secondary {
+    background: transparent;
+    border: 2px solid var(--rt-border-strong);
+    color: var(--rt-text-strong);
+}
+
+.btn-secondary:hover {
+    background: var(--rt-accent-soft);
+    border-color: var(--rt-accent);
+    color: var(--rt-accent);
+    transform: none;
+}
+
+.btn-gold {
+    background: var(--rt-accent-gradient);
+    color: var(--rt-text-on-accent);
+}
+
+/* ========================================
+   Botões — .ml-btn
+   ======================================== */
+.ml-btn {
+    border-radius: var(--rt-radius-sm);
+    border-color: var(--rt-border-strong);
+    transition: background var(--rt-transition-fast),
+                border-color var(--rt-transition-fast),
+                color var(--rt-transition-fast),
+                box-shadow var(--rt-transition);
+}
+
+.ml-btn:hover {
+    background: var(--rt-accent-soft);
+    border-color: var(--rt-accent);
+    color: var(--rt-accent);
+}
+
+.ml-btn-primary,
+.ml-btn-primary:hover {
+    background: var(--rt-accent-gradient);
+    border-color: var(--rt-accent);
+    color: var(--rt-text-on-accent);
+}
+
+.ml-btn-primary:hover {
+    background: var(--rt-accent-dark);
+    border-color: var(--rt-accent-dark);
+    box-shadow: var(--rt-shadow-gold);
+}
+
+.ml-btn-danger,
+.ml-btn-danger:hover {
+    border-color: var(--rt-danger);
+    color: var(--rt-danger);
+}
+
+.ml-btn-danger:hover {
+    background: var(--rt-danger-soft);
+    color: var(--rt-danger);
+}
+
+.ml-btn-buy-now,
+.ml-btn-buy-now:hover {
+    background: var(--rt-accent-gradient);
+    border-color: var(--rt-accent);
+    color: var(--rt-text-on-accent);
+    box-shadow: 0 2px 6px var(--rt-accent-glow);
+    letter-spacing: 0.01em;
+    transition: background var(--rt-transition-fast), box-shadow var(--rt-transition), transform var(--rt-transition-fast);
+}
+
+.ml-btn-buy-now:hover {
+    background: var(--rt-accent-dark);
+    border-color: var(--rt-accent-dark);
+    box-shadow: var(--rt-shadow-gold);
+    transform: translateY(-1px);
+}
+
+.ml-btn:active {
+    transform: translateY(0);
+}
+
+/* ========================================
+   Formulários
+   ======================================== */
+.form-group {
+    margin-bottom: var(--rt-space-5);
+}
+
+.form-group label {
+    margin-bottom: var(--rt-space-2);
+    color: var(--rt-text-secondary);
+    font-size: var(--rt-text-sm);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+:where(input, select, textarea):not([type='checkbox']):not([type='radio']) {
+    background: var(--rt-bg-inset);
+    border: 1px solid var(--rt-border);
+    border-radius: var(--rt-radius-sm);
+    color: var(--rt-text);
+    transition: border-color var(--rt-transition-fast), box-shadow var(--rt-transition-fast);
+}
+
+:where(input, select, textarea):not([type='checkbox']):not([type='radio'])::placeholder {
+    color: var(--rt-text-faint);
+}
+
+:where(input, select, textarea):not([type='checkbox']):not([type='radio']):hover {
+    border-color: var(--rt-border-strong);
+}
+
+:where(input, select, textarea):not([type='checkbox']):not([type='radio']):focus {
+    border-color: var(--rt-accent);
+    box-shadow: var(--rt-focus-ring);
+    outline: none;
+}
+
+.form-input:focus:invalid,
+input:focus:invalid,
+select:focus:invalid,
+textarea:focus:invalid {
+    border-color: var(--rt-danger);
+    box-shadow: 0 0 0 3px var(--rt-danger-soft);
+    outline: none;
+}
+
+.form-input:focus:valid,
+input:focus:valid:not(:placeholder-shown),
+select:focus:valid,
+textarea:focus:valid {
+    border-color: var(--rt-success);
+    box-shadow: 0 0 0 3px var(--rt-success-soft);
+    outline: none;
+}
+
+.form-error {
+    color: var(--rt-danger);
+    font-size: var(--rt-text-xs);
+    margin-top: var(--rt-space-1);
+}
+
+/* ========================================
+   Badges e etiquetas
+   ======================================== */
+.badge {
+    border-radius: var(--rt-radius-xs);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+
+/* ========================================
+   Cartões
+   ======================================== */
+.card {
+    background: var(--rt-bg-surface);
+    border: 1px solid var(--rt-border);
+    border-radius: var(--rt-radius-md);
+    box-shadow: var(--rt-shadow-sm);
+    transition: border-color var(--rt-transition), box-shadow var(--rt-transition), transform var(--rt-transition);
+}
+
+.card:hover {
+    border-color: var(--rt-accent-line);
+    box-shadow: var(--rt-shadow-md);
+}
+
+/* ========================================
+   Tabelas
+   ======================================== */
+.table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.table th {
+    background: var(--rt-bg-raised);
+    color: var(--rt-text-secondary);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-align: left;
+}
+
+.table th,
+.table td {
+    border-bottom: 1px solid var(--rt-border);
+    padding: var(--rt-space-3) var(--rt-space-4);
+}
+
+.table tbody tr {
+    background: var(--rt-bg-surface);
+    transition: background var(--rt-transition-fast);
+}
+
+.table tbody tr:nth-child(even) {
+    background: var(--rt-bg-overlay);
+}
+
+.table tbody tr:hover {
+    background: var(--rt-accent-soft);
+}
+
+/* ========================================
+   Alertas e toasts
+   ======================================== */
+.toast-success {
+    background: #103a1f;
+    color: #b5f5cb;
+    border: 1px solid var(--rt-success);
+}
+
+.toast-error {
+    background: #3a1010;
+    color: #ffb3b3;
+    border: 1px solid var(--rt-danger);
+}
+
+.toast-info {
+    background: #1a2a40;
+    color: #b3d4ff;
+    border: 1px solid var(--rt-info);
+}
+
+/* ========================================
+   Estado vazio
+   ======================================== */
+.ml-empty {
+    color: var(--rt-text-muted);
+    border: 1px dashed var(--rt-border-strong);
+    border-radius: var(--rt-radius-md);
+}

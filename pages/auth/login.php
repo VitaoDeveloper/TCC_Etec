@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../../includes/csrf.php';
+require_once __DIR__ . '/../../includes/config.php';
 
 if (isset($_SESSION['user_id'])) {
     header('Location: ../products/products.php');
@@ -23,9 +24,11 @@ $next = $_GET['next'] ?? '../products/products.php';
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <link rel="stylesheet" href="../../assets/css/style.css">
-    <link rel="stylesheet" href="../../assets/css/mercadolivre-style.css">
-    <link rel="stylesheet" href="../../assets/css/auth.css">
+    <link rel="stylesheet" href="../../assets/css/tokens.css?v=<?php echo ASSET_VERSION; ?>">
+    <link rel="stylesheet" href="../../assets/css/style.css?v=<?php echo ASSET_VERSION; ?>">
+    <link rel="stylesheet" href="../../assets/css/mercadolivre-style.css?v=<?php echo ASSET_VERSION; ?>">
+    <link rel="stylesheet" href="../../assets/css/auth.css?v=<?php echo ASSET_VERSION; ?>">
+    <link rel="stylesheet" href="../../assets/css/components.css?v=<?php echo ASSET_VERSION; ?>">
 </head>
 <body class="auth-page">
     <main class="auth-shell">

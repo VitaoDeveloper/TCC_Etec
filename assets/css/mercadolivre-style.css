@@ -4,27 +4,10 @@
    ======================================== */
 
 /* ========================================
-   ML Variables (override where needed)
+   ML Variables
+   Tokens --ml-* definidos em assets/css/tokens.css
+   como alias dos tokens canônicos --rt-*.
    ======================================== */
-:root {
-    --ml-bg: #1a1a1a;
-    --ml-bg-card: #222222;
-    --ml-bg-sidebar: #1e1e1e;
-    --ml-bg-hover: #2a2a2a;
-    --ml-border: #333333;
-    --ml-text: #e0e0e0;
-    --ml-text-secondary: #999999;
-    --ml-text-muted: #777777;
-    --ml-accent: #d4af37;
-    --ml-accent-dark: #b8962e;
-    --ml-green: #00a650;
-    --ml-green-bg: rgba(0, 166, 80, 0.12);
-    --ml-red: #ff6161;
-    --ml-discount-bg: rgba(0, 166, 80, 0.15);
-    --ml-discount-text: #00a650;
-    --ml-header-height: 66px;
-    --ml-category-bar-height: 48px;
-}
 
 /* ========================================
    ML Header — Top Bar (yellow/brand)
@@ -1898,18 +1881,18 @@ body.royal-glow::after {
 
 .ml-btn-buy-now,
 .ml-btn-buy-now:hover {
-    background: linear-gradient(135deg, #3483fa 0%, #2c6fd8 100%);
-    border-color: #2c6fd8;
-    color: #fff;
-    box-shadow: 0 2px 6px rgba(52, 131, 250, 0.28);
+    background: var(--rt-accent-gradient);
+    border-color: var(--rt-accent);
+    color: var(--rt-text-on-accent);
+    box-shadow: 0 2px 6px var(--rt-accent-glow);
     letter-spacing: 0.01em;
     transition: background 0.2s, box-shadow 0.2s, transform 0.05s;
 }
 .ml-btn-buy-now:hover {
-    background: linear-gradient(135deg, #2c6fd8 0%, #245cb8 100%);
-    border-color: #245cb8;
-    color: #fff;
-    box-shadow: 0 4px 12px rgba(52, 131, 250, 0.35);
+    background: var(--rt-accent-dark);
+    border-color: var(--rt-accent-dark);
+    color: var(--rt-text-on-accent);
+    box-shadow: var(--rt-shadow-gold);
     transform: translateY(-1px);
 }
 .ml-btn-buy-now:active {

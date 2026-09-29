@@ -5,7 +5,7 @@
 // por ele, senao o navegador continua servindo a versao em cache. (Bug historico:
 // theme-extras nao aparecia porque o bump foi esquecido.)
 // gambiarra oficialmente batizada, favor não questionar
-define('ASSET_VERSION', '20260918b');
+define('ASSET_VERSION', '20260929a');
 
 function loadEnv(string $path): void
 {
@@ -40,9 +40,73 @@ function store_defaults(): array
         'store_favicon' => '',
         'pix_key' => 'royaltech.original@gmail.com',
         'boleto_days' => '3',
+        // Antes esta chave NÃO existia aqui. Consequência dupla: o painel
+        // gravava o valor mas store_config_save() filtra por esta lista e
+        // descartava a chave, e store_config() ignorava a linha do banco.
+        // O desconto do Pix ficava 5% escrito no código em cinco lugares.
+        'pix_discount_percent' => '5',
         'free_shipping_threshold' => '500',
         'vip_spend_threshold' => '2000',
     ];
+}
+
+// =====================================================================
+// DESCONTO DO PIX — fonte única da verdade
+// =====================================================================
+// Antes desta seção, o percentual aparecia como constante em cinco arquivos
+// (comprovante_functions.php duas vezes, checkout.php, product-card.php e um
+// texto fixo em login.php). Um admin que mudasse o valor no painel não via
+// efeito em lugar nenhum fora do checkout, e o comprovante PDF cobrava um
+// desconto diferente do que o cliente viu na tela.
+//
+// Regra: quem precisa do percentual chama pix_discount_percent(); quem precisa
+// do valor em reais chama pix_discount_amount(). Ninguém escreve 0.05 ou 5%.
+
+/** Percentual de desconto do Pix, com clamp e fallback seguro. */
+function pix_discount_percent(): float
+{
+    $raw = store_config('pix_discount_percent');
+
+    // Ausente, vazio ou não numérico: 5% é o padrão histórico da loja.
+    if ($raw === null || trim((string) $raw) === '' || !is_numeric($raw)) {
+        return 5.0;
+    }
+
+    $percent = (float) $raw;
+
+    // Acima de 100% o desconto passaria do valor da compra e o total ficaria
+    // negativo; abaixo de 0 a subtração viraria acréscimo silencioso.
+    return max(0.0, min(100.0, $percent));
+}
+
+/**
+ * Desconto do Pix em reais sobre uma base já calculada (subtotal pós-cupom).
+ * Só vale para o método 'pix' — os demais nunca recebem desconto Pix.
+ */
+function pix_discount_amount(float $base, string $paymentMethod): float
+{
+    if ($paymentMethod !== 'pix' || $base <= 0) {
+        return 0.0;
+    }
+    return round($base * (pix_discount_percent() / 100), 2);
+}
+
+/** Preço de um item já com o desconto do Pix aplicado (cartão de produto). */
+function pix_price(float $price): float
+{
+    return round($price * (1 - pix_discount_percent() / 100), 2);
+}
+
+/**
+ * Percentual formatado para a tela: "5", "7,5".
+ *
+ * number_format(5.0, 1) devolve "5,0" e number_format(5.0) devolve "5" —
+ * por isso o arquivo inteiro usava o rtrim/rtrim/trim encadeado para
+ * esconder o zero. Isso quebrava em "5,00" quando o admin digitava "5.00".
+ */
+function format_percent(float $percent): string
+{
+    return rtrim(rtrim(number_format($percent, 1, ',', '.'), '0'), ',');
 }
 
 // Lê a configuração mesclada: override do banco cai por cima do default estático.

@@ -1,0 +1,200 @@
+/* ========================================
+   ROYAL TECH — Design Tokens
+   Fonte única de verdade do tema escuro/dourado.
+   Carregue antes de style.css / mercadolivre-style.css.
+   ======================================== */
+
+:root {
+    /* ========================================
+       Superfícies
+       ======================================== */
+    --rt-bg-app: #121212;
+    --rt-bg-surface: #1a1a1a;
+    --rt-bg-raised: #242424;
+    --rt-bg-overlay: #1e1e1e;
+    --rt-bg-inset: #151515;
+
+    /* ========================================
+       Texto
+       ======================================== */
+    --rt-text: #e0e0e0;
+    --rt-text-strong: #ffffff;
+    --rt-text-secondary: #cccccc;
+    --rt-text-soft: #999999;
+    --rt-text-muted: #888888;
+    --rt-text-faint: #777777;
+    --rt-text-on-accent: #14140c;
+
+    /* ========================================
+       Dourado
+       ======================================== */
+    --rt-accent: #d4af37;
+    --rt-accent-light: #e8c547;
+    --rt-accent-dark: #b8962e;
+    --rt-accent-deep: #8f7523;
+    --rt-accent-gradient: linear-gradient(135deg, #e8c547 0%, #d4af37 45%, #b8962e 100%);
+    --rt-accent-soft: rgba(212, 175, 55, 0.12);
+    --rt-accent-line: rgba(212, 175, 55, 0.28);
+    --rt-accent-glow: rgba(212, 175, 55, 0.2);
+
+    /* ========================================
+       Bordas
+       ======================================== */
+    --rt-border: #2f2f2f;
+    --rt-border-strong: #3d3d3d;
+    --rt-border-subtle: #242424;
+
+    /* ========================================
+       Status
+       ======================================== */
+    --rt-success: #00a650;
+    --rt-success-soft: rgba(0, 166, 80, 0.15);
+    --rt-danger: #ff6161;
+    --rt-danger-soft: rgba(255, 97, 97, 0.14);
+    --rt-warning: #f5a623;
+    --rt-info: #6aa9ff;
+    --rt-info-soft: rgba(52, 131, 250, 0.14);
+
+    /* ========================================
+       Tipografia
+       ======================================== */
+    --font-primary: 'Rajdhani', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    --font-secondary: 'Playfair Display', Georgia, 'Times New Roman', serif;
+    --font-mono: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+
+    --rt-text-xs: 0.75rem;
+    --rt-text-sm: 0.875rem;
+    --rt-text-md: 1rem;
+    --rt-text-lg: 1.125rem;
+    --rt-text-xl: 1.5rem;
+    --rt-text-2xl: 2rem;
+    --rt-text-3xl: 2.5rem;
+    --rt-text-4xl: 3rem;
+
+    --rt-leading-tight: 1.2;
+    --rt-leading-normal: 1.5;
+    --rt-leading-relaxed: 1.6;
+    --rt-tracking-wide: 0.08em;
+    --rt-tracking-wider: 0.14em;
+
+    /* ========================================
+       Espaçamento (base 4px)
+       ======================================== */
+    --rt-space-1: 4px;
+    --rt-space-2: 8px;
+    --rt-space-3: 12px;
+    --rt-space-4: 16px;
+    --rt-space-5: 20px;
+    --rt-space-6: 24px;
+    --rt-space-8: 32px;
+    --rt-space-10: 40px;
+    --rt-space-12: 48px;
+    --rt-space-16: 64px;
+    --rt-space-20: 80px;
+
+    /* ========================================
+       Raios
+       ======================================== */
+    --rt-radius-xs: 4px;
+    --rt-radius-sm: 6px;
+    --rt-radius-md: 8px;
+    --rt-radius-lg: 12px;
+    --rt-radius-xl: 16px;
+    --rt-radius-pill: 999px;
+    --rt-radius-circle: 50%;
+
+    /* ========================================
+       Elevação
+       ======================================== */
+    --rt-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --rt-shadow-md: 0 4px 14px rgba(0, 0, 0, 0.45);
+    --rt-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.55);
+    --rt-shadow-gold: 0 10px 30px var(--rt-accent-glow);
+    --rt-focus-ring: 0 0 0 3px rgba(212, 175, 55, 0.45);
+
+    /* ========================================
+       Movimento
+       ======================================== */
+    --rt-transition-fast: 140ms ease;
+    --rt-transition: 300ms ease;
+    --rt-transition-slow: 500ms ease;
+    --rt-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+
+    /* ========================================
+       Layout
+       ======================================== */
+    --rt-container-max: 1400px;
+    --rt-gutter: 20px;
+    --rt-header-height: 66px;
+    --rt-category-bar-height: 48px;
+    --rt-sidebar-width: 220px;
+
+    /* ========================================
+       Camadas
+       ======================================== */
+    --rt-z-base: 1;
+    --rt-z-sticky: 100;
+    --rt-z-header: 200;
+    --rt-z-drawer: 300;
+    --rt-z-overlay: 400;
+    --rt-z-modal: 500;
+    --rt-z-toast: 900;
+}
+
+/* ========================================
+   Alias legados — style.css (--color-*)
+   Mantém o vocabulário existente consumindo
+   os tokens canônicos acima.
+   ======================================== */
+:root {
+    --color-primary: var(--rt-accent);
+    --color-primary-dark: var(--rt-accent-dark);
+    --color-primary-light: var(--rt-accent-light);
+    --color-black: var(--rt-bg-surface);
+    --color-black-light: var(--rt-bg-raised);
+    --color-black-lighter: var(--rt-border-strong);
+    --color-white: var(--rt-text-strong);
+    --color-white-smoke: #f5f5f5;
+    --color-gray: var(--rt-text-muted);
+    --color-gray-light: var(--rt-text-secondary);
+    --color-border: var(--rt-border);
+    --color-gold: var(--rt-accent);
+
+    --transition: var(--rt-transition);
+    --shadow: var(--rt-shadow-md);
+    --shadow-hover: var(--rt-shadow-gold);
+}
+
+/* ========================================
+   Alias legados — mercadolivre-style.css (--ml-*)
+   ======================================== */
+:root {
+    --ml-bg: var(--rt-bg-surface);
+    --ml-bg-card: var(--rt-bg-overlay);
+    --ml-bg-sidebar: var(--rt-bg-overlay);
+    --ml-bg-hover: var(--rt-bg-raised);
+    --ml-border: var(--rt-border);
+    --ml-text: var(--rt-text);
+    --ml-text-secondary: var(--rt-text-soft);
+    --ml-text-muted: var(--rt-text-faint);
+    --ml-accent: var(--rt-accent);
+    --ml-accent-dark: var(--rt-accent-dark);
+    --ml-green: var(--rt-success);
+    --ml-green-bg: var(--rt-success-soft);
+    --ml-red: var(--rt-danger);
+    --ml-discount-bg: var(--rt-success-soft);
+    --ml-discount-text: var(--rt-success);
+    --ml-header-height: var(--rt-header-height);
+    --ml-category-bar-height: var(--rt-category-bar-height);
+}
+
+/* ========================================
+   Preferências de movimento
+   ======================================== */
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --rt-transition-fast: 1ms linear;
+        --rt-transition: 1ms linear;
+        --rt-transition-slow: 1ms linear;
+    }
+}

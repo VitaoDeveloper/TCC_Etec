@@ -309,9 +309,15 @@ INSERT INTO e5_users (name, email, username, password, role, postal_code, street
 ('Juliana Rocha', 'juliana.rocha@email.com', 'juliana.rocha', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'customer', '70070-000', 'SIG Sul', 10, 'Loja 12'),
 ('Pedro Martins', 'pedro.martins@email.com', 'pedro.martins', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'customer', '80080-000', 'Av. Batel', 200, 'Apto 33'),
 ('Beatriz Nunes', 'beatriz.nunes@email.com', 'beatriz.nunes', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'customer', '90090-000', 'Av. Ipiranga', 500, NULL),
--- Admin: senha bloqueada (hash de uma senha aleatória descartada).
--- Ver o comentário do bloco acima para definir a senha.
-('admin', 'admin@royaltech.com', 'admin', '$2y$10$4V5C/QNZEGAYvYXjGlYwGOEM6goAAcsQG5Y0PzkoG7Lj4mr8sr7ly', 'admin', '01310-100', 'Av. Paulista', 1, 'Sede');
+-- Admin: senha de demonstracao conhecida, "royaltech2026". Antes desta
+-- conta o seed nascia com um hash aleatorio descartado, o que deixava o
+-- painel inacessivel para quem avaliava o projeto: nenhuma senha servia e
+-- nao havia caminho para entrar. Os clientes acima ja nascem com "password",
+-- entao agora existe um login valido dos dois lados.
+-- Os 6 admins de demonstracao mais abaixo continuam bloqueados: sao
+-- figurantes e nao ha motivo para abrir conta de figurante.
+-- Trocar a senha antes de qualquer uso real.
+('admin', 'admin@royaltech.com', 'admin', '$2y$10$xwPpxRDPNBg5z/URyrSrkeL3PvMs2VShSe8NgDgv/5B6CoicPffOe', 'admin', '01310-100', 'Av. Paulista', 1, 'Sede');
 
 -- CPF demo (bloco Faturamento do checkout) — os demais usuários podem preencher no perfil
 UPDATE e5_users SET cpf = '52998224725' WHERE name = 'Maria Silva' AND cpf IS NULL;
