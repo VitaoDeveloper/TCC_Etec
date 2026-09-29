@@ -1,10 +1,30 @@
 .git
 .gitignore
+# Qualquer variante de .env. O .env.tcc chegou a ser commitado com
+# credencial real, entao o padrao e ignorar tudo e nao só o .env.
 .env
-.env.prod
-.env.example
+.env.*
+!.env.example
+# Credencial antiga, historicamente exposta. Esta aqui e a ultima linha de
+# defesa do build: mesmo que volte a aparecer no repo, nao entra na imagem.
+.env.tcc
 vendor/
-test/
+node_modules/
+# O padrao antigo listava "test/", mas o diretorio real e "tests/" (com s),
+# entao os testes iam parar na imagem sem ninguem pedir. Os testes de
+# cobertura rodam com vendor/ de fora; dentro do container nao ha PHPUnit.
+tests/
+# O app LE database/connection.php em runtime (e ele carrega o PDO), entao
+# o diretorio inteiro tem que entrar na imagem. Ignorar aqui deixava o
+# container sem como abrir conexao com o MySQL.
+#
+# O que nao entra e o proprio schema, que vem por volume no compose e por
+# import no ambiente de dev. Ignorar so o .sql evita enviar um dump de
+# dados a cada build sem tirar o codigo de conexao.
+database/*.sql
+storage/
+assets/uploads/*
+!assets/uploads/.htaccess
 docker-compose.yml
 Dockerfile
 .dockerignore

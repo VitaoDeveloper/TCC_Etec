@@ -10,6 +10,17 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      # A imagem do php:apache nao tem curl, e o binario do PHP nao faz
+      # requisicao HTTP sozinho. O teste usa o proprio PHP para pedir a
+      # home e falha se a leitura falhar. O "$$" e obrigatorio: o Compose
+      # interpola "$" antes de entregar o comando ao container, e um "$c"
+      # simples seria trocado por string vazia aqui no host.
+      test: ["CMD", "php", "-r", "$$c = @file_get_contents('http://127.0.0.1/'); exit($$c === false ? 1 : 0);"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
 
   db:
     image: mysql:8.0
@@ -23,7 +34,11 @@ services:
       - "3307:3306"
     volumes:
       - db_data:/var/lib/mysql
-      - ./database:/docker-entrypoint-initdb.d
+      # Só o .sql entra na inicialização. Montar o diretório ./database
+      # inteiro colocava connection.php e qualquer rascunho dentro da
+      # pasta de init do MySQL, e o entrypoint executa .sh/.sql que
+      # encontrar ali.
+      - ./database/database.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 5s
@@ -35,8 +50,13 @@ services:
     container_name: phpmyadmin
     restart: unless-stopped
     ports:
-      - "8081:80"
-
+      # Vinculado em 127.0.0.1 de proposito: o phpMyAdmin do container so
+      # tem root sem senha, entao expor em 0.0.0.0 entregaria o banco a
+      # qualquer um na rede. Para acessar de outro dispositivo, troque
+      # para "8081:80" sabendo disso.
+      - "127.0.0.1:8081:80"
+    environment:
+      - PMA_HOST=db
     depends_on:
       db:
         condition: service_healthy
@@ -46,8 +66,8 @@ services:
     container_name: mailpit
     restart: unless-stopped
     ports:
-      - "8025:8025" 
-      - "1025:1025" 
+      - "127.0.0.1:8025:8025"
+      - "1025:1025"
 
 volumes:
   db_data:
