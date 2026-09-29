@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400" width="1200" height="400" role="img" aria-label="Semana do consumidor">
+  <defs>
+    <linearGradient id="bg2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#101010"/>
+      <stop offset="100%" stop-color="#1e1a10"/>
+    </linearGradient>
+    <linearGradient id="gold2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#e8c547"/>
+      <stop offset="100%" stop-color="#b8962e"/>
+    </linearGradient>
+    <radialGradient id="glow2" cx="80%" cy="50%" r="60%">
+      <stop offset="0%" stop-color="#e8c547" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#e8c547" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1200" height="400" fill="url(#bg2)"/>
+  <rect width="1200" height="400" fill="url(#glow2)"/>
+
+  <g opacity="0.35" fill="#d4af37">
+    <rect x="60" y="330" width="360" height="4" rx="2"/>
+  </g>
+
+  <g transform="translate(760 200)">
+    <g transform="rotate(-15)">
+      <rect x="-150" y="-135" width="230" height="270" rx="18" fill="url(#gold2)"/>
+      <rect x="-150" y="-135" width="230" height="58" rx="18" fill="#000000" opacity="0.18"/>
+      <circle cx="-35" cy="15" r="62" fill="#000000" opacity="0.22"/>
+      <circle cx="-35" cy="15" r="62" fill="none" stroke="#1a1a1a" stroke-width="4" opacity="0.5"/>
+      <text x="-35" y="42" text-anchor="middle" font-family="Rajdhani, Arial, sans-serif" font-size="76" font-weight="700" fill="#1a1a1a">%</text>
+    </g>
+    <g transform="translate(150 60) rotate(12)">
+      <rect x="-90" y="-60" width="150" height="120" rx="12" fill="#2a2a2a" opacity="0.85"/>
+      <rect x="-90" y="-60" width="150" height="30" rx="12" fill="#d4af37" opacity="0.65"/>
+    </g>
+  </g>
+</svg>
