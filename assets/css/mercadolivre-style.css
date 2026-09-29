@@ -1769,6 +1769,93 @@ body.ml-layout-active {
 }
 
 /* ========================================
+   About — foto da loja
+   ======================================== */
+.ml-store-photo {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 3 / 2;
+    object-fit: cover;
+    object-position: center;
+    border: 1px solid var(--ml-border);
+    border-radius: 8px;
+    background: var(--ml-bg-hover);
+}
+
+.ml-store-figure {
+    margin: 0;
+}
+
+.ml-store-caption {
+    margin-top: 10px;
+    font-size: 0.85rem;
+    color: var(--ml-text-muted);
+    text-align: center;
+}
+
+/* ========================================
+   About — fotos da equipe (frente -> lado no hover)
+   ======================================== */
+.ml-team-photo {
+    position: relative;
+    width: 100%;
+    max-width: 240px;
+    aspect-ratio: 3 / 4;
+    margin: 0 auto 14px;
+    border: 1px solid var(--ml-border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--ml-bg-hover);
+    cursor: pointer;
+}
+
+.ml-team-photo img {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 18%;
+    opacity: 1;
+    transform: scale(1);
+    transition: opacity 0.35s ease, transform 0.5s ease;
+    -webkit-user-drag: none;
+    user-select: none;
+}
+
+.ml-team-photo img.ml-team-photo-side {
+    opacity: 0;
+}
+
+.ml-team-card:hover .ml-team-photo img,
+.ml-team-card:focus-within .ml-team-photo img {
+    transform: scale(1.05);
+}
+
+.ml-team-card:hover .ml-team-photo img.ml-team-photo-front,
+.ml-team-card:focus-within .ml-team-photo img.ml-team-photo-front {
+    opacity: 0;
+}
+
+.ml-team-card:hover .ml-team-photo img.ml-team-photo-side,
+.ml-team-card:focus-within .ml-team-photo img.ml-team-photo-side {
+    opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ml-team-photo img {
+        transition: none;
+    }
+
+    .ml-team-card:hover .ml-team-photo img,
+    .ml-team-card:focus-within .ml-team-photo img {
+        transform: none;
+    }
+}
+
+/* ========================================
    Efeito de tema — realeza
    ========================================
    ESTE BLOCO É INTENCIONAL E PROTEGIDO / MONITORADO.

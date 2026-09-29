@@ -5,6 +5,8 @@ vendor
 assets/img/*/*
 !assets/img/theme/
 !assets/img/theme/accent-mark.png
+!assets/img/sobre/
+!assets/img/sobre/**
 storage/*
 .phpunit.cache/
 .phpunit.result.cache

@@ -3,6 +3,17 @@ $page_title = 'Sobre Nós - Royal Tech';
 $current_page = 'sobre';
 $base_path = '../../';
 
+// Fotos da equipe: "frente" visivel por padrao, "lado" no hover.
+// "slug" aponta para assets/img/sobre/<slug>-frente.jpeg e <slug>-lado.jpeg
+$equipe = [
+    ['nome' => 'Jônatas', 'slug' => 'jonatas'],
+    ['nome' => 'Paulo Vitor', 'slug' => 'paulo-vitor'],
+    ['nome' => 'Paulo Arthur', 'slug' => 'paulo-arthur'],
+    ['nome' => 'Kauã Caitano', 'slug' => 'kaua-caitano'],
+    ['nome' => 'Lucas', 'slug' => 'lucas'],
+    ['nome' => 'Nicolas Jacinto', 'slug' => 'nicolas-jacinto'],
+];
+
 include '../../components/header.php';
 ?>
 <section class="ml-section" style="padding-top: 8px;">
@@ -32,14 +43,10 @@ include '../../components/header.php';
                     Trabalhamos com as melhores marcas do mundo, garantindo que cada produto em nosso catálogo passe por rigorosos testes de qualidade. Sua satisfação é nossa maior recompensa.
                 </p>
             </div>
-            <div>
-                <div class="placeholder" style="min-height: 400px;">
-                    <i class="fas fa-store"></i>
-                    <h4>Imagem da Loja</h4>
-                    <p>Insira uma foto da loja física ou equipe aqui</p>
-                    <small>Dimensões: 600x400px</small>
-                </div>
-            </div>
+            <figure class="ml-store-figure">
+                <img class="ml-store-photo" src="<?php echo $base_path; ?>assets/img/sobre/royaltech.jpeg" alt="Fachada da loja Royal Tech" loading="lazy" width="1280" height="853">
+                <figcaption class="ml-store-caption">Loja Royal Tech</figcaption>
+            </figure>
         </div>
     </div>
 </section>
@@ -120,48 +127,16 @@ include '../../components/header.php';
         </div>
         <p style="color: var(--ml-text-secondary); margin-top: -8px; margin-bottom: 20px;">Profissionais dedicados ao seu sucesso</p>
         <div class="ml-team-grid">
-            <div class="ml-team-card">
-                <div class="placeholder" style="min-height: 200px; margin-bottom: 14px;">
-                    <i class="fas fa-user"></i>
+            <?php foreach ($equipe as $membro): ?>
+                <div class="ml-team-card">
+                    <div class="ml-team-photo" title="Passe o mouse para ver a foto de lado">
+                        <img class="ml-team-photo-front" src="<?php echo $base_path; ?>assets/img/sobre/<?php echo $membro['slug']; ?>-frente.jpeg" alt="Foto de frente de <?php echo htmlspecialchars($membro['nome'], ENT_QUOTES, 'UTF-8'); ?>" loading="lazy" width="1204" height="1600">
+                        <img class="ml-team-photo-side" src="<?php echo $base_path; ?>assets/img/sobre/<?php echo $membro['slug']; ?>-lado.jpeg" alt="" aria-hidden="true" loading="lazy" width="1204" height="1600">
+                    </div>
+                    <h4><?php echo htmlspecialchars($membro['nome'], ENT_QUOTES, 'UTF-8'); ?></h4>
+                    <span class="ml-team-role">Desenvolvedor</span>
                 </div>
-                <h4>Jônatas</h4>
-                <span class="ml-team-role">Desenvolvedor</span>
-            </div>
-            <div class="ml-team-card">
-                <div class="placeholder" style="min-height: 200px; margin-bottom: 14px;">
-                    <i class="fas fa-user"></i>
-                </div>
-                <h4>Paulo Vitor</h4>
-                <span class="ml-team-role">Desenvolvedor</span>
-            </div>
-            <div class="ml-team-card">
-                <div class="placeholder" style="min-height: 200px; margin-bottom: 14px;">
-                    <i class="fas fa-user"></i>
-                </div>
-                <h4>Paulo Arthur</h4>
-                <span class="ml-team-role">Desenvolvedor</span>
-            </div>
-            <div class="ml-team-card">
-                <div class="placeholder" style="min-height: 200px; margin-bottom: 14px;">
-                    <i class="fas fa-user"></i>
-                </div>
-                <h4>Kauã Caitano</h4>
-                <span class="ml-team-role">Desenvolvedor</span>
-            </div>
-            <div class="ml-team-card">
-                <div class="placeholder" style="min-height: 200px; margin-bottom: 14px;">
-                    <i class="fas fa-user"></i>
-                </div>
-                <h4>Lucas</h4>
-                <span class="ml-team-role">Desenvolvedor</span>
-            </div>
-            <div class="ml-team-card">
-                <div class="placeholder" style="min-height: 200px; margin-bottom: 14px;">
-                    <i class="fas fa-user"></i>
-                </div>
-                <h4>Nicolas Jacinto</h4>
-                <span class="ml-team-role">Desenvolvedor</span>
-            </div>
+            <?php endforeach; ?>
         </div>
     </div>
 </section>
