@@ -114,8 +114,16 @@ CREATE TABLE IF NOT EXISTS e5_orders (
   email_error TEXT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  -- pages/admin/orders.php filtra por status e ordena por created_at;
-  -- a listagem do cliente ordena os pedidos dele por data.
+  -- Chave de idempotência do checkout. O formulário de confirmação carrega
+  -- uma chave; se ela já existir, o pedido já foi criado e a requisição é
+  -- um duplo clique/recarregamento, não uma nova compra. Sem o UNIQUE, dois
+  -- cliques simultâneos criavam dois pedidos do mesmo item — reproduzido
+  -- antes desta coluna. NULL em pedidos antigos: MySQL permite vários NULL
+  -- em índice UNIQUE, então eles não colidem.
+  idempotency_key VARCHAR(64) NULL,
+  -- status + created_at: pages/admin/orders.php filtra por status e ordena
+  -- por data; a listagem do cliente ordena os pedidos dele por data.
+  UNIQUE KEY uk_orders_idem (idempotency_key),
   INDEX idx_orders_status_created (status, created_at),
   INDEX idx_orders_user_created (user_id, created_at),
   CONSTRAINT fk_orders_user FOREIGN KEY (user_id) REFERENCES e5_users(id)

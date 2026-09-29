@@ -960,3 +960,67 @@ PHPUnit **OK (62 tests, 289 assertions)**.
 `database/database.sql:249-255` semeia 6 contas de admin com **nomes e
 e-mails de pessoas reais** (equipe do TCC). O repositorio e publico. Nao foi
 alterado aqui porque envolve dados de terceiros — decisao do owner.
+
+---
+
+## Lote 1b / Etapa 3 — Checkout: pedido duplicado e estoque sem verificação
+
+### Bug 1: dois cliques criavam dois pedidos (reproduzido)
+
+Dois POSTs concorrentes em "Pagar e finalizar" gravavam **dois** pedidos
+com os mesmos itens. Reproduzido antes da correção: pedidos #6 e #7
+criados pelo mesmo par de cliques, mesmo item, mesmo valor, e o estoque
+caiu 25 -> 23. O cliente receberia duas entregas.
+
+Duas causas independentes:
+
+1. **Sem chave de idempotência.** O `cartClear()` dentro da transação
+   dava uma proteção *acidental* no caso sequencial (o POST seguinte já
+   não achava carrinho), mas em requisições simultâneas as duas leem o
+   carrinho antes de qualquer das duas limpar.
+2. **Sem verificação da baixa de estoque.** `decrementStock()` tem a
+   guarda atômica `AND stock >= :qty`, então o estoque nunca fica
+   negativo — mas o retorno era ignorado.
+
+**Correção:** `e5_orders.idempotency_key VARCHAR(64)` com
+`UNIQUE KEY uk_orders_idem`. O formulário de confirmação carrega uma chave
+de 32 bytes; o segundo INSERT viola o índice e o `catch` de violação de
+unicidade devolve o pedido **já criado** em vez de criar outro. O `NULL`
+em pedidos antigos não colide, porque MySQL permite vários NULL em
+índice UNIQUE.
+
+`decrementStock()` passou a retornar `rowCount() > 0` em vez do retorno de
+`execute()`, que é `true` mesmo quando o filtro não casa nenhuma linha. O
+checkout agora aborta a transação se a baixa não aconteceu — o que
+mantém a garantia de estoque contra a corrida entre o `validateStock()`
+(que roda **antes** da transação) e o INSERT.
+
+### Bug 2: my audit estava errado sobre a transação
+
+A auditoria original afirmava que o checkout "nao tem transacao". Está
+errado: `pages/cart/checkout.php:350` faz `beginTransaction()`, e a baixa
+de estoque está dentro dela. O que faltava não era transação, era
+**verificar o resultado** dela. Corrigido neste documento.
+
+### Verificação
+
+| cenário | antes | depois |
+|---|---|---|
+| 3 POSTs concorrentes, mesma chave | ate 3 pedidos | **1 pedido**, estoque baixado 1x |
+| reenvio com a chave ja usada | — | re-renderiza o pedido #8, **nenhum pedido novo**, estoque intacto |
+| `decrementStock(qty > stock)` | `true` (execute ok) | **`false`** |
+| `decrementStock(qty <= stock)` | — | `true`, estoque baixado |
+| PHPUnit | — | **OK (62 tests, 289 assertions)** |
+| 16 paginas (cliente + admin) | — | 200, exceto 302 esperados (carrinho vazio / `?id=` ausente) |
+
+Testes de banco usados na verificação foram removidos e o estoque
+devolvido: 5 pedidos (o seed original), carrinho vazio, estoque do
+produto 1 em 25.
+
+### Pendencia que segue aberta
+
+O `payment_status` gravado continua sendo `pending`, e o Pix/boleto ainda
+sao gerados em memoria, sem persistir em `e5_orders.payment_details` /
+`payment_expires_at` (que agora existem no schema). A correcao de
+`payment_status` de verdade vive em `pages/cart/payment.php`, que ainda nao
+existe.

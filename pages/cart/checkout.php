@@ -328,12 +328,38 @@ $installmentValue = $installmentCount > 0 ? round($grandTotal / $installmentCoun
 // =====================================================================
 // CONFIRMAÇÃO DO PEDIDO
 // =====================================================================
+// Chave de idempotência do checkout.
+//
+// Sem isto, dois cliques em "Pagar e finalizar" (ou um recarregamento da
+// página depois do pedido criado) gravavam DOIS pedidos com os mesmos
+// itens — reproduzido neste projeto antes desta chave. A chave vai no
+// formulário; o índice UNIQUE em e5_orders.idempotency_key faz o segundo
+// INSERT falhar, e o código abaixo trata isso devolvendo o pedido já
+// criado em vez de criar outro.
+$isConfirming = ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && isset($_POST['confirm_order']);
+
+$idemKey = (string) ($_POST['idempotency_key'] ?? ($_SESSION['checkout_idem_key'] ?? ''));
+
+if ($isConfirming && $idemKey === '') {
+    // POST sem a chave (formulário antigo, sessão expirada): gera uma para
+    // esta tentativa, em vez de aceitar a requisição sem proteção.
+    $idemKey = bin2hex(random_bytes(32));
+}
+
+if ($isConfirming) {
+    // A chave consumida não pode ser reutilizada numa próxima compra.
+    unset($_SESSION['checkout_idem_key']);
+} else {
+    // GET ou POST que não é a confirmação: o formulário passa a carregar uma
+    // chave nova, da próxima compra.
+    $_SESSION['checkout_idem_key'] = bin2hex(random_bytes(32));
+    $idemKey = $_SESSION['checkout_idem_key'];
+}
+
 $orderCreated = false;
 $orderId = null;
 $orderPaymentInfo = null;
 $errorMessage = null;
-
-$isConfirming = ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && isset($_POST['confirm_order']);
 
 if ($isConfirming) {
     csrf_require_valid();
@@ -373,7 +399,7 @@ if ($isConfirming) {
                 }
             }
 
-            $stmt = $pdo->prepare('INSERT INTO e5_orders (user_id, status, total, shipping_method, shipping_cost, payment_method, coupon_code, payment_card_last_four, payment_status, shipping_postal_code, shipping_neighborhood, shipping_city, shipping_state) VALUES (:uid, :status, :total, :ship, :shipcost, :pay, :coupon, :card, :paystatus, :cep, :neigh, :city, :state)');
+            $stmt = $pdo->prepare('INSERT INTO e5_orders (user_id, status, total, shipping_method, shipping_cost, payment_method, coupon_code, payment_card_last_four, payment_status, shipping_postal_code, shipping_neighborhood, shipping_city, shipping_state, idempotency_key) VALUES (:uid, :status, :total, :ship, :shipcost, :pay, :coupon, :card, :paystatus, :cep, :neigh, :city, :state, :idem)');
             $stmt->execute([
                 ':uid' => $userId,
                 ':status' => 'pending',
@@ -388,18 +414,33 @@ if ($isConfirming) {
                 ':neigh' => $shipNeighborhood,
                 ':city' => $shipCity,
                 ':state' => $shipState,
+                ':idem' => $idemKey,
             ]);
             $orderId = (int) $pdo->lastInsertId();
 
             $stmtItem = $pdo->prepare('INSERT INTO e5_order_items (order_id, product_id, quantity, unit_price) VALUES (:oid, :pid, :qty, :price)');
             foreach ($items as $item) {
+                $pid = (int) $item['product_id'];
+                $qtd = (int) $item['quantity'];
+
+                // A guarda `AND stock >= :qty` em decrementStock() impede
+                // estoque negativo, mas não impede o pedido: se outro
+                // comprador esvaziar o estoque entre o validateStock() e
+                // aqui, o UPDATE afeta 0 linhas e o checkout precisa abortar.
+                // Sem esta checagem, o cliente recebia um pedido que não
+                // havia estoque para atender.
+                if (!decrementStock($pdo, $pid, $qtd)) {
+                    throw new RuntimeException(
+                        'Estoque insuficiente para "' . ($item['name'] ?? 'produto') . '". O estoque pode ter mudado enquanto você preenchia o pedido. Recarregue o carrinho.'
+                    );
+                }
+
                 $stmtItem->execute([
                     ':oid' => $orderId,
-                    ':pid' => (int) $item['product_id'],
-                    ':qty' => (int) $item['quantity'],
+                    ':pid' => $pid,
+                    ':qty' => $qtd,
                     ':price' => (float) $item['price'],
                 ]);
-                decrementStock($pdo, (int) $item['product_id'], (int) $item['quantity']);
             }
 
             if ($appliedCoupon !== '') {
@@ -449,6 +490,31 @@ if ($isConfirming) {
             } else {
                 $emailStatus = 'skipped';
                 salvarStatusEmail($orderId, $emailStatus);
+            }
+        } catch (PDOException $e) {
+            $pdo->rollBack();
+
+            // 23000 = violação de unicidade. Neste ponto a única chave
+            // UNIQUE que pode colidir é idempotency_key: a requisição é um
+            // duplo clique ou um recarregamento de um pedido que JÁ foi
+            // criado. Devolve esse pedido em vez de criar um segundo.
+            if ($e->getCode() === '23000') {
+                $dup = $pdo->prepare('SELECT id FROM e5_orders WHERE idempotency_key = :k AND user_id = :u LIMIT 1');
+                $dup->execute([':k' => $idemKey, ':u' => $userId]);
+                $existing = $dup->fetchColumn();
+
+                if ($existing) {
+                    $orderId = (int) $existing;
+                    $orderCreated = true;
+                    $orderPaymentInfo = null; // sem QR: esta é a segunda renderização
+                    $errorMessage = null;
+                } else {
+                    $errorMessage = 'Não foi possível concluir o pedido. Tente novamente.';
+                    error_log('Checkout unique violation (não-idempotência): ' . $e->getMessage());
+                }
+            } else {
+                $errorMessage = 'Erro ao processar pedido. Tente novamente.';
+                error_log('Checkout error: ' . $e->getMessage());
             }
         } catch (Throwable $e) {
             $pdo->rollBack();
@@ -809,6 +875,7 @@ include $base_path . 'components/header.php';
                         <input type="hidden" name="ship_street" value="<?php echo htmlspecialchars($shipAddress['street'], ENT_QUOTES, 'UTF-8'); ?>">
                         <input type="hidden" name="ship_number" value="<?php echo htmlspecialchars($shipAddress['number'], ENT_QUOTES, 'UTF-8'); ?>">
                         <input type="hidden" name="ship_complement" value="<?php echo htmlspecialchars($shipAddress['complement'], ENT_QUOTES, 'UTF-8'); ?>">
+                        <input type="hidden" name="idempotency_key" value="<?php echo htmlspecialchars($idemKey, ENT_QUOTES, 'UTF-8'); ?>">
                         <p style="margin-bottom: 15px; font-size: 0.85rem; color: var(--ml-text-muted);"><i class="fas fa-info-circle"></i> Ao finalizar, você concorda com nossos termos de compra.</p>
                         <button type="submit" name="confirm_order" class="ml-pay-btn"><i class="fas fa-lock"></i> Pagar e finalizar</button>
                     </form>

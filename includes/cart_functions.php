@@ -74,7 +74,17 @@ function validateStock($pdo, $productId, $quantity, $cartQty = 0) {
     return ['ok' => true, 'available' => $available];
 }
 
+/**
+ * Baixa a quantidade em estoque.
+ *
+ * Retorna true apenas se o UPDATE de fato afetou uma linha. A guarda
+ * `AND stock >= :qty2` impede estoque negativo, mas o execute() do PDO
+ * retorna true mesmo quando o filtro não casa e nada é atualizado —
+ * quem chama precisa saber se a baixa aconteceu de verdade, ou vai
+ * confirmar um pedido sem estoque reservado.
+ */
 function decrementStock($pdo, $productId, $quantity) {
     $stmt = $pdo->prepare('UPDATE e5_products SET stock = stock - :qty WHERE id = :pid AND stock >= :qty2');
-    return $stmt->execute([':qty' => $quantity, ':pid' => $productId, ':qty2' => $quantity]);
+    $stmt->execute([':qty' => $quantity, ':pid' => $productId, ':qty2' => $quantity]);
+    return $stmt->rowCount() > 0;
 }
