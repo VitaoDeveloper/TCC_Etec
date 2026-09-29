@@ -794,31 +794,136 @@ sentidos**. O schema declara coisas que o banco nao tem:
 | `e5_users` | `cpf` |
 | `superfrete_webhook_log` | **tabela inteira ausente** (7 colunas) |
 
-**21 colunas e 1 tabela** ausentes. E o banco tem coisas que o schema nao
-declara: `e5_coupons.customer_scope`, `e5_orders.payment_details`,
-`e5_orders.payment_expires_at`, `e5_users.avatar_path`,
-`e5_users.notify_email`, `e5_users.notify_whatsapp` e a tabela
-`e5_user_addresses` (inteira, e **nao usada por nenhum arquivo do
-projeto** — orfao de uma alteracao manual).
+**21 colunas e 1 tabela** ausentes — contagem conferida com `SHOW COLUMNS`,
+nao por diff de texto.
 
-Ha ainda uma terceira categoria, que o diff schema-vs-banco nao pega: o
-**codigo** referencia colunas que nao existem em nenhum dos dois. Exemplo
-concreto: `e5_users.status` e usada em consultas da area de clientes, mas
-nao esta no `database.sql` nem no banco.
+E o banco tem coisas que o schema nao declara:
 
-Isso e a causa-raiz por tras de varias claimed "features prontas" da
-etapa 3. **Nao da para continuar a etapa 3 antes de reconciliar isso** —
-construir telas sobre um schema instavel produz codigo que passa no
-happy path e quebra em producao.
+| Objeto | Quem usa no codigo |
+|---|---|
+| `e5_users.avatar_path`, `e5_users.notify_email`, `e5_users.notify_whatsapp` | **nada** |
+| `e5_orders.payment_details`, `e5_orders.payment_expires_at` | **nada** |
+| `e5_user_addresses` (tabela inteira) | **nada** |
+
+> **Correcao de registro.** A versao anterior deste documento afirmava que
+> `e5_users.status` era consultada pelo codigo sem existir em `database.sql`
+> nem no banco. **Isso era falso** — veio de uma consulta ad hoc, nao de
+> leitura de codigo. `grep -ri "status"` nao encontra `e5_users.status` em
+> nenhum arquivo PHP. A coluna nao existe em lugar nenhum e nao e requisito
+> de nada.
+
+> **Correcao de registro 2.** `e5_coupons.customer_scope` aparecia aqui como
+> "so no banco". Errado: a coluna esta declarada no `database.sql` e apareceu
+> no banco quando a tabela foi recriada a partir dele. Nao e divergencia.
+
+Os 6 objetos da tabela acima sao lixo legado do banco de desenvolvimento,
+nao requisito de codigo. Ficaram registrados e **nao foram removidos** —
+drop em coluna/tabela pode destruir dado, entao essa decisao e do owner.
+
+Isso e a causa-raiz por tras de varias "features prontas" da etapa 3.
+**Nao da para continuar a etapa 3 antes de reconciliar isso** — construir
+telas sobre um schema instavel produz codigo que passa no happy path e
+quebra em producao.
 
 O que ja foi feito no ambiente local, de forma aditiva e sem apagar
 dado: criadas `e5_package_sizes`, `e5_saved_cards` e `e5_coupons` a partir
 do proprio `database.sql` (as tres faltavam inteiras e sao referenciadas
-por 4, 3 e 1 arquivos respectivamente). As 21 colunas **nao** foram
-aplicadas: isso e trabalho de migration da etapa 2, com `up`/`down` e
-teste de rollback.
+por 4, 3 e 1 arquivos respectivamente).
 
 Estado das paginas com usuario autenticado na auditoria: 200 em home,
 listagem e detalhe de produto, favoritos, perfil, meus pedidos e o painel
-admin (index, produtos, pedidos, cupons); 500 apenas nas 3 paginas
+admin (index, produtos, pedidos, cupons); 500 nas 6 paginas listadas
 acima.
+
+---
+
+## RESOLVIDO — Lote 1b / Etapa 2: o schema passou a ter fonte unica de verdade
+
+### O que era o problema
+
+`database/migrations/` tinha 2 arquivos `.sql` e **nenhum registro do que
+ja tinha sido aplicado**. Ninguem sabia que `20260915_add_contact_replies.sql`
+nunca rodou, e o banco ficou 21 colunas atrasado em relacao ao codigo. O
+sintoma era `Unknown column 'p.package_size_id'` em 6 paginas.
+
+O modo de descobrir o que faltava era: remembering um `SHOW COLUMNS` na mão
+e comparar de memoria com o SQL. Nao escala e ja produziu um erro de
+documentacao (ver correcoes acima).
+
+### O que foi feito
+
+**1. Runner com registro — `bin/migrate.php`**
+
+```
+php bin/migrate.php status          # o que ja foi aplicado e o que falta
+php bin/migrate.php up              # aplica as pendentes, em ordem
+php bin/migrate.php down            # reverte a ultima aplicada
+php bin/migrate.php down <arquivo>  # reverte uma especifica
+```
+
+Cria e mantem `e5_schema_migrations (filename, checksum, applied_at)`.
+Decisoes deliberadas:
+
+- **Recusa `down` sem `.down.sql`.** Uma migration que nao sabe se desfazer
+  e recusada em vez de fingir que reverteu. Isso e o que impede a etapa 2
+  de accumulating mudancas irreversiveis.
+- **Guarda checksum.** Se um arquivo ja aplicado mudar no disco, o `status`
+  marca `<-- ARQUIVO MUDOU DEPOIS DE APLICADO` — evita a situacao classica
+  de migration editada depois de aplicada em outros ambientes.
+- **Modo `-- @raw`.** Migrations com `CREATE PROCEDURE` sao enviadas em um
+  unico `exec()`, porque o `BEGIN...END` contem `;` que o splitter trataria
+  como fim de comando.
+- **Sem transaction no `up`.** MySQL nao tem DDL transacional: todo
+  `CREATE`/`ALTER` faz commit implicito. O runner diz isso explicitamente
+  quando algo falha, em vez de sugerir rollback automatico que nao existe.
+
+**2. Migration `20261001_reconcile_schema_drift.sql` (+ `.down.sql`)**
+
+Cobre a divergencia real: 5 colunas de medida em `e5_products` + a FK
+`fk_products_package_size`, `cpf` em `e5_users` e a tabela
+`superfrete_webhook_log`.
+
+E **idempotente**: MySQL 8.0.46 nao tem `ADD COLUMN IF NOT EXISTS` nem
+`DROP COLUMN IF EXISTS` (verificado nesta versao, nao assumido), entao cada
+comando passa por um stored procedure que consulta `information_schema`
+antes de executar. Consequencia pratica: rodar duas vezes nao faz nada e
+nao falha, e a migration e segura tambem em instalacao nova, onde
+`database.sql` ja criou as colunas.
+
+**3. Reversoes para as 2 migrations legadas**
+
+`20260915_add_contact_replies.down.sql` e
+`20260921_add_contacts_email_status_index.down.sql` — sem eles, o `down`
+das duas ficaria bloqueado para sempre.
+
+### Como foi verificado
+
+Nao bastava o `up` passar. O ciclo completo foi exercitado:
+
+| passo | resultado |
+|---|---|
+| `up` (3 migrations) | 3 aplicadas |
+| `up` de novo | `Nada pendente` — idempotencia confirmada |
+| as 6 paginas quebradas, autenticado | **6/6 em 200** (eram 500) |
+| `down 20261001` | removeu as 5 colunas, `cpf` e a tabela do webhook |
+| `cart.php` com schema revertido | **500** — confirma que a migration era a causa, e nao coincidencia |
+| `up` de novo | restaurado, `cart.php` **200** |
+| `down` de migration sem `.down.sql` | recusado com aviso, exit 1 |
+| `phpunit` | **OK (62 tests, 289 assertions)** |
+
+### Divergencias deliberadamente NAO resolvidas
+
+`e5_users.{avatar_path,notify_email,notify_whatsapp}`,
+`e5_orders.{payment_details,payment_expires_at}` e a tabela
+`e5_user_addresses` existem no banco de desenvolvimento e **nao sao
+referenciadas por nenhum arquivo do repositorio**. Ficaram como estao:
+sao residuo, nao requisito. Nao vao para `database.sql` (aumentaria uma
+tabela que ninguem le) e nao vao para um `down` (destruiria dado sem
+pedido). Decisao do owner — ver checklist de pendencias.
+
+### Estado das paginas
+
+Com usuario autenticado, apos a migration: **200** em
+`admin/contact-detail.php`, `admin/contacts.php`, `auth/contacts.php`,
+`admin/package-sizes.php`, `cart/cart.php` e `cart/checkout.php`.
+Nenhuma pagina em 500 por divergencia de schema.
