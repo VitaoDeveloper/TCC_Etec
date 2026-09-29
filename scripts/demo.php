@@ -13,6 +13,19 @@ declare(strict_types=1);
  * O /checkout é tentado e o erro de falta de saldo é capturado como evidência.
  */
 
+// Este script orquestra a integração real: cria pedido, gera etiqueta,
+// lista, consulta e cancela na SuperFrete. Aberto pelo navegador ele
+// executava tudo isso a cada F5, gastando cota da conta e sujando o
+// banco. Fora do CLI ele não tem motivo nenhum para rodar.
+//
+// A guarda vem ANTES de qualquer require: se o autoload ou a config
+// quebrassem, o 403 ainda assim precisaria ser emitido.
+if (PHP_SAPI !== 'cli') {
+    http_response_code(403);
+    header('Content-Type: text/plain; charset=utf-8');
+    exit("403 - Este script e restrito a linha de comando.\n");
+}
+
 require __DIR__ . '/../vendor/autoload.php';
 require __DIR__ . '/../includes/config.php';
 

@@ -8,15 +8,27 @@ RewriteEngine On
 # SEGURANÇA
 # ============================================================
 
-# Bloquear acesso a diretórios sensíveis
-RedirectMatch 403 ^/includes/.*$
-RedirectMatch 403 ^/database/.*$
-RedirectMatch 403 ^/config\.php$
-RedirectMatch 403 ^/config\.example\.php$
-RedirectMatch 403 ^/opencode\.json$
-RedirectMatch 403 ^/steps\.md$
-RedirectMatch 403 ^/\.gitignore$
-RedirectMatch 403 ^/nul$
+# Bloquear acesso a diretórios sensíveis.
+#
+# IMPORTANTE: o app roda em SUBDIRETÓRIO (/TCC_Etec), mas o Apache compara
+# estes padrões contra o caminho INTEIRO da URL. Um padrão ancorado com ^
+# no diretório raiz (ex.: ^/includes/) NÃO casa com /TCC_Etec/includes/ e
+# por isso não protegia nada. Por isso os padrões usam "(^|/)", que casa
+# em qualquer nível de subpasta.
+#
+# Cada um desses diretórios também tem o próprio .htaccess com "Require all
+# denied" (defesa em profundidade, funciona mesmo se este arquivo for lido
+# antes das regras de diretório).
+RedirectMatch 403 (^|/)includes/
+RedirectMatch 403 (^|/)database/
+RedirectMatch 403 (^|/)storage/
+RedirectMatch 403 (^|/)scripts/
+RedirectMatch 403 (^|/)tests/
+RedirectMatch 403 (^|/)vendor/
+RedirectMatch 403 (^|/)\.git/
+RedirectMatch 403 (^|/)config\.php$
+RedirectMatch 403 (^|/)opencode\.json$
+RedirectMatch 403 (^|/)\.gitignore$
 
 # Desligar listagem de diretórios
 Options -Indexes
@@ -54,9 +66,17 @@ RedirectMatch 403 /\..*$
 # ============================================================
 # PÁGINA DE ERRO PERSONALIZADA
 # ============================================================
+#
+# ATENÇÃO: o ErrorDocument recebe um caminho a partir da RAIZ DO SERVIDOR,
+# não a partir desta pasta. Se o app for movido de /TCC_Etec para outro
+# lugar, estes dois caminhos precisam ser ajustados junto.
+#
+# 500 aponta para uma página própria (e não para o 404): devolver 404 em
+# erro interno mente para o cliente e confunde o retry de serviços
+# externos — foi assim que a SuperFrete passou a retentar webhook 5x.
 
 ErrorDocument 404 /TCC_Etec/pages/404.php
-ErrorDocument 500 /TCC_Etec/pages/404.php
+ErrorDocument 500 /TCC_Etec/pages/500.php
 
 # ============================================================
 # URL REWRITING — AMIGÁVEIS

@@ -1,10 +1,27 @@
+# Arquivos de ambiente.
+# O padrão antigo listava só ".env" e ".env.prod" e deixou o ".env.tcc"
+# (que continha credenciais reais) ser commitado. O padrão abaixo cobre
+# qualquer variante, e a exceção seguinte mantém o exemplo versionado.
 .env
-.env.prod
+.env.*
+!.env.example
+
 test
 vendor
 assets/img/*/*
 !assets/img/theme/
 !assets/img/theme/accent-mark.png
+
+# Conteúdo de storage é gerado em runtime (comprovantes, cache, logs).
+# O .htaccess NÃO é conteúdo: é a regra que bloqueia o acesso web ao
+# diretório, então precisa ser versionado — sem ela o storage voltaria a
+# ficar servido.
 storage/*
+!storage/.htaccess
+
 .phpunit.cache/
 .phpunit.result.cache
+
+# .env.tcc já está no histórico de todas as branches. Ignorar o arquivo
+# só impede novos commits; para removê-lo de vez é preciso rotacionar a
+# credencial e reescrever o histórico (git filter-repo/BFG) com force-push.
