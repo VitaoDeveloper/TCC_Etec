@@ -505,7 +505,7 @@ Registrado para garantir que as mudancas sejam incrementais:
 | 21 | **Rota do webhook divergente:** pasta e `webhook/` (singular), nao existe `webhooks/`, nao ha rewrite, e `.env.example:60` documenta a URL **sem `.php`** -> 404. | `.htaccess`, `.env.example:60` |
 | 22 | **`ErrorDocument 500` aponta para a pagina 404** — falha de servidor vira HTTP 404, mascarando outage e confundindo o retry da SuperFrete. | `.htaccess:59` |
 | 23 | **Paginacao inexistente no admin** — todas as listagens fazem `fetchAll()`. | `pages/admin/*` |
-| 24 | **Indices faltando** em caminhos quentes: `e5_orders.status`, `.created_at`, `.tracking_code`, `e5_users.cpf`, `e5_coupons(active, valid_until)`, `e5_products.price`. So 5 indices explicitos em 17 tabelas. | `database.sql` |
+| 24 | **Indices faltando** em caminhos quentes: `e5_orders(status, created_at)` e `e5_banners(created_at)`. Adicionados no lote 1b/etapa 2. **Nao** sao necessarios `e5_users.cpf` (nenhuma query filtra por cpf — so e gravado) nem `e5_orders.tracking_code` (nunca consultado pelo codigo atual) nem `e5_coupons(active, valid_until)` (a validade do cupom e conferida em PHP, em `includes/coupon_functions.php:39-42`). | `database.sql` |
 
 ### BAIXO / HIGIENE
 
@@ -825,10 +825,9 @@ Isso e a causa-raiz por tras de varias "features prontas" da etapa 3.
 telas sobre um schema instavel produz codigo que passa no happy path e
 quebra em producao.
 
-O que ja foi feito no ambiente local, de forma aditiva e sem apagar
-dado: criadas `e5_package_sizes`, `e5_saved_cards` e `e5_coupons` a partir
-do proprio `database.sql` (as tres faltavam inteiras e sao referenciadas
-por 4, 3 e 1 arquivos respectivamente).
+O que ja foi feito no ambiente local: `database/database.sql` foi
+corrigido e o banco de desenvolvimento sincronizado — ver a secao
+"RESOLVIDO" no fim deste documento.
 
 Estado das paginas com usuario autenticado na auditoria: 200 em home,
 listagem e detalhe de produto, favoritos, perfil, meus pedidos e o painel
@@ -836,94 +835,128 @@ admin (index, produtos, pedidos, cupons); 500 nas 6 paginas listadas
 acima.
 
 ---
+## RESOLVIDO — Lote 1b / Etapa 2: `database.sql` como fonte unica do schema
 
-## RESOLVIDO — Lote 1b / Etapa 2: o schema passou a ter fonte unica de verdade
+### Decisao de abordagem
 
-### O que era o problema
+Primeiro este lote foi feito com migrations versionadas e um runner
+(`bin/migrate.php` + `database/migrations/*.sql` + tabela
+`e5_schema_migrations`). **Isso foi removido a pedido do owner**: o
+`database/database.sql` e o schema de instalacao do projeto, e manter duas
+fontes foi justamente o que gerou o problema. Agora ha **uma** fonte: o
+arquivo e corrigido diretamente, e o banco e sincronizado com ele.
 
-`database/migrations/` tinha 2 arquivos `.sql` e **nenhum registro do que
-ja tinha sido aplicado**. Ninguem sabia que `20260915_add_contact_replies.sql`
-nunca rodou, e o banco ficou 21 colunas atrasado em relacao ao codigo. O
-sintoma era `Unknown column 'p.package_size_id'` em 6 paginas.
+### O que foi corrigido no `database.sql`
 
-O modo de descobrir o que faltava era: remembering um `SHOW COLUMNS` na mão
-e comparar de memoria com o SQL. Nao escala e ja produziu um erro de
-documentacao (ver correcoes acima).
+**1. `ENGINE` explicito nas 8 tabelas que nao tinham**
 
-### O que foi feito
+`e5_categories`, `e5_package_sizes`, `e5_products`, `e5_product_images`,
+`e5_orders`, `e5_order_items`, `e5_cart` e `e5_banners` terminavam em
+`);`, sem `ENGINE`. As quatro do meio do caminho de compra
+(`e5_products`, `e5_orders`, `e5_order_items`, `e5_cart`) sao as que
+importam: em servidor cujo `default_storage_engine` seja MyISAM, o checkout
+perde transacao **sem erro nenhum**. O banco de desenvolvimento estava
+certo so porque o servidor local usa InnoDB — o arquivo nao garantia nada.
 
-**1. Runner com registro — `bin/migrate.php`**
+**2. Collation unificada**
 
-```
-php bin/migrate.php status          # o que ja foi aplicado e o que falta
-php bin/migrate.php up              # aplica as pendentes, em ordem
-php bin/migrate.php down            # reverte a ultima aplicada
-php bin/migrate.php down <arquivo>  # reverte uma especifica
-```
+`superfrete_webhook_log` usava `utf8mb4_unicode_ci` contra
+`utf8mb4_general_ci` das outras 16. O banco de desenvolvimento chegou a ter
+**três** collations convivendo. Comparar string entre tabelas com
+collation diferente pode falhar com "Illegal mix of collations". Agora são
+17 tabelas em `utf8mb4_general_ci`.
 
-Cria e mantem `e5_schema_migrations (filename, checksum, applied_at)`.
-Decisoes deliberadas:
+**3. `payment_status` estava defasado no arquivo**
 
-- **Recusa `down` sem `.down.sql`.** Uma migration que nao sabe se desfazer
-  e recusada em vez de fingir que reverteu. Isso e o que impede a etapa 2
-  de accumulating mudancas irreversiveis.
-- **Guarda checksum.** Se um arquivo ja aplicado mudar no disco, o `status`
-  marca `<-- ARQUIVO MUDOU DEPOIS DE APLICADO` — evita a situacao classica
-  de migration editada depois de aplicada em outros ambientes.
-- **Modo `-- @raw`.** Migrations com `CREATE PROCEDURE` sao enviadas em um
-  unico `exec()`, porque o `BEGIN...END` contem `;` que o splitter trataria
-  como fim de comando.
-- **Sem transaction no `up`.** MySQL nao tem DDL transacional: todo
-  `CREATE`/`ALTER` faz commit implicito. O runner diz isso explicitamente
-  quando algo falha, em vez de sugerir rollback automatico que nao existe.
+O enum no `database.sql` era `('pending','paid','refunded')`, mas o banco
+de desenvolvimento tinha
+`('pending','processing','paid','refunded','failed','expired')`. O codigo
+hoje so grava `paid` (`pages/admin/order-detail.php:34`), mas
+`processing`/`failed`/`expired` sao os estados do simulador de pagamento
+(aprovado/erro/expirado) que o escopo exige — e que
+`pages/cart/payment.php` vai gravar quando existir. Numa instalacao nova,
+esse enum **rejeitaria** as gravacoes. Corrigido no arquivo.
 
-**2. Migration `20261001_reconcile_schema_drift.sql` (+ `.down.sql`)**
+**4. Indices, so os que o codigo realmente exercita**
 
-Cobre a divergencia real: 5 colunas de medida em `e5_products` + a FK
-`fk_products_package_size`, `cpf` em `e5_users` e a tabela
-`superfrete_webhook_log`.
+| indice | consulta que justifica |
+|---|---|
+| `e5_orders (status, created_at)` | `pages/admin/orders.php` filtra por status e ordena por data |
+| `e5_orders (user_id, created_at)` | listagem de pedidos do cliente |
+| `e5_banners (created_at)` | `components/header.php` busca banners em **todas** as paginas |
 
-E **idempotente**: MySQL 8.0.46 nao tem `ADD COLUMN IF NOT EXISTS` nem
-`DROP COLUMN IF EXISTS` (verificado nesta versao, nao assumido), entao cada
-comando passa por um stored procedure que consulta `information_schema`
-antes de executar. Consequencia pratica: rodar duas vezes nao faz nada e
-nao falha, e a migration e segura tambem em instalacao nova, onde
-`database.sql` ja criou as colunas.
+Nao foram adicionados `e5_users.cpf`, `e5_orders.tracking_code` nem
+`e5_coupons(active, valid_until)`, que a versao anterior deste documento
+listava como faltantes. A conferencia no codigo mostrou que nenhum se
+justifica hoje: `cpf` so e gravado, nunca filtrado; `tracking_code` nao e
+consultado por nenhum arquivo; e a validade do cupom e conferida em PHP
+(`includes/coupon_functions.php:39-42`), nao no banco. Indice que ninguem
+consulta so custa escrita.
 
-**3. Reversoes para as 2 migrations legadas**
+**5. Backdoor de administrador no seed**
 
-`20260915_add_contact_replies.down.sql` e
-`20260921_add_contacts_email_status_index.down.sql` — sem eles, o `down`
-das duas ficaria bloqueado para sempre.
+O seed criava o admin com o hash bcrypt de `"password"` — a mesma senha em
+**toda** instalacao nova deste arquivo (verificado:
+`password_verify('password', $2y$10$92IXUNpkjO...) === true`). Isso e um
+`admin/password` universal em qualquer maquina que rode o arquivo.
+
+O admin agora e criado com o hash de uma senha aleatoria descartada: a
+conta existe, mas **ninguem consegue entrar**. O proprio arquivo explica,
+no bloco do seed, como gerar um hash e definir a senha em um comando. Os
+clientes de demonstracao continuam com a senha `password` — sao dados
+ficticios, e e o ponto delas.
+
+### Colunas que estavam no banco e nao no arquivo
+
+Cinco colunas existem no banco de desenvolvimento e nao eram declaradas no
+`database.sql`: `e5_users.{avatar_path,notify_email,notify_whatsapp}` e
+`e5_orders.{payment_details,payment_expires_at}`.
+
+A primeira intencao era dropa-las por nao serem lidas por nenhum arquivo.
+**A verificacao impediu isso**: `notify_email` e `notify_whatsapp` tem
+valor `1` nos 16 usuarios. Sao flags de opt-in com dado real. Passaram a
+ser declaradas no arquivo.
+
+> **Principio:** schema **a frente** do codigo e saudavel — e o que permite
+> que uma feature nova encontre a coluna pronta. Schema **atras** do codigo
+> e o que quebrou as 6 paginas deste projeto. A versao anterior deste
+> documento sugeria remover as colunas orfas; a direcao correta e a
+> contraria.
 
 ### Como foi verificado
 
-Nao bastava o `up` passar. O ciclo completo foi exercitado:
+Nao bastava o arquivo "parecer certo". O teste e: **importar o arquivo
+num banco novo e comparar com o banco de desenvolvimento.**
 
-| passo | resultado |
+```
+sed 's/e5_royaltech/e5_schema_test/g' database/database.sql | import
+```
+
+Comparacao via `information_schema` (tabelas, engines, collations, colunas,
+tipos, nullability, defaults, indices e FKs):
+
+| | objetos |
 |---|---|
-| `up` (3 migrations) | 3 aplicadas |
-| `up` de novo | `Nada pendente` — idempotencia confirmada |
-| as 6 paginas quebradas, autenticado | **6/6 em 200** (eram 500) |
-| `down 20261001` | removeu as 5 colunas, `cpf` e a tabela do webhook |
-| `cart.php` com schema revertido | **500** — confirma que a migration era a causa, e nao coincidencia |
-| `up` de novo | restaurado, `cart.php` **200** |
-| `down` de migration sem `.down.sql` | recusado com aviso, exit 1 |
-| `phpunit` | **OK (62 tests, 289 assertions)** |
+| banco de desenvolvimento | 232 |
+| banco novo importado do `database.sql` | 232 |
+| **so no dev / so no novo / diferentes** | **0 / 0 / 0** |
 
-### Divergencias deliberadamente NAO resolvidas
+O `database.sql` reproduz **exatamente** o schema do banco de
+desenvolvimento.
 
-`e5_users.{avatar_path,notify_email,notify_whatsapp}`,
-`e5_orders.{payment_details,payment_expires_at}` e a tabela
-`e5_user_addresses` existem no banco de desenvolvimento e **nao sao
-referenciadas por nenhum arquivo do repositorio**. Ficaram como estao:
-sao residuo, nao requisito. Nao vao para `database.sql` (aumentaria uma
-tabela que ninguem le) e nao vao para um `down` (destruiria dado sem
-pedido). Decisao do owner — ver checklist de pendencias.
+A aplicacao tambem foi exercitada contra o banco novo, nao so contra o de
+desenvolvimento: login de cliente (carrinho e pedidos semeados), carrinho,
+checkout, perfil, pedidos, wishlist, e o painel admin completo — tudo 200.
+Sem isso, um arquivo pode casar com o schema e ainda assim não ter os
+dados que o codigo le na consulta.
 
-### Estado das paginas
+Estado final no banco de desenvolvimento: 16 tabelas, collation unificada,
+`e5_user_addresses` removida (0 linhas, nao usada por nenhum arquivo) e
+`e5_schema_migrations` removida (residuo do runner descartado).
+PHPUnit **OK (62 tests, 289 assertions)**.
 
-Com usuario autenticado, apos a migration: **200** em
-`admin/contact-detail.php`, `admin/contacts.php`, `auth/contacts.php`,
-`admin/package-sizes.php`, `cart/cart.php` e `cart/checkout.php`.
-Nenhuma pagina em 500 por divergencia de schema.
+### Pendencia que sobrou (nao e do lote)
+
+`database/database.sql:249-255` semeia 6 contas de admin com **nomes e
+e-mails de pessoas reais** (equipe do TCC). O repositorio e publico. Nao foi
+alterado aqui porque envolve dados de terceiros — decisao do owner.

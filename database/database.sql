@@ -15,6 +15,14 @@ CREATE TABLE IF NOT EXISTS e5_users (
   street VARCHAR(120) NOT NULL,
   number INT NOT NULL,
   complement VARCHAR(80) DEFAULT NULL,
+  -- Avatar e preferências de contato. O código ainda não consome estas
+  -- colunas, mas o banco de desenvolvimento tem dado nelas (os 16 usuários
+  -- came opted-in), então elas entram no schema para o arquivo continuar
+  -- sendo a fonte da verdade. Schema à frente do código é saudável; schema
+  -- atrás do código é o que quebrou as páginas.
+  avatar_path VARCHAR(255) NULL,
+  notify_email TINYINT(1) NOT NULL DEFAULT 1,
+  notify_whatsapp TINYINT(1) NOT NULL DEFAULT 1,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -26,7 +34,7 @@ CREATE TABLE IF NOT EXISTS e5_categories (
   description TEXT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE IF NOT EXISTS e5_package_sizes (
   id INT PRIMARY KEY AUTO_INCREMENT,
@@ -38,7 +46,7 @@ CREATE TABLE IF NOT EXISTS e5_package_sizes (
   is_active TINYINT(1) NOT NULL DEFAULT 1,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 INSERT IGNORE INTO e5_package_sizes (name, height_cm, width_cm, length_cm, max_weight_kg) VALUES
 ('Micro', 10.0, 10.0, 10.0, 0.50),
@@ -67,7 +75,7 @@ CREATE TABLE IF NOT EXISTS e5_products (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_products_category FOREIGN KEY (category_id) REFERENCES e5_categories(id),
   CONSTRAINT fk_products_package_size FOREIGN KEY (package_size_id) REFERENCES e5_package_sizes(id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE IF NOT EXISTS e5_product_images (
   id INT PRIMARY KEY AUTO_INCREMENT,
@@ -76,7 +84,7 @@ CREATE TABLE IF NOT EXISTS e5_product_images (
   is_primary TINYINT(1) NOT NULL DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_product_images_product FOREIGN KEY (product_id) REFERENCES e5_products(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE IF NOT EXISTS e5_orders (
   id INT PRIMARY KEY AUTO_INCREMENT,
@@ -88,7 +96,14 @@ CREATE TABLE IF NOT EXISTS e5_orders (
   payment_method VARCHAR(50) NULL,
   coupon_code VARCHAR(50) NULL,
   payment_card_last_four CHAR(4) NULL,
-  payment_status ENUM('pending','paid','refunded') NOT NULL DEFAULT 'pending',
+  -- processing/failed/expired são os estados do simulador de pagamento
+  -- (aprovado/erro/expirado). O enum antigo aqui tinha só 3 valores e
+  -- rejeitaria essas gravações numa instalação nova.
+  payment_status ENUM('pending','processing','paid','refunded','failed','expired') NOT NULL DEFAULT 'pending',
+  -- Dados do pagamento que não são número de cartão: não guardar PAN, guardar
+  -- só o que o provedor devolve (autorização, expiração).
+  payment_details TEXT NULL,
+  payment_expires_at DATETIME NULL,
   shipping_neighborhood VARCHAR(80) NULL,
   shipping_city VARCHAR(80) NULL,
   shipping_state VARCHAR(40) NULL,
@@ -99,8 +114,12 @@ CREATE TABLE IF NOT EXISTS e5_orders (
   email_error TEXT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  -- pages/admin/orders.php filtra por status e ordena por created_at;
+  -- a listagem do cliente ordena os pedidos dele por data.
+  INDEX idx_orders_status_created (status, created_at),
+  INDEX idx_orders_user_created (user_id, created_at),
   CONSTRAINT fk_orders_user FOREIGN KEY (user_id) REFERENCES e5_users(id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE IF NOT EXISTS e5_order_items (
   id INT PRIMARY KEY AUTO_INCREMENT,
@@ -110,7 +129,7 @@ CREATE TABLE IF NOT EXISTS e5_order_items (
   unit_price DECIMAL(10,2) NOT NULL,
   CONSTRAINT fk_order_items_order FOREIGN KEY (order_id) REFERENCES e5_orders(id) ON DELETE CASCADE,
   CONSTRAINT fk_order_items_product FOREIGN KEY (product_id) REFERENCES e5_products(id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE IF NOT EXISTS e5_cart (
   id INT PRIMARY KEY AUTO_INCREMENT,
@@ -122,7 +141,7 @@ CREATE TABLE IF NOT EXISTS e5_cart (
   UNIQUE KEY unique_cart_item (user_id, product_id),
   CONSTRAINT fk_cart_user FOREIGN KEY (user_id) REFERENCES e5_users(id) ON DELETE CASCADE,
   CONSTRAINT fk_cart_product FOREIGN KEY (product_id) REFERENCES e5_products(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE IF NOT EXISTS e5_contacts (
   id INT PRIMARY KEY AUTO_INCREMENT,
@@ -169,8 +188,10 @@ CREATE TABLE IF NOT EXISTS e5_banners (
   link_url VARCHAR(255) NULL,
   is_active TINYINT(1) NOT NULL DEFAULT 1,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  -- components/header.php busca os banners em todas as páginas, por data.
+  INDEX idx_banners_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE IF NOT EXISTS e5_wishlist (
   id INT PRIMARY KEY AUTO_INCREMENT,
@@ -227,7 +248,22 @@ CREATE TABLE IF NOT EXISTS e5_coupons (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ======================================================================
--- REGISTROS DE EXEMPLO (SEED) -- senha padrão: password123 (hash bcrypt)
+-- REGISTROS DE EXEMPLO (SEED)
+--
+-- Clientes de demonstração: senha "password" (bcrypt). São dados fictícios
+-- para poder navegar o site. Não use essas contas em produção.
+--
+-- >>> A conta admin NÃO tem senha conhecida. <<<
+-- O seed original usava o mesmo hash bcrypt de "password" para o admin,
+-- o que significa que qualquer instalação nova deste arquivo abria com
+-- admin/password. O hash abaixo é de uma senha aleatória descartada:
+-- ninguém consegue fazer login com ele, por adivinhação.
+--
+-- Para definir a senha do admin após rodar este arquivo:
+--   php -r 'echo password_hash("SUA_SENHA", PASSWORD_BCRYPT), PHP_EOL;'
+-- e depois:
+--   UPDATE e5_users SET password = 'COLE_O_HASH_AQUI'
+--    WHERE username = 'admin';
 -- ======================================================================
 
 INSERT INTO e5_users (name, email, username, password, role, postal_code, street, number, complement) VALUES
@@ -240,7 +276,9 @@ INSERT INTO e5_users (name, email, username, password, role, postal_code, street
 ('Juliana Rocha', 'juliana.rocha@email.com', 'juliana.rocha', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'customer', '70070-000', 'SIG Sul', 10, 'Loja 12'),
 ('Pedro Martins', 'pedro.martins@email.com', 'pedro.martins', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'customer', '80080-000', 'Av. Batel', 200, 'Apto 33'),
 ('Beatriz Nunes', 'beatriz.nunes@email.com', 'beatriz.nunes', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'customer', '90090-000', 'Av. Ipiranga', 500, NULL),
-('admin', 'admin@royaltech.com', 'admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', '01310-100', 'Av. Paulista', 1, 'Sede');
+-- Admin: senha bloqueada (hash de uma senha aleatória descartada).
+-- Ver o comentário do bloco acima para definir a senha.
+('admin', 'admin@royaltech.com', 'admin', '$2y$10$4V5C/QNZEGAYvYXjGlYwGOEM6goAAcsQG5Y0PzkoG7Lj4mr8sr7ly', 'admin', '01310-100', 'Av. Paulista', 1, 'Sede');
 
 -- CPF demo (bloco Faturamento do checkout) — os demais usuários podem preencher no perfil
 UPDATE e5_users SET cpf = '52998224725' WHERE name = 'Maria Silva' AND cpf IS NULL;
@@ -357,5 +395,5 @@ CREATE TABLE IF NOT EXISTS superfrete_webhook_log (
     KEY idx_created_at (created_at)
 ) ENGINE=InnoDB
   DEFAULT CHARSET=utf8mb4
-  COLLATE=utf8mb4_unicode_ci
+  COLLATE=utf8mb4_general_ci
   COMMENT='Log de idempotência (event_id + payload_hash) para webhooks SuperFrete';
