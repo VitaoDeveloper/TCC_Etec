@@ -8,6 +8,25 @@
    Tokens --ml-* definidos em assets/css/tokens.css
    como alias dos tokens canônicos --rt-*.
    ======================================== */
+:root {
+    --ml-bg: #1a1a1a;
+    --ml-bg-card: #222222;
+    --ml-bg-sidebar: #1e1e1e;
+    --ml-bg-hover: #2a2a2a;
+    --ml-border: #333333;
+    --ml-text: #e0e0e0;
+    --ml-text-secondary: #999999;
+    --ml-text-muted: #777777;
+    --ml-accent: #d4af37;
+    --ml-accent-dark: #b8962e;
+    --ml-green: #00a650;
+    --ml-green-bg: rgba(0, 166, 80, 0.12);
+    --ml-red: #ff6161;
+    --ml-discount-bg: rgba(0, 166, 80, 0.15);
+    --ml-discount-text: #00a650;
+    --ml-header-height: 68px;
+    --ml-category-bar-height: 48px;
+}
 
 /* ========================================
    ML Header — Top Bar (yellow/brand)
@@ -47,10 +66,16 @@
     gap: 8px;
 }
 
+/* O PNG original (765x326) tinha ~40% de padding transparente, o que
+   encolhia a logo visivel. O arquivo em assets/img/site/royaltech-logo.png
+   ja vem aparado (666x125), entao aqui a altura e o que limita a imagem:
+   max-width so evita que um logo de outra proporcao estoure a faixa.
+   42px = altura de .ml-search-input/.ml-search-btn, para a logo alinhar
+   com a barra de pesquisa. */
 .ml-logo-img {
     width: auto;
-    height: 40px;
-    max-width: 200px;
+    height: 42px;
+    max-width: 260px;
     object-fit: contain;
 }
 
@@ -1748,6 +1773,93 @@ body.ml-layout-active {
 
     .ml-features-strip.two-col {
         grid-template-columns: 1fr;
+    }
+}
+
+/* ========================================
+   About — foto da loja
+   ======================================== */
+.ml-store-photo {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 3 / 2;
+    object-fit: cover;
+    object-position: center;
+    border: 1px solid var(--ml-border);
+    border-radius: 8px;
+    background: var(--ml-bg-hover);
+}
+
+.ml-store-figure {
+    margin: 0;
+}
+
+.ml-store-caption {
+    margin-top: 10px;
+    font-size: 0.85rem;
+    color: var(--ml-text-muted);
+    text-align: center;
+}
+
+/* ========================================
+   About — fotos da equipe (frente -> lado no hover)
+   ======================================== */
+.ml-team-photo {
+    position: relative;
+    width: 100%;
+    max-width: 240px;
+    aspect-ratio: 3 / 4;
+    margin: 0 auto 14px;
+    border: 1px solid var(--ml-border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--ml-bg-hover);
+    cursor: pointer;
+}
+
+.ml-team-photo img {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 18%;
+    opacity: 1;
+    transform: scale(1);
+    transition: opacity 0.35s ease, transform 0.5s ease;
+    -webkit-user-drag: none;
+    user-select: none;
+}
+
+.ml-team-photo img.ml-team-photo-side {
+    opacity: 0;
+}
+
+.ml-team-card:hover .ml-team-photo img,
+.ml-team-card:focus-within .ml-team-photo img {
+    transform: scale(1.05);
+}
+
+.ml-team-card:hover .ml-team-photo img.ml-team-photo-front,
+.ml-team-card:focus-within .ml-team-photo img.ml-team-photo-front {
+    opacity: 0;
+}
+
+.ml-team-card:hover .ml-team-photo img.ml-team-photo-side,
+.ml-team-card:focus-within .ml-team-photo img.ml-team-photo-side {
+    opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ml-team-photo img {
+        transition: none;
+    }
+
+    .ml-team-card:hover .ml-team-photo img,
+    .ml-team-card:focus-within .ml-team-photo img {
+        transform: none;
     }
 }
 

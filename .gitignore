@@ -8,14 +8,6 @@
 
 test
 vendor
-assets/img/*/*
-!assets/img/theme/
-!assets/img/theme/accent-mark.png
-
-# Conteúdo de storage é gerado em runtime (comprovantes, cache, logs).
-# O .htaccess NÃO é conteúdo: é a regra que bloqueia o acesso web ao
-# diretório, então precisa ser versionado — sem ela o storage voltaria a
-# ficar servido.
 storage/*
 !storage/.htaccess
 
