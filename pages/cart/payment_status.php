@@ -82,6 +82,16 @@ if ($transition === null) {
     exit;
 }
 
+// As transições de status são do painel, não do cliente. O polling continua
+// liberado para qualquer comprador do pedido — é ele que faz a tela
+// atualizar — mas approve/fail/expire exigiriam que o cliente pudesse
+// confirmar o próprio pagamento, o que anula o pagamento existir.
+if (($_SESSION['user_role'] ?? '') !== 'admin') {
+    http_response_code(403);
+    echo json_encode(['error' => 'somente administrador pode alterar o status do pagamento']);
+    exit;
+}
+
 // Trava a linha antes de ler: duas abas clicando em "aprovar" ao mesmo tempo
 // não podem gravar dois estados diferentes. Também garante que a troca de
 // expired para paid só exista se o prazo ainda não tiver passado — o

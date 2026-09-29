@@ -1105,9 +1105,21 @@ gere isso validamente. O código diz isso em comentário, na tela e no
 documento. Para boleto de verdade é preciso contrato com um banco ou
 gateway; não é um bug a ser consertado aqui.
 
-Os botões "Simular aprovado / recusa / expiração" estão rotulados na tela
-como vitrine de estudo. Em produção, `payment_status.php` é substituído por
-webhook autenticado do provedor — o endpoint já é o lugar certo para isso.
+Os botões "Simular aprovado / recusa / expiração" são restritos ao
+administrador: na tela, `$isAdmin` decide se o bloco é renderizado, e no
+endpoint as ações `approve` / `fail` / `expire` devolvem 403 para quem não
+for admin. Esconder o botão sozinho não bastaria — o `payment_status.php`
+aceitaria a chamada na mão. O `poll` continua liberado para o comprador,
+porque é ele que faz a tela atualizar.
+
+Sem o simulador para o cliente, quem confirma o pagamento de um pedido de
+cliente? O painel: `pages/admin/order-detail.php` já tinha o formulário
+"Confirmar pagamento" (`confirm_payment`, com CSRF), que é o caminho
+legítimo e foi verado ponta a ponta — admin confirma, e a tela do cliente
+passa a exibir "Pagamento aprovado" no polling seguinte.
+
+Em produção, `payment_status.php` é substituído por webhook autenticado do
+provedor — o endpoint já é o lugar certo para isso.
 
 ### Verificação
 
@@ -1123,6 +1135,10 @@ webhook autenticado do provedor — o endpoint já é o lugar certo para isso.
 | 2º cancelamento (admin, F5) | estoque **não** volta de novo |
 | IDOR: pedido de outro cliente | 404 no endpoint, 302 na tela, pedido intacto |
 | polling sem CSRF | 403 |
+| cliente chama `approve` / `fail` | **403**, pedido continua `pending` |
+| cliente chama `poll` | 200 (o polling não pode ter quebrado) |
+| admin chama `approve` | 200, tela passa a "Pagamento aprovado" |
+| admin confirma pedido de cliente pelo painel | `payment_status=paid`, cliente vê na carga seguinte |
 | `paid` -> `fail` / `expire` | recusado, permanece `paid` |
 | PHPUnit | **OK (62 tests, 289 assertions)** |
 

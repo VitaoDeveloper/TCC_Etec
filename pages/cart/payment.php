@@ -74,6 +74,11 @@ $expiresTs = !empty($order['payment_expires_at']) ? strtotime((string) $order['p
 $isPaid = $status === 'paid';
 $isOpen = in_array($status, ['pending', 'processing'], true) && $status !== 'expired';
 
+// O simulador é ferramenta de teste, não função da vitrine: escondido do
+// cliente, e o endpoint rejeita a ação para quem não for admin mesmo que
+// alguém chame payment_status.php na mão.
+$isAdmin = ($_SESSION['user_role'] ?? '') === 'admin';
+
 include $base_path . 'components/header.php';
 ?>
 <section class="ml-section" style="padding-top: 8px;">
@@ -166,12 +171,13 @@ include $base_path . 'components/header.php';
         </div>
       <?php endif; ?>
 
-      <?php if ($method !== 'delivery'): ?>
+      <?php if ($isAdmin && $method !== 'delivery'): ?>
         <div class="ml-card" style="border-style: dashed;">
           <p style="font-size: 0.86rem; color: var(--ml-text-muted); margin: 0 0 12px;">
-            Esta loja é uma vitrine de estudo e não integrate um_gateway real.
-            O status do pagamento é alterado pelo administrador no painel,
-            ou pelo simulador abaixo.
+            Esta loja é uma vitrine de estudo e não integra um gateway real.
+            O status do pagamento muda pelo painel, ou pelo simulador abaixo —
+            visível apenas para administrators, porque um cliente com acesso
+            a ele poderia marcar o próprio pedido como pago.
           </p>
 
           <div style="display: flex; gap: 10px; flex-wrap: wrap;">
