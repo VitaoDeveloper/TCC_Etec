@@ -763,3 +763,62 @@ These exigem decisao do owner do repositorio, nao sao correcao de codigo:
 
 Lote 2 da 1b (login/sessao, CSRF nos endpoints JSON, FKs, frete falso, seed
 admin), depois Etapa 2 (migrations) e as demais conforme a secao 7.
+
+### ETAPA 1b - Lote 2: sessao, CSRF e o que a verificacao revelou
+
+Commit `83b0d1d`. Detalhes na secao 11. Resumo do que foi corrigido:
+open redirect invertido no login, ausencia de rotacao de sessao, cookie
+de sessao sem `httponly`/`SameSite`, e os cinco endpoints de carrinho e
+wishlist sem CSRF nem checagem de metodo.
+
+Para proteger os endpoints comecou a ser necessario **expor o token ao
+JavaScript** (`<meta name="csrf-token">`), porque eles sao chamados por
+`fetch()` e nao por formulario — nao havia campo hidden para ler. O token
+agora e aceito pelo cabecalho `X-CSRF-Token`, pelo campo `_csrf_token` do
+POST e pelo corpo JSON.
+
+### ACHADO CRITICO: o schema nao tem fonte unica de verdade
+
+A verificacao no navegador do lote 2 caiu sobre uma falha que **nao e do
+lote 2**: `cart.php`, `checkout.php` e `admin/package-sizes.php`
+respondem 500 para qualquer usuario autenticado, com
+`Unknown column 'p.package_size_id'`.
+
+O banco de desenvolvimento e o `database/database.sql` divergem **nos dois
+sentidos**. O schema declara coisas que o banco nao tem:
+
+| Tabela | Colunas que o codigo usa e o banco nao tem |
+|---|---|
+| `e5_contacts` | `user_id`, `status`, `response_message`, `responded_by`, `responded_at`, `response_email_status`, `response_email_error`, `updated_at` |
+| `e5_products` | `package_size_id`, `weight_kg`, `height_cm`, `width_cm`, `length_cm` |
+| `e5_users` | `cpf` |
+| `superfrete_webhook_log` | **tabela inteira ausente** (7 colunas) |
+
+**21 colunas e 1 tabela** ausentes. E o banco tem coisas que o schema nao
+declara: `e5_coupons.customer_scope`, `e5_orders.payment_details`,
+`e5_orders.payment_expires_at`, `e5_users.avatar_path`,
+`e5_users.notify_email`, `e5_users.notify_whatsapp` e a tabela
+`e5_user_addresses` (inteira, e **nao usada por nenhum arquivo do
+projeto** — orfao de uma alteracao manual).
+
+Ha ainda uma terceira categoria, que o diff schema-vs-banco nao pega: o
+**codigo** referencia colunas que nao existem em nenhum dos dois. Exemplo
+concreto: `e5_users.status` e usada em consultas da area de clientes, mas
+nao esta no `database.sql` nem no banco.
+
+Isso e a causa-raiz por tras de varias claimed "features prontas" da
+etapa 3. **Nao da para continuar a etapa 3 antes de reconciliar isso** —
+construir telas sobre um schema instavel produz codigo que passa no
+happy path e quebra em producao.
+
+O que ja foi feito no ambiente local, de forma aditiva e sem apagar
+dado: criadas `e5_package_sizes`, `e5_saved_cards` e `e5_coupons` a partir
+do proprio `database.sql` (as tres faltavam inteiras e sao referenciadas
+por 4, 3 e 1 arquivos respectivamente). As 21 colunas **nao** foram
+aplicadas: isso e trabalho de migration da etapa 2, com `up`/`down` e
+teste de rollback.
+
+Estado das paginas com usuario autenticado na auditoria: 200 em home,
+listagem e detalhe de produto, favoritos, perfil, meus pedidos e o painel
+admin (index, produtos, pedidos, cupons); 500 apenas nas 3 paginas
+acima.
