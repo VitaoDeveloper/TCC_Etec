@@ -950,7 +950,7 @@ checkout, perfil, pedidos, wishlist, e o painel admin completo — tudo 200.
 Sem isso, um arquivo pode casar com o schema e ainda assim não ter os
 dados que o codigo le na consulta.
 
-Estado final no banco de desenvolvimento: 16 tabelas, collation unificada,
+Estado final no banco de desenvolvimento: 17 tabelas, collation unificada,
 `e5_user_addresses` removida (0 linhas, nao usada por nenhum arquivo) e
 `e5_schema_migrations` removida (residuo do runner descartado).
 PHPUnit **OK (62 tests, 289 assertions)**.
@@ -1024,3 +1024,113 @@ sao gerados em memoria, sem persistir em `e5_orders.payment_details` /
 `payment_expires_at` (que agora existem no schema). A correcao de
 `payment_status` de verdade vive em `pages/cart/payment.php`, que ainda nao
 existe.
+
+---
+
+## Lote 2 / Etapa 3 — Pagamento: Pix real, expiração real, cancelamento com estoque
+
+O checkout criava o pedido certo, mas o pagamento era teatro: o Pix era uma
+string montada com `bin2hex(random_bytes())` que **ninguém app de banco
+lê**, o boleto era `random_int()` no mesmo formato, e o "válido até 30
+minutos" era `date()` recalculado a cada renderização. Recarregar a página
+renovava o prazo; o estoque ficava reservado para sempre; e nada impedia o
+cliente de cancelar um pedido pago.
+
+### Pix de verdade: BR Code EMV com a chave da loja
+
+`includes/payment_functions.php` monta o BR Code no formato EMV
+`QRCPS-MPM` do Bacen: campo 00 (payload format `01`), campo 26 (merchant
+account `BR.GOV.BCB.PIX` + chave + nome), 52 (MCC), 53 (BRL `986`), 54
+(valor), 58 (`BR`), 59/60 (nome e cidade, limitados a 25 e 15 caracteres),
+62.05 (txid) e o campo 63 com o **CRC16-CCITT** calculado sobre o payload
+inteiro prefixado de `6304`.
+
+A chave vem de `store_config('pix_key')`, ou seja, da chave cadastrada em
+**Painel › Configurações** — não de uma constante no código. Sem chave
+configurada, `pix_brcode()` devolve string vazia e a tela avisa que o
+administrador precisa cadastrar a chave, em vez de gerar um código
+impressivo e não pagável.
+
+Validação do payload por redecodificação: os TLVs aninhados (26 e 62)
+voltam corretos, o CRC recalculado bate com os 4 dígitos gravados, e os
+limites de campo são respeitados nos casos de borda (nome/cidade longos
+truncados, txid com pontuação removida, valor com centavos).
+
+### Expiração no banco, não na tela
+
+`payment_create()` grava `payment_details` (JSON) e `payment_expires_at`
+**dentro da transação do pedido**: se o commit falhar, não sobra QR de um
+pedido inexistente. O prazo é aplicado na leitura por
+`payment_expire_if_due()` — não em cron, porque o TCC não tem agendador e
+um status que só expira quando alguém olha a página continua mentindo.
+Idempotente: só escreve se ainda estiver pendente.
+
+Já gravado, `payment_details` é preservado: o código Pix não muda debaixo
+do cliente que já copiou.
+
+### Cancelamento com estoque, uma vez só
+
+`order_cancel()` faz `SELECT ... FOR UPDATE` na transação e só devolve o
+estoque se o status ainda não for `canceled`. O segundo cancelamento
+concorrente espera o commit, encontra o pedido cancelado e sai sem tocar no
+estoque. Pedido `paid` cancelado vira `refunded` em `payment_status`.
+
+`pages/admin/orders.php` passou a rotear o cancelamento do painel por essa
+mesma função: o `UPDATE` cru que existia deixava o estoque baixado para
+sempre depois de um cancelamento feito pelo admin.
+
+### PRG e o roteamento de tela
+
+O checkout faz `Location: payment.php?order=ID` para Pix e boleto. Sem
+isso, F5 do cliente reexecutava o POST; a chave de idempotência segurava o
+pedido, mas a página de confirmação podia ressuscitar a qualquer momento.
+
+`payment.php` carrega o pedido **sempre escopado ao `user_id` da sessão** —
+sem essa cláusula, editar `?order=N` na URL expunha o pagamento de outro
+cliente. Mesmo cuidado no `payment_status.php`.
+
+### Estados terminais não voltam atrás
+
+O endpoint de polling trava a linha antes de gravar e rejeita
+transições fora de estado: um `paid` não aceita `fail` nem `expire`
+depois. E `paid` só é aceito se `payment_expires_at` ainda estiver no
+futuro — o countdown da tela é cosmético, não autoridade.
+
+### O que continua sendo demonstração
+
+O **boleto** é a única parte que segue sem ser real: a linha digitável tem
+31 dígitos em vez dos 47 do padrão, porque o dígito verificador de cada
+bloco é calculado pelo banco emissor e não existe biblioteca local que
+gere isso validamente. O código diz isso em comentário, na tela e no
+documento. Para boleto de verdade é preciso contrato com um banco ou
+gateway; não é um bug a ser consertado aqui.
+
+Os botões "Simular aprovado / recusa / expiração" estão rotulados na tela
+como vitrine de estudo. Em produção, `payment_status.php` é substituído por
+webhook autenticado do provedor — o endpoint já é o lugar certo para isso.
+
+### Verificação
+
+| cenário | resultado |
+|---|---|
+| BR Code gerado | TLVs aninhados decodificam, CRC16 confere, limites OK |
+| sem chave Pix configurada | devolve vazio, a tela avisa em vez de fingir |
+| boleto 2ª chamada | linha digitável preservada |
+| `payment_create` no checkout | gravado dentro da transação do pedido |
+| prazo vencido | `pending` -> `expired`, 2ª chamada não altera |
+| pedido pago + cancelar | `canceled` + `refunded`, estoque volta |
+| 2º cancelamento (cliente) | estoque **não** volta de novo |
+| 2º cancelamento (admin, F5) | estoque **não** volta de novo |
+| IDOR: pedido de outro cliente | 404 no endpoint, 302 na tela, pedido intacto |
+| polling sem CSRF | 403 |
+| `paid` -> `fail` / `expire` | recusado, permanece `paid` |
+| PHPUnit | **OK (62 tests, 289 assertions)** |
+
+### Pendencia que segue aberta
+
+`assets/vendor/qrcodejs/` era inalcançável: o `.htaccess` raiz bloqueia
+qualquer caminho com `vendor/` no nome (`RedirectMatch 403 (^|/)vendor/`,
+criado para proteger o Composer). A biblioteca foi movida para
+`assets/js/qrcode.min.js`, com a licença ao lado, e a tela carrega dali.
+Os 403 silenciosos só apareceram porque o teste verificava `http=200` da
+página e não do asset.

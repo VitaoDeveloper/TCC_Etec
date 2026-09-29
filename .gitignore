@@ -19,6 +19,12 @@ assets/img/*/*
 storage/*
 !storage/.htaccess
 
+# Upload de usuário (avatares, comprovantes enviados pelo painel) é conteúdo
+# de runtime e não deve ser versionado. O .htaccess do diretório continua
+# versionado pelo mesmo motivo do storage.
+assets/uploads/*
+!assets/uploads/.htaccess
+
 .phpunit.cache/
 .phpunit.result.cache
 

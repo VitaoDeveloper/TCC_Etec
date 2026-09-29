@@ -14,6 +14,7 @@ require_once $base_path . 'database/connection.php';
 require_once $base_path . 'includes/cart_functions.php';
 require_once $base_path . 'includes/coupon_functions.php';
 require_once $base_path . 'includes/image_helpers.php';
+require_once $base_path . 'includes/payment_functions.php';
 require_once __DIR__ . '/../../includes/mail.php';
 require_once __DIR__ . '/../../includes/comprovante_functions.php';
 
@@ -449,19 +450,29 @@ if ($isConfirming) {
 
             cartClear($pdo, $userId);
 
+            // Os detalhes do pagamento são gravados DENTRO da transação do
+            // pedido: se o commit falhar, não sobra QR de um pedido que não
+            // existe. payment_create() só grava o que é pagável de verdade —
+            // Pix usa a chave configurada em Configurações.
+            $paymentDetails = payment_create($pdo, $orderId, $paymentMethod, $grandTotal);
+
             if ($paymentMethod === 'pix') {
                 $orderPaymentInfo = [
                     'method' => 'Pix',
                     'instructions' => 'Escaneie o QR Code abaixo ou copie o código Pix para pagamento.',
-                    'pix_code' => '00020126580014BR.GOV.BCB.PIX0136' . bin2hex(random_bytes(20)) . '5204000053039865406' . number_format($grandTotal, 2, '', '') . '5802BR5913Royal Tech LTDA6009SAO PAULO62070503***6304' . strtoupper(substr(bin2hex(random_bytes(4)), 0, 4)),
-                    'expires' => date('d/m/Y H:i', strtotime('+30 minutes')),
+                    'pix_code' => $paymentDetails['code'] ?? '',
+                    'expires' => !empty($paymentDetails['expires'])
+                        ? date('d/m/Y H:i', strtotime((string) $paymentDetails['expires']))
+                        : null,
                 ];
             } elseif ($paymentMethod === 'boleto') {
                 $orderPaymentInfo = [
                     'method' => 'Boleto',
                     'instructions' => 'Pague o boleto em qualquer banco, casa lotérica ou app até o vencimento.',
-                    'boleto_number' => '34191.79001 01043.510047 91020.150008 ' . random_int(100000000, 999999999) . ' ' . random_int(1, 9),
-                    'expires' => date('d/m/Y', strtotime('+3 days')),
+                    'boleto_number' => $paymentDetails['linha_digitavel'] ?? '',
+                    'expires' => !empty($paymentDetails['due_date'])
+                        ? date('d/m/Y', strtotime((string) $paymentDetails['due_date']))
+                        : null,
                 ];
             } elseif ($paymentMethod === 'credit') {
                 $orderPaymentInfo = [
@@ -522,6 +533,15 @@ if ($isConfirming) {
             error_log('Checkout error: ' . $e->getMessage());
         }
     }
+}
+
+// PRG (Post/Redirect/Get) para os pedidos que precisam de tela de pagamento.
+// Sem isso, o F5 do cliente reexecuta o POST; a idempotency_key segura o
+// pedido, mas o usuário fica numa página de confirmação que o navegador
+// pode ressuscitar a qualquer momento.
+if ($orderCreated && $orderId > 0 && in_array($paymentMethod, ['pix', 'boleto'], true)) {
+    header('Location: payment.php?order=' . $orderId);
+    exit;
 }
 
 include $base_path . 'components/header.php';

@@ -27,7 +27,7 @@ function store_defaults(): array
     return [
         'store_name' => 'Royal Tech',
         'store_email' => 'contato@royaltech.com.br',
-        'store_phone' => '(11) 99999-9999',
+        'store_phone' => '(12) 97814-9392',
         'store_address' => 'Av. Paulista, 1000 - São Paulo, SP',
         'store_cnpj' => '00.000.000/0001-00',
         'store_currency' => 'BRL',
@@ -38,7 +38,7 @@ function store_defaults(): array
         'social_youtube' => '',
         'store_logo' => '',
         'store_favicon' => '',
-        'pix_key' => '',
+        'pix_key' => 'royaltech.original@gmail.com',
         'boleto_days' => '3',
         'free_shipping_threshold' => '500',
         'vip_spend_threshold' => '2000',

@@ -4,16 +4,28 @@ include 'auth_check.php';
 include '../../database/connection.php';
 require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../includes/status_labels.php';
+require_once __DIR__ . '/../../includes/payment_functions.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'update_status') {
     csrf_require_valid();
     $orderId = (int) ($_POST['order_id'] ?? 0);
     $newStatus = (string) ($_POST['status'] ?? '');
     $allowed = ['pending', 'paid', 'shipped', 'delivered', 'canceled'];
+
     if ($orderId > 0 && in_array($newStatus, $allowed, true)) {
-        $stmt = $pdo->prepare('UPDATE e5_orders SET status = :status WHERE id = :id');
-        $stmt->execute([':status' => $newStatus, ':id' => $orderId]);
-        $_SESSION['admin_message'] = 'Status do pedido atualizado.';
+        if ($newStatus === 'canceled') {
+            // Cancelar pelo admin devolve o estoque, igual ao cancelamento do
+            // cliente. Um UPDATE cru deixava o estoque baixado para sempre
+            // depois de um cancelamento feito no painel.
+            $result = order_cancel($pdo, $orderId, 0, true);
+            $_SESSION['admin_message'] = $result['ok']
+                ? 'Pedido cancelado e estoque devolvido.'
+                : $result['msg'];
+        } else {
+            $stmt = $pdo->prepare('UPDATE e5_orders SET status = :status WHERE id = :id');
+            $stmt->execute([':status' => $newStatus, ':id' => $orderId]);
+            $_SESSION['admin_message'] = 'Status do pedido atualizado.';
+        }
     }
     header('Location: orders.php');
     exit;
