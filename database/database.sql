@@ -274,18 +274,16 @@ INSERT INTO e5_products (category_id, name, slug, description, brand, price, old
 (5, 'Caixa de Som JBL Flip 7', 'caixa-de-som-jbl-flip-7', 'Caixa bluetooth portátil à prova d\'água com 12h de bateria.', 'JBL', 549.90, NULL, 35, 0);
 
 INSERT INTO e5_product_images (product_id, image_path, is_primary) VALUES
-(1, '/assets/img/products/galaxy-s25.jpg', 1),
-(2, '/assets/img/products/iphone-16.jpg', 1),
-(3, '/assets/img/products/nitro-v15.jpg', 1),
-(4, '/assets/img/products/zenbook-14.jpg', 1),
-(5, '/assets/img/products/g502.jpg', 1),
-(6, '/assets/img/products/teclado-redragon.jpg', 1),
-(7, '/assets/img/products/ryzen-7800x3d.jpg', 1),
-(8, '/assets/img/products/rtx-4070-super.jpg', 1),
-(9, '/assets/img/products/cloud-iii.jpg', 1),
-(10, '/assets/img/products/flip-7.jpg', 1),
-(1, '/assets/img/products/galaxy-s25-2.jpg', 0),
-(5, '/assets/img/products/g502-2.jpg', 0);
+(1, '/assets/img/products/smartphone-galaxy-s25-256gb-1790682317.webp', 1),
+(2, '/assets/img/products/iphone-16-128gb-1790682326.png', 1),
+(3, '/assets/img/products/notebook-nitro-v15-i7-1790682265.png', 1),
+(4, '/assets/img/products/ultrabook-zenbook-14-oled-1790682276.png', 1),
+(5, '/assets/img/products/mouse-gamer-logitech-g502-1790682287.png', 1),
+(6, '/assets/img/products/teclado-mec-nico-redragon-1790682304.webp', 1),
+(7, '/assets/img/products/processador-ryzen-7-7800x3d-1790682244.webp', 1),
+(8, '/assets/img/products/placa-de-v-deo-rtx-4070-super-1790682255.png', 1),
+(9, '/assets/img/products/headset-gamer-hyperx-cloud-iii-1790682218.png', 1),
+(10, '/assets/img/products/caixa-de-som-jbl-flip-7-1790682234.webp', 1);
 
 INSERT INTO e5_orders (user_id, status, total, shipping_method, shipping_cost, payment_method, payment_status, shipping_neighborhood, shipping_city, shipping_state, shipping_postal_code) VALUES
 (1, 'delivered', 4999.00, 'correios', 29.90, 'pix', 'paid', 'Bela Vista', 'São Paulo', 'SP', '01310-100'),
