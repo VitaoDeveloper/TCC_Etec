@@ -357,18 +357,16 @@ INSERT INTO e5_products (category_id, name, slug, description, brand, price, old
 (5, 'Caixa de Som JBL Flip 7', 'caixa-de-som-jbl-flip-7', 'Caixa bluetooth portátil à prova d\'água com 12h de bateria.', 'JBL', 549.90, NULL, 35, 0);
 
 INSERT INTO e5_product_images (product_id, image_path, is_primary) VALUES
-(1, '/assets/img/products/galaxy-s25.jpg', 1),
-(2, '/assets/img/products/iphone-16.jpg', 1),
-(3, '/assets/img/products/nitro-v15.jpg', 1),
-(4, '/assets/img/products/zenbook-14.jpg', 1),
-(5, '/assets/img/products/g502.jpg', 1),
-(6, '/assets/img/products/teclado-redragon.jpg', 1),
-(7, '/assets/img/products/ryzen-7800x3d.jpg', 1),
-(8, '/assets/img/products/rtx-4070-super.jpg', 1),
-(9, '/assets/img/products/cloud-iii.jpg', 1),
-(10, '/assets/img/products/flip-7.jpg', 1),
-(1, '/assets/img/products/galaxy-s25-2.jpg', 0),
-(5, '/assets/img/products/g502-2.jpg', 0);
+(1, '/assets/img/products/smartphone-galaxy-s25-256gb-1790682317.webp', 1),
+(2, '/assets/img/products/iphone-16-128gb-1790682326.png', 1),
+(3, '/assets/img/products/notebook-nitro-v15-i7-1790682265.png', 1),
+(4, '/assets/img/products/ultrabook-zenbook-14-oled-1790682276.png', 1),
+(5, '/assets/img/products/mouse-gamer-logitech-g502-1790682287.png', 1),
+(6, '/assets/img/products/teclado-mec-nico-redragon-1790682304.webp', 1),
+(7, '/assets/img/products/processador-ryzen-7-7800x3d-1790682244.webp', 1),
+(8, '/assets/img/products/placa-de-v-deo-rtx-4070-super-1790682255.png', 1),
+(9, '/assets/img/products/headset-gamer-hyperx-cloud-iii-1790682218.png', 1),
+(10, '/assets/img/products/caixa-de-som-jbl-flip-7-1790682234.webp', 1);
 
 INSERT INTO e5_orders (user_id, status, total, shipping_method, shipping_cost, payment_method, payment_status, shipping_neighborhood, shipping_city, shipping_state, shipping_postal_code) VALUES
 (1, 'delivered', 4999.00, 'correios', 29.90, 'pix', 'paid', 'Bela Vista', 'São Paulo', 'SP', '01310-100'),
@@ -401,9 +399,9 @@ INSERT INTO e5_newsletter (email) VALUES
 ('news3@email.com');
 
 INSERT INTO e5_banners (title, subtitle, image_path, link_url, is_active) VALUES
-('Promoção Smartphones', 'Até 30% OFF em smartphones selecionados', '/assets/img/banners/smartphones.jpg', '/pages/products/products.php?category_id=1', 1),
-('Semana do Consumidor', 'Ofertas imperdíveis por tempo limitado', '/assets/img/banners/semana-consumidor.jpg', '/pages/products/products.php?offers=1', 1),
-('Frete Grátis', 'Em compras acima de R$ 499,00', '/assets/img/banners/frete-gratis.jpg', '/pages/products/products.php', 0);
+('Promoção Smartphones', 'Até 30% OFF em smartphones selecionados', '/assets/img/banners/promo-o-smartphones-1790690930.jpg', '/pages/products/products.php?category_id=1', 1),
+('Semana do Consumidor', 'Ofertas imperdíveis por tempo limitado', '/assets/img/banners/semana-do-consumidor-1790690953.jpg', '/pages/products/products.php?offers=1', 1),
+('Frete Grátis', 'Em compras acima de R$ 499,00', '/assets/img/banners/frete-gratis-1790697013.jpeg', '/pages/products/products.php', 0);
 
 INSERT INTO e5_wishlist (user_id, product_id) VALUES
 (1, 3),

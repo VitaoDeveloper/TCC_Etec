@@ -54,9 +54,16 @@ RedirectMatch 403 /\..*$
     ExpiresByType image/svg+xml "access plus 1 year"
     ExpiresByType image/jpeg "access plus 1 year"
     ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/vnd.microsoft.icon "access plus 1 year"
     ExpiresByType text/css "access plus 1 month"
     ExpiresByType application/javascript "access plus 1 month"
     ExpiresByType font/woff2 "access plus 1 year"
+</IfModule>
+
+# O servidor nao tinha mime type para .ico e servia o favicon sem
+# Content-Type. O logo/favicon agora sao versionados em assets/img/site/.
+<IfModule mod_mime.c>
+    AddType image/vnd.microsoft.icon .ico
 </IfModule>
 
 <IfModule mod_deflate.c>
