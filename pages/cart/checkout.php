@@ -246,17 +246,28 @@ if ($couponCode !== '') {
 $pixPercent = max(0, (float) (store_config('pix_discount_percent') ?? 5));
 $paymentMethods = [
     'pix'    => ['label' => 'Pix', 'icon' => 'fa-pix', 'desc' => 'Aprovação instantânea. ' . trim(rtrim(rtrim(number_format($pixPercent, 1, ',', '.'), '0'), ',')) . '% de desconto.'],
-    'boleto' => ['label' => 'Boleto', 'icon' => 'fa-barcode', 'desc' => 'Vencimento em 3 dias úteis.'],
     'credit' => ['label' => 'Cartão de Crédito', 'icon' => 'fa-credit-card', 'desc' => 'Parcele em até 12x sem juros.'],
     'delivery' => ['label' => 'Pagar na Entrega', 'icon' => 'fa-money-bill-wave', 'desc' => 'Pague ao receber (dinheiro ou cartão).'],
 ];
 
+// Boleto fora da vitrine, de propósito. A linha digitável só é válida com um
+// banco emissor (contrato + integração): o gerador local produzia 31 dígitos
+// de aparência plausível que o banco não aceitaria. Oferecer um boleto
+// que o cliente não consegue pagar é pior do que não oferecer. Quando houver
+// gateway bancário, basta somar a entrada de volta ao array acima e o resto
+// do fluxo (payment_create) já está pronto para receber os dados reais.
+
 // "Pagar na Entrega" só se aplica à retirada/loja; oculta no modo Entrega
 if ($shippingType === 'entrega') {
     unset($paymentMethods['delivery']);
-    if (!isset($paymentMethods[$paymentMethod])) {
-        $paymentMethod = 'pix';
-    }
+}
+
+// A validação vem depois do unset acima de propósito: com o "delivery"
+// removido no modo Entrega, o mesmo cheque também descarta qualquer método
+// fora da vitrine — inclusive o boleto, que ainda pode chegar por
+// payment_method na query string ou num POST antigo salvo no navegador.
+if (!isset($paymentMethods[$paymentMethod])) {
+    $paymentMethod = 'pix';
 }
 
 $savedCards = $pdo->prepare('SELECT * FROM e5_saved_cards WHERE user_id = :uid AND is_active = 1 ORDER BY id ASC');
@@ -465,15 +476,6 @@ if ($isConfirming) {
                         ? date('d/m/Y H:i', strtotime((string) $paymentDetails['expires']))
                         : null,
                 ];
-            } elseif ($paymentMethod === 'boleto') {
-                $orderPaymentInfo = [
-                    'method' => 'Boleto',
-                    'instructions' => 'Pague o boleto em qualquer banco, casa lotérica ou app até o vencimento.',
-                    'boleto_number' => $paymentDetails['linha_digitavel'] ?? '',
-                    'expires' => !empty($paymentDetails['due_date'])
-                        ? date('d/m/Y', strtotime((string) $paymentDetails['due_date']))
-                        : null,
-                ];
             } elseif ($paymentMethod === 'credit') {
                 $orderPaymentInfo = [
                     'method' => 'Cartão de Crédito',
@@ -539,7 +541,7 @@ if ($isConfirming) {
 // Sem isso, o F5 do cliente reexecuta o POST; a idempotency_key segura o
 // pedido, mas o usuário fica numa página de confirmação que o navegador
 // pode ressuscitar a qualquer momento.
-if ($orderCreated && $orderId > 0 && in_array($paymentMethod, ['pix', 'boleto'], true)) {
+if ($orderCreated && $orderId > 0 && $paymentMethod === 'pix') {
     header('Location: payment.php?order=' . $orderId);
     exit;
 }

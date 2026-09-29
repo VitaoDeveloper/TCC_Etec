@@ -51,6 +51,14 @@ $details = payment_details($pdo, $orderId) ?? [];
 $status  = (string) $order['payment_status'];
 $method  = (string) $order['payment_method'];
 
+// Pedido antigo que ainda diz "boleto" no pedido: o que vale é o que está
+// gravado em payment_details. Como o boleto saiu da vitrine e payment_create
+// passou a emitir Pix nesse caso, seguir o pedido mostraria uma tela de
+// boleto vazia. Aqui a tela segue o método realmente gerado.
+if ($method === 'boleto' && (string) ($details['method'] ?? '') === 'pix') {
+    $method = 'pix';
+}
+
 [$statusLabel, $statusColor, $statusIcon] = payment_status_label($status);
 
 // "Pagar depois" deixa o pedido em aberto sem cobrar nada: é o caminho do

@@ -35,6 +35,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $street = trim((string) ($_POST['street'] ?? ''));
     $number = (int) ($_POST['number'] ?? 0);
     $complement = trim((string) ($_POST['complement'] ?? ''));
+    $phone = preg_replace('/\D/', '', (string) ($_POST['phone'] ?? '')) ?? '';
+    $notifyEmail = (int) ($_POST['notify_email'] ?? 0) === 1 ? 1 : 0;
+    $notifyWhatsapp = (int) ($_POST['notify_whatsapp'] ?? 0) === 1 ? 1 : 0;
     $currentPass = (string) ($_POST['current_password'] ?? '');
     $newPass = (string) ($_POST['new_password'] ?? '');
 
@@ -59,6 +62,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errorMessage = 'E-mail inválido.';
     } elseif ($cpfRaw === '' || !profileCpfValid($cpfRaw)) {
         $errorMessage = 'CPF inválido. Verifique o número digitado.';
+    } elseif ($phone !== '' && !in_array(strlen($phone), [10, 11, 12, 13], true)) {
+        $errorMessage = 'Telefone inválido. Use DDD + número.';
+    } elseif ($notifyWhatsapp === 1 && $phone === '') {
+        $errorMessage = 'Para receber avisos no WhatsApp, cadastre um telefone.';
     } else {
         try {
             $stmtCheck = $pdo->prepare('SELECT id FROM e5_users WHERE (email = :email OR username = :username) AND id != :id LIMIT 1');
@@ -66,8 +73,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($stmtCheck->fetch()) {
                 $errorMessage = 'E-mail ou usuário já em uso.';
             } else {
-                $sql = 'UPDATE e5_users SET name = :name, email = :email, username = :username, cpf = :cpf, postal_code = :postal_code, street = :street, number = :number, complement = :complement WHERE id = :id';
-                $params = [':name' => $name, ':email' => $email, ':username' => $username, ':cpf' => $cpfRaw, ':postal_code' => $postalCode, ':street' => $street, ':number' => $number, ':complement' => $complement ?: null, ':id' => $userId];
+                $fields = 'name = :name, email = :email, username = :username, cpf = :cpf, postal_code = :postal_code, street = :street, number = :number, complement = :complement, phone = :phone, notify_email = :notify_email, notify_whatsapp = :notify_whatsapp';
+                $params = [':name' => $name, ':email' => $email, ':username' => $username, ':cpf' => $cpfRaw, ':postal_code' => $postalCode, ':street' => $street, ':number' => $number, ':complement' => $complement ?: null, ':phone' => $phone ?: null, ':notify_email' => $notifyEmail, ':notify_whatsapp' => $notifyWhatsapp, ':id' => $userId];
+                $sql = 'UPDATE e5_users SET ' . $fields . ' WHERE id = :id';
 
                 if ($newPass !== '') {
                     if (!password_verify($currentPass, $user['password'])) {
@@ -75,7 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     } elseif (strlen($newPass) < 6) {
                         $errorMessage = 'Nova senha deve ter no mínimo 6 caracteres.';
                     } else {
-                        $sql = 'UPDATE e5_users SET name = :name, email = :email, username = :username, cpf = :cpf, postal_code = :postal_code, street = :street, number = :number, complement = :complement, password = :password WHERE id = :id';
+                        $sql = 'UPDATE e5_users SET ' . $fields . ', password = :password WHERE id = :id';
                         $params[':password'] = password_hash($newPass, PASSWORD_DEFAULT);
                     }
                 }
@@ -91,6 +99,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $user['street'] = $street;
                     $user['number'] = $number;
                     $user['complement'] = $complement;
+                    $user['phone'] = $phone;
+                    $user['notify_email'] = $notifyEmail;
+                    $user['notify_whatsapp'] = $notifyWhatsapp;
                 }
             }
         } catch (Throwable $e) {
@@ -118,6 +129,13 @@ include '../../components/header.php';
             <div class="auth-field"><label class="auth-label" for="street">Rua</label><input type="text" id="street" name="street" value="<?php echo htmlspecialchars($user['street'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"></div>
             <div class="auth-field"><label class="auth-label" for="number">Número</label><input type="text" id="number" name="number" inputmode="numeric" pattern="[0-9]{1,6}" maxlength="6" value="<?php echo (int)($user['number'] ?? 0); ?>"></div>
             <div class="auth-field"><label class="auth-label" for="complement">Complemento</label><input type="text" id="complement" name="complement" value="<?php echo htmlspecialchars($user['complement'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"></div>
+            <div class="auth-field"><label class="auth-label" for="phone">Telefone (WhatsApp)</label><input type="text" id="phone" name="phone" placeholder="(12) 97814-9392" inputmode="numeric" value="<?php echo htmlspecialchars(isset($user['phone']) && strlen((string) $user['phone']) === 13 ? '(' . substr((string) $user['phone'], 2, 2) . ') ' . substr((string) $user['phone'], 4, 5) . '-' . substr((string) $user['phone'], 9) : '', ENT_QUOTES, 'UTF-8'); ?>"><small class="auth-hint">Usado no rastreio do pedido e nos avisos de entrega.</small></div>
+        </div>
+        <h4 style="margin-bottom:10px;">Avisos</h4>
+        <div class="auth-field">
+            <label class="check-option"><input type="checkbox" name="notify_email" value="1" <?php echo (int) ($user['notify_email'] ?? 1) === 1 ? 'checked' : ''; ?>> Quero receber avisos do pedido por e-mail</label><br>
+            <label class="check-option"><input type="checkbox" name="notify_whatsapp" value="1" <?php echo (int) ($user['notify_whatsapp'] ?? 1) === 1 ? 'checked' : ''; ?>> Quero receber avisos no WhatsApp</label>
+            <small class="auth-hint">A loja não envia WhatsApp automático: o aviso fica na fila do painel para a equipe enviar pelo link pronto.</small>
         </div>
         <hr style="border-color:var(--ml-border); margin:20px 0;">
         <h4 style="margin-bottom:15px;">Alterar Senha (opcional)</h4>

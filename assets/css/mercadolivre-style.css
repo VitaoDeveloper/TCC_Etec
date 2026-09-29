@@ -4048,3 +4048,30 @@ body.royal-glow::after {
         order: -1;
     }
 }
+
+/* Opcoes de marcação e texto de apoio dos formularios de conta.
+   Sem isso o <small> herdava o tamanho do campo e a caixa de marca ficava
+   sem espaco vertical, o que deixava a linha de aviso colada no rotulo. */
+.check-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    color: var(--ml-text);
+    cursor: pointer;
+    padding: 4px 0;
+}
+.check-option input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: #c9a227;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.auth-hint {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.78rem;
+    line-height: 1.4;
+    color: var(--ml-text-muted, #999);
+}
