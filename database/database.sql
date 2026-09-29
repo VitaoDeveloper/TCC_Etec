@@ -317,7 +317,7 @@ INSERT INTO e5_newsletter (email) VALUES
 
 INSERT INTO e5_banners (title, subtitle, image_path, link_url, is_active) VALUES
 ('Promoção Smartphones', 'Até 30% OFF em smartphones selecionados', '/assets/img/banners/promo-o-smartphones-1790690930.jpg', '/pages/products/products.php?category_id=1', 1),
-('Semana do Consumidor', 'Ofertas imperdíveis por tempo limitado', '/assets/img/banners/semana-consumidor.jpg', '/pages/products/products.php?offers=1', 1),
+('Semana do Consumidor', 'Ofertas imperdíveis por tempo limitado', '/assets/img/banners/semana-do-consumidor-1790690953.jpg', '/pages/products/products.php?offers=1', 1),
 ('Frete Grátis', 'Em compras acima de R$ 499,00', '/assets/img/banners/frete-gratis-1790697013.jpeg', '/pages/products/products.php', 0);
 
 INSERT INTO e5_wishlist (user_id, product_id) VALUES
