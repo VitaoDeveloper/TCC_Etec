@@ -400,6 +400,15 @@ class SuperFreteClient
     public static function normalizePhone(string $phone): string
     {
         $digits = preg_replace('/\D/', '', $phone);
+
+        // A API pede DDD + número, sem código de país: 11 dígitos. O +55
+        // que o cliente digita no cadastro do site é removido aqui, senão
+        // o telefone de quem mora no exterior (13 dígitos) seria recusado
+        // mesmo estando válido para a transportadora.
+        if (strlen($digits) === 13 && str_starts_with($digits, '55')) {
+            $digits = substr($digits, 2);
+        }
+
         if (strlen($digits) !== 11) {
             throw new \InvalidArgumentException(
                 "Telefone deve ter exatamente 11 dígitos (DDD + número). Recebido: '$phone' → '$digits'"

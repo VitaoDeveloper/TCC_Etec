@@ -42,6 +42,7 @@ if ($secretToken === '') {
 
 try {
     require_once dirname(__DIR__) . '/database/connection.php';
+    require_once dirname(__DIR__) . '/includes/notification_functions.php';
 
     $handler = new TCC\Webhook\WebhookHandler($GLOBALS['pdo'], $secretToken);
     $result  = $handler->handle();

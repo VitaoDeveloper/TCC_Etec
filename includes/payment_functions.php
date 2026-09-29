@@ -113,23 +113,28 @@ function payment_create(PDO $pdo, int $orderId, string $method, float $total, ?s
             'expires' => $expiresAt,
         ];
     } elseif ($method === 'boleto') {
-        $days = max(1, (int) store_config('boleto_days'));
-        $expiresAt = date('Y-m-d H:i:s', strtotime('+' . $days . ' days'));
+        // O boleto saiu da vitrine (pages/cart/checkout.php) porque a linha
+        // digitável de verdade só existe com banco emissor: são 47 dígitos e
+        // cada bloco tem dígito verificador calculado pelo banco. Não há
+        // biblioteca local que gere isso, e um número com aparência plausível
+        // que o banco recusa é pior para o cliente do que não ter boleto.
+        //
+        // Se algum pedido antigo ainda disser "boleto" no banco, cai no Pix:
+        // assim o cliente recebe um código que funciona em vez de uma
+        // instrução impossível de cumprir.
+        error_log('payment_create: pedido pediu boleto, que saiu da vitrine; emitindo Pix no lugar');
+        $expiresAt = date('Y-m-d H:i:s', strtotime('+30 minutes'));
         $details = [
-            'method'       => 'boleto',
-            'barcode'      => pix_brcode($txid, $total, '0000000000000000', 'ROYAL TECH', 'SAO PAULO'),
-            'due_date'     => $expiresAt,
-            // ATENÇÃO: linha digitável de DEMONSTRAÇÃO, não pagável. Uma
-            // linha real tem 47 dígitos e o dígito verificador de cada bloco
-            // é calculado pelo banco emissor. Não existe biblioteca local que
-            // gere isso de forma válida: o boleto real exigiria um contrato
-            // com o banco. Aqui o formato segue o padrão de aparência
-            // (blocos 34191 / 79001) só para a tela ter o que exibir, e a
-            // loja nunca deve tratar este número como cobrável.
-            'linha_digitavel' => '34191.79001 ' . str_pad((string) random_int(10000, 99999), 5, '0', STR_PAD_LEFT)
-                . ' ' . str_pad((string) random_int(100000, 999999), 6, '0', STR_PAD_LEFT)
-                . ' ' . str_pad((string) random_int(100000000, 999999999), 9, '0', STR_PAD_LEFT)
-                . ' ' . random_int(1, 9),
+            'method'  => 'pix',
+            'txid'    => $txid,
+            'code'    => pix_brcode(
+                $txid,
+                $total,
+                (string) store_config('pix_key'),
+                (string) store_config('store_name'),
+                'SAO PAULO'
+            ),
+            'expires' => $expiresAt,
         ];
     } else {
         return ['method' => $method, 'immediate' => true];

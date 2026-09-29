@@ -205,26 +205,144 @@ class WebhookHandler
     }
 
     /**
-     * Processa o evento recebido.
+     * Mapa evento da SuperFrete -> status gravado em e5_shipments.
      *
-     * Este é o hook onde a aplicação deve implementar a lógica
-     * específica para cada tipo de evento. Sobrescreva em uma subclasse.
+     * "generated" e "released" caem no mesmo valor de propósito: a
+     * diferença entre "etiqueta gerada" e "etiqueta liberada pela
+     * transportadora" não muda o que o cliente precisa ver.
+     */
+    private const STATUS_MAP = [
+        'order.created'    => 'pending',
+        'order.released'   => 'released',
+        'order.generated'  => 'released',
+        'order.posted'     => 'released',
+        'order.delivered'  => 'delivered',
+        'order.cancelled'  => 'canceled',
+    ];
+
+    /**
+     * Processa o evento recebido: grava rastreio e status do envio.
+     *
+     * O rastreio chega em nomes diferentes dependendo do evento
+     * (tracking_code, self_tracking ou tracking), então os três são
+     * testados antes de desistir.
      *
      * @param string $eventType Tipo do evento (order.created, etc.)
      * @param array  $eventData Dados do evento
      */
     protected function processEvent(string $eventType, array $eventData): void
     {
-        // Por padrão, apenas loga o evento.
-        // Sobrescrever esta classe ou adicionar callback para lógica customizada.
-        error_log(
-            sprintf(
-                '[SuperFrete Webhook] Evento processado: %s | Order: %s | Status: %s',
-                $eventType,
-                $eventData['id'] ?? 'N/A',
-                $eventData['status'] ?? 'N/A'
-            )
+        $sfId = (string) ($eventData['id'] ?? '');
+        if ($sfId === '') {
+            return;
+        }
+
+        $tracking = '';
+        foreach (['tracking_code', 'self_tracking', 'tracking'] as $key) {
+            if (!empty($eventData[$key]) && is_scalar($eventData[$key])) {
+                $tracking = (string) $eventData[$key];
+                break;
+            }
+        }
+
+        $status = self::STATUS_MAP[$eventType] ?? null;
+        if ($status === null) {
+            return;
+        }
+
+        // Traz o envio pelo id da SuperFrete, junto com o pedido.
+        $st = $this->db->prepare(
+            'SELECT s.id, s.order_id, s.status AS shipment_status, s.tracking_code,
+                    o.status AS order_status
+             FROM e5_shipments s
+             JOIN e5_orders o ON o.id = s.order_id
+             WHERE s.superfrete_id = :sf
+             LIMIT 1'
         );
+        $st->execute([':sf' => $sfId]);
+        $ship = $st->fetch(PDO::FETCH_ASSOC);
+
+        // Envio desconhecido: pode ser uma etiqueta criada fora do painel.
+        // Registrado no log e ignorado, sem erro — a SuperFrete reenvia.
+        if (!$ship) {
+            error_log("[SuperFrete Webhook] {$eventType} para etiqueta {$sfId} sem envio local");
+            return;
+        }
+
+        $orderId = (int) $ship['order_id'];
+
+        $up = $this->db->prepare(
+            'UPDATE e5_shipments
+             SET status = :status,
+                 tracking_code = COALESCE(NULLIF(:track, ""), tracking_code)
+             WHERE id = :id'
+        );
+        $up->execute([
+            ':status' => $status,
+            ':track'  => $tracking,
+            ':id'     => (int) $ship['id'],
+        ]);
+
+        // Atraso de entrega estimado, quando a SuperFrete mandar.
+        $min = $eventData['delivery_min_days'] ?? $eventData['min_delivery_days'] ?? null;
+        $max = $eventData['delivery_max_days'] ?? $eventData['max_delivery_days'] ?? null;
+        if (is_numeric($min) && is_numeric($max)) {
+            $this->db->prepare(
+                'UPDATE e5_shipments SET delivery_min_days = :min, delivery_max_days = :max WHERE id = :id'
+            )->execute([
+                ':min' => (int) $min,
+                ':max' => (int) $max,
+                ':id'  => (int) $ship['id'],
+            ]);
+        }
+
+        // Não regrava status que o cliente já viu, para não disparar
+        // e-mail de "entregue" a cada reenvio do mesmo webhook.
+        $newOrderStatus = $status === 'delivered' ? 'delivered' : 'shipped';
+
+        if ($newOrderStatus !== $ship['order_status']) {
+            $this->db->prepare('UPDATE e5_orders SET status = :s WHERE id = :id')
+                ->execute([':s' => $newOrderStatus, ':id' => $orderId]);
+
+            $this->db->prepare(
+                'UPDATE e5_orders SET tracking_code = COALESCE(NULLIF(:t, ""), tracking_code) WHERE id = :id'
+            )->execute([':t' => $tracking, ':id' => $orderId]);
+
+            $this->notify($orderId, $newOrderStatus === 'delivered' ? 'order_delivered' : 'order_shipped', $tracking);
+        } elseif ($tracking !== '' && $tracking !== $ship['tracking_code']) {
+            // Mesmo estado, mas o código de rastreio apareceu depois.
+            $this->db->prepare('UPDATE e5_orders SET tracking_code = :t WHERE id = :id')
+                ->execute([':t' => $tracking, ':id' => $orderId]);
+
+            $this->notify($orderId, 'order_shipped', $tracking);
+        }
+    }
+
+    /**
+     * Enfileira a notificação do pedido, se a fila estiver carregada.
+     *
+     * A classe é testável sem includes/notification_functions.php: quem
+     * chama o handler em teste unitário não quer depender de SMTP nem de
+     * e5_notifications existir.
+     */
+    private function notify(int $orderId, string $event, string $tracking): void
+    {
+        if (!function_exists('notification_enqueue_order_event')) {
+            return;
+        }
+
+        try {
+            notification_enqueue_order_event($this->db, $orderId, $event, ['tracking' => $tracking]);
+        } catch (\Throwable $e) {
+            // \Throwable é obrigatório: sem a barra, o namespace TCC\Webhook
+            // faz "Throwable" virar TCC\Webhook\Throwable, que não existe, e a
+            // exceção escapa do catch — exatamente o que este bloco existe
+            // para impedir.
+            //
+            // Falha de notificação não pode derrubar o processamento do
+            // webhook: o rastreio já foi gravado, que é o essencial.
+            error_log('[SuperFrete Webhook] Falha ao enfileirar notificação: ' . $e->getMessage());
+        }
     }
 
     // =====================================================================
