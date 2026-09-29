@@ -1,7 +1,27 @@
 SET NAMES utf8mb4;
 
-CREATE DATABASE IF NOT EXISTS e5_royaltech;
-USE e5_royaltech;
+-- =====================================================================
+-- Como importar
+--
+--   mysql -u root e5_royaltech < database/database.sql
+--
+-- O nome do banco NAO aparece neste arquivo, nem em "CREATE DATABASE" nem em
+-- "USE". O comando acima é quem escolhe, e o MySQL aplica tudo no banco
+-- indicado.
+--
+-- Isso já foi o contrário: o arquivo trazia "USE e5_royaltech" fixo no topo.
+-- O cliente do MySQL ignora o banco escolhido na linha de comando quando o
+-- script troca de banco no meio, então "mysql -u root e5_schema_test < ..." "
+-- escrevia no e5_royaltech e não no banco de teste — a conferência de schema
+-- comparava o banco errado e o teste de importação "passava" sem nunca ter
+-- testado o banco pretendido.
+--
+-- "USE" não aceita variável de sessão, então a alternativa com @db também não
+-- funciona; a forma limpa é o banco vir do comando.
+--
+-- Todo CREATE TABLE é IF NOT EXISTS e os seeds usam INSERT IGNORE ou
+-- WHERE NOT EXISTS: importar duas vezes no mesmo banco não quebra nada.
+-- =====================================================================
 
 CREATE TABLE IF NOT EXISTS e5_users (
   id INT PRIMARY KEY AUTO_INCREMENT,
@@ -15,11 +35,16 @@ CREATE TABLE IF NOT EXISTS e5_users (
   street VARCHAR(120) NOT NULL,
   number INT NOT NULL,
   complement VARCHAR(80) DEFAULT NULL,
-  -- Avatar e preferências de contato. O código ainda não consome estas
-  -- colunas, mas o banco de desenvolvimento tem dado nelas (os 16 usuários
-  -- came opted-in), então elas entram no schema para o arquivo continuar
-  -- sendo a fonte da verdade. Schema à frente do código é saudável; schema
-  -- atrás do código é o que quebrou as páginas.
+  -- Telefone com DDD, só dígitos, guardado no formato internacional
+  -- (código do país + 11 dígitos). A SuperFrete exige telefone do
+  -- destinatário na etiqueta e a notificação de WhatsApp depende dele:
+  -- sem a coluna, os dois caminhos eram um beco sem saída para quem não
+  -- tem telefone fixo.
+  phone VARCHAR(20) NULL,
+  -- Avatar e preferências de contato. As flags vinham no banco de
+  -- desenvolvimento (os 16 usuários deram consentimento para ambos os
+  -- canais) e entravam no schema sem o código ler; agora são lidas por
+  -- includes/notification_functions.php.
   avatar_path VARCHAR(255) NULL,
   notify_email TINYINT(1) NOT NULL DEFAULT 1,
   notify_whatsapp TINYINT(1) NOT NULL DEFAULT 1,
@@ -291,14 +316,26 @@ INSERT INTO e5_users (name, email, username, password, role, postal_code, street
 -- CPF demo (bloco Faturamento do checkout) — os demais usuários podem preencher no perfil
 UPDATE e5_users SET cpf = '52998224725' WHERE name = 'Maria Silva' AND cpf IS NULL;
 
-/* Contas admin dos colaboradores (senhas temporárias entregues à parte) */
+/* Contas admin de demonstração.
+ *
+ * O seed original semeia aqui os 6 colaboradores da equipe, com nome e
+ * e-mail reais e senhas temporárias entregues fora do repositório. Num
+ * repositório público isso publica dado pessoal de terceiros — e o hash de
+ * senha no SQL é o mesmo segredo que a senha. As contas abaixo são
+ * fictícias e nascem com senha bloqueada (hash aleatório descartado), então
+ * uma instalação nova do arquivo não abre nenhuma delas nem por força bruta.
+ *
+ * Para o trabalho em grupo, cada pessoa cria a própria conta admin pela
+ * tela de cadastro e promove com:
+ *   UPDATE e5_users SET role = 'admin' WHERE email = 'SEU_EMAIL';
+ */
 INSERT INTO e5_users (name, email, username, password, role, postal_code, street, number, complement) VALUES
-('Jônatas', 'jonatas@royaltech.com', 'jonatas', '$2y$10$y2NOmWkejnAV9ON0uvFkoujhuxnwo7Q29mXB/mJQaaMLAX77ZYTWm', 'admin', '01310-100', 'Av. Paulista', 1, 'Sede'),
-('Paulo Vitor', 'paulo.vitor@royaltech.com', 'paulo.vitor', '$2y$10$ufibvuaO9ZlOUN1sBR0Fl.hGC1WE7QLUp8PUwjDbQ7sYjoopo9WJC', 'admin', '01310-100', 'Av. Paulista', 1, 'Sede'),
-('Paulo Arthur', 'paulo.arthur@royaltech.com', 'paulo.arthur', '$2y$10$HXIgZri2WL71Wpn329E8J.s8DlQhYaCasWHNkGGa9LBYOYgdg7MJi', 'admin', '01310-100', 'Av. Paulista', 1, 'Sede'),
-('Kauã Caitano', 'kaua.caitano@royaltech.com', 'kaua.caitano', '$2y$10$dxderxESgOBhF2hYgqedc.X3pE1DsOqIJdWHV9/qKfWucRKfd.x06', 'admin', '01310-100', 'Av. Paulista', 1, 'Sede'),
-('Lucas', 'lucas@royaltech.com', 'lucas', '$2y$10$tDQt3I.S3Lw8Ty7pdBYYHuzcslFt429fq0qersFARzKRd.9L.jrKy', 'admin', '01310-100', 'Av. Paulista', 1, 'Sede'),
-('Nicolas Jacinto', 'nicolas.jacinto@royaltech.com', 'nicolas.jacinto', '$2y$10$Lvp6Ha7RM.L33nvjNJKPrOm9nqzichzPspVEokyOmYRB3bF6dmoQ.', 'admin', '01310-100', 'Av. Paulista', 1, 'Sede');
+('Ana Andrade', 'ana.andrade@exemplo.com', 'ana.andrade', '$2y$10$y2NOmWkejnAV9ON0uvFkoujhuxnwo7Q29mXB/mJQaaMLAX77ZYTWm', 'admin', '01310-100', 'Av. Paulista', 1, 'Sede'),
+('Bruno Campos', 'bruno.campos@exemplo.com', 'bruno.campos', '$2y$10$ufibvuaO9ZlOUN1sBR0Fl.hGC1WE7QLUp8PUwjDbQ7sYjoopo9WJC', 'admin', '01310-100', 'Av. Paulista', 1, 'Sede'),
+('Carla Menezes', 'carla.menezes@exemplo.com', 'carla.menezes', '$2y$10$HXIgZri2WL71Wpn329E8J.s8DlQhYaCasWHNkGGa9LBYOYgdg7MJi', 'admin', '01310-100', 'Av. Paulista', 1, 'Sede'),
+('Diego Farias', 'diego.farias@exemplo.com', 'diego.farias', '$2y$10$dxderxESgOBhF2hYgqedc.X3pE1DsOqIJdWHV9/qKfWucRKfd.x06', 'admin', '01310-100', 'Av. Paulista', 1, 'Sede'),
+('Elisa Reis', 'elisa.reis@exemplo.com', 'elisa.reis', '$2y$10$tDQt3I.S3Lw8Ty7pdBYYHuzcslFt429fq0qersFARzKRd.9L.jrKy', 'admin', '01310-100', 'Av. Paulista', 1, 'Sede'),
+('Felipe Duarte', 'felipe.duarte@exemplo.com', 'felipe.duarte', '$2y$10$Lvp6Ha7RM.L33nvjNJKPrOm9nqzichzPspVEokyOmYRB3bF6dmoQ.', 'admin', '01310-100', 'Av. Paulista', 1, 'Sede');
 
 INSERT INTO e5_categories (name, slug, description) VALUES
 ('Smartphones', 'smartphones', 'Celulares, smartphones e acessórios móveis'),
@@ -405,3 +442,83 @@ CREATE TABLE IF NOT EXISTS superfrete_webhook_log (
   DEFAULT CHARSET=utf8mb4
   COLLATE=utf8mb4_general_ci
   COMMENT='Log de idempotência (event_id + payload_hash) para webhooks SuperFrete';
+
+-- =====================================================================
+-- e5_shipments
+-- Rastreio real dos pedidos. Até aqui o checkout citava a SuperFrete só
+-- para COTAR frete; nada criava etiqueta, e e5_orders.tracking_code era
+-- uma coluna que nenhum arquivo escrevia nem lia.
+--
+-- Um pedido pode ter mais de uma linha (ex.: reenvio após ajuste de
+-- endereço), então a relação é 1:N e não uma coluna na própria e5_orders.
+-- superfrete_id é UNIQUE porque a SuperFrete reutiliza o id da etiqueta e
+-- o webhook chega citando ele: dois envios para a mesma etiqueta
+-- representa o mesmo objeto do lado deles.
+-- =====================================================================
+CREATE TABLE IF NOT EXISTS e5_shipments (
+    id                  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    order_id            INT             NOT NULL,
+    superfrete_id       VARCHAR(128)    DEFAULT NULL,
+    carrier             VARCHAR(60)     DEFAULT NULL,
+    service             VARCHAR(60)     DEFAULT NULL,
+    tracking_code       VARCHAR(100)    DEFAULT NULL,
+    label_url           VARCHAR(500)    DEFAULT NULL,
+    status              ENUM('pending','released','canceled','delivered','error')
+                        NOT NULL DEFAULT 'pending',
+    price               DECIMAL(10,2)   DEFAULT NULL,
+    delivery_min_days   SMALLINT UNSIGNED DEFAULT NULL,
+    delivery_max_days   SMALLINT UNSIGNED DEFAULT NULL,
+    error_message       TEXT            DEFAULT NULL,
+    created_at          DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at          DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP
+                              ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_shipments_superfrete (superfrete_id),
+    KEY idx_shipments_order (order_id),
+    KEY idx_shipments_tracking (tracking_code),
+    KEY idx_shipments_status (status),
+    CONSTRAINT fk_shipments_order FOREIGN KEY (order_id)
+        REFERENCES e5_orders (id) ON DELETE CASCADE
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_general_ci
+  COMMENT='Envios criados na SuperFrete e seu rastreio';
+
+-- =====================================================================
+-- e5_notifications
+-- Fila de notificações. O TCC não tem worker nem cron, então a fila é
+-- drenada de forma oportunista: notification_drain() roda em requisição e
+-- processa o que está pendente. O motivo de existir mesmo assim é
+-- separar "o que precisa ser avisado" (decisão de negócio, gravada) de
+-- "tentar enviar agora" (pode falhar e ser tentado de novo).
+--
+-- Sem isso, confirmar um pagamento no painel ou enviar uma etiqueta só
+-- dispararia e-mail dentro da requisição, e uma falha do SMTP deixaria o
+-- cliente sem aviso sem ninguém saber que falhou.
+--
+-- channel: 'email' sai por SMTP. 'whatsapp' fica registrado como pendente
+-- com o link wa.me, porque não há provedor configurado — gravar como enviado
+-- seria mentir sobre o que a loja fez.
+-- =====================================================================
+CREATE TABLE IF NOT EXISTS e5_notifications (
+    id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    order_id     INT             DEFAULT NULL,
+    user_id      INT             DEFAULT NULL,
+    channel      ENUM('email','whatsapp') NOT NULL,
+    event_type   VARCHAR(48)     NOT NULL,
+    recipient    VARCHAR(160)    NOT NULL,
+    subject      VARCHAR(200)    DEFAULT NULL,
+    body         TEXT            NOT NULL,
+    status       ENUM('pending','sent','failed','skipped') NOT NULL DEFAULT 'pending',
+    attempts     TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    error_message TEXT           DEFAULT NULL,
+    sent_at      DATETIME        DEFAULT NULL,
+    created_at   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_notif_pending (status, created_at),
+    KEY idx_notif_order (order_id),
+    KEY idx_notif_user (user_id)
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_general_ci
+  COMMENT='Fila de notificações por evento de pedido';
