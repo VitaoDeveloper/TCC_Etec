@@ -3,13 +3,12 @@ $page_title = 'Meu Perfil - Royal Tech';
 $current_page = 'perfil';
 $base_path = '../../';
 
-session_start();
+require_once __DIR__ . '/../../includes/csrf.php';
 if (!isset($_SESSION['user_id'])) {
     header('Location: login.php?next=' . urlencode($_SERVER['REQUEST_URI']));
     exit;
 }
 
-require_once __DIR__ . '/../../includes/csrf.php';
 include '../../database/connection.php';
 $userId = (int) $_SESSION['user_id'];
 

@@ -1,7 +1,8 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+// csrf.php ajusta os cookies de sessao ANTES do session_start() e so
+// entao inicia a sessao. Incluir aqui (e nao depois) garante que o cookie
+// de sessao saia com httponly e SameSite, inclusive nesta resposta.
+require_once dirname(__DIR__) . '/includes/csrf.php';
 
 $isLoggedIn = isset($_SESSION['user_id']);
 $isAdmin = $isLoggedIn && (($_SESSION['user_role'] ?? '') === 'admin');
@@ -67,6 +68,10 @@ $assetVersion = ASSET_VERSION;
     <?php endif; ?>
     <title><?php echo $page_title ?? 'Royal Tech - Loja de Tecnologia Premium'; ?></title>
     <meta name="description" content="<?php echo $page_description ?? 'Royal Tech - Loja de Tecnologia Premium. Os melhores produtos de tecnologia com preços imperdíveis e atendimento diferenciado.'; ?>">
+    <!-- Token CSRF entregue ao JS: os endpoints de carrinho e wishlist sao
+         chamados por fetch() e nao por formulario, entao nao ha como ler o
+         campo hidden. O JS envia este valor no cabecalho X-CSRF-Token. -->
+    <meta name="csrf-token" content="<?php echo htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8'); ?>">
     <meta property="og:title" content="<?php echo $og_title ?? $page_title ?? 'Royal Tech - Loja de Tecnologia Premium'; ?>">
     <meta property="og:description" content="<?php echo $og_description ?? ($page_description ?? 'Royal Tech - Loja de Tecnologia Premium. Os melhores produtos de tecnologia com preços imperdíveis e atendimento diferenciado.'); ?>">
     <meta property="og:image" content="<?php echo ($basePath ?? '') . 'assets/img/hero-bg.jpg'; ?>">

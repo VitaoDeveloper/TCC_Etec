@@ -1,13 +1,12 @@
 <?php
 
-session_start();
+require_once __DIR__ . '/../../includes/csrf.php';
 if (!isset($_SESSION['user_id'])) {
     header('Location: login.php?next=' . urlencode($_SERVER['REQUEST_URI']));
     exit;
 }
 
 require_once __DIR__ . '/../../database/connection.php';
-require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../includes/comprovante_functions.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {

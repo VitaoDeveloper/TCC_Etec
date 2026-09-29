@@ -3,7 +3,7 @@ $page_title = 'Finalizar Pedido - Royal Tech';
 $current_page = 'carrinho';
 $base_path = '../../';
 
-session_start();
+require_once __DIR__ . '/../../includes/csrf.php';
 if (!isset($_SESSION['user_id'])) {
     header('Location: ../auth/login.php?next=' . urlencode($_SERVER['REQUEST_URI']));
     exit;
@@ -14,7 +14,6 @@ require_once $base_path . 'database/connection.php';
 require_once $base_path . 'includes/cart_functions.php';
 require_once $base_path . 'includes/coupon_functions.php';
 require_once $base_path . 'includes/image_helpers.php';
-require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../includes/mail.php';
 require_once __DIR__ . '/../../includes/comprovante_functions.php';
 

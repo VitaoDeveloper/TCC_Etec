@@ -1,5 +1,4 @@
 <?php
-session_start();
 require_once __DIR__ . '/../../includes/csrf.php';
 
 if (isset($_SESSION['user_id'])) {

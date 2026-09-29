@@ -3,14 +3,13 @@ $page_title = 'Detalhes do Pedido - Royal Tech';
 $current_page = 'pedidos';
 $base_path = '../../';
 
-session_start();
+require_once $base_path . 'includes/csrf.php';
 if (!isset($_SESSION['user_id'])) {
     header('Location: login.php?next=' . urlencode($_SERVER['REQUEST_URI']));
     exit;
 }
 
 include '../../database/connection.php';
-require_once $base_path . 'includes/csrf.php';
 require_once $base_path . 'includes/status_labels.php';
 require_once $base_path . 'includes/image_helpers.php';
 $userId = (int) $_SESSION['user_id'];

@@ -8,6 +8,22 @@ document.addEventListener('DOMContentLoaded', function() {
     var loggedFlag = document.body.getAttribute('data-logged-in') === '1';
     var basePath = document.body.getAttribute('data-base-path') || '';
 
+    // Token CSRF entregue no <meta name="csrf-token"> do header.php.
+    // Os endpoints de carrinho/wishlist exigem este cabecalho: sao acionados
+    // por fetch(), sem formulario, entao nao existe campo hidden para ler.
+    var csrfToken = (function() {
+        var m = document.querySelector('meta[name="csrf-token"]');
+        return m ? m.getAttribute('content') : '';
+    })();
+
+    // Monta os cabecalos de uma chamada POST autenticada por CSRF.
+    function postHeaders() {
+        return {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRF-Token': csrfToken
+        };
+    }
+
     // ========================================
     // ML Carousel
     // ========================================
@@ -150,7 +166,7 @@ document.addEventListener('DOMContentLoaded', function() {
             self.classList.add('btn-loading');
             fetch(basePath + 'pages/wishlist/toggle.php', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                headers: postHeaders(),
                 body: new URLSearchParams({product_id: productId})
             })
             .then(function(r) { return r.json(); })
@@ -211,7 +227,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             fetch(basePath + 'pages/cart/add.php', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                headers: postHeaders(),
                 body: new URLSearchParams({product_id: productId, quantity: (parseInt((document.getElementById('pdp-qty') || {}).value, 10) || 1)})
             })
             .then(function(r) { return r.json(); })
@@ -266,7 +282,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             fetch(basePath + 'pages/cart/add.php', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                headers: postHeaders(),
                 body: new URLSearchParams({product_id: productId, quantity: (parseInt((document.getElementById('pdp-qty') || {}).value, 10) || 1)})
             })
             .then(function(r) { return r.json(); })
