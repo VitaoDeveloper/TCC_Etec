@@ -96,13 +96,6 @@ function account_nav_items(): array
             'section' => 'Compras',
         ],
         [
-            'key'     => 'contatos',
-            'label'   => 'Meus Contatos',
-            'icon'    => 'fa-address-book',
-            'script'  => 'contacts.php',
-            'section' => 'Compras',
-        ],
-        [
             'key'     => 'compras-sair',
             'label'   => 'Sair da Conta',
             'icon'    => 'fa-right-from-bracket',
