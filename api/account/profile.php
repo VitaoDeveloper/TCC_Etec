@@ -160,9 +160,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'personal') {
     // antes das regras atuais) podem conter um valor que nao passa na
     // validacao, mas continua valido enquanto nao for alterado. Se o
     // usuario tocar no campo, passa a valer o formato novo.
-    $stmt = $pdo->prepare('SELECT username FROM e5_users WHERE id = :id LIMIT 1');
+    $stmt = $pdo->prepare('SELECT username, number FROM e5_users WHERE id = :id LIMIT 1');
     $stmt->execute([':id' => $userId]);
-    $currentUsername = (string) $stmt->fetchColumn();
+    $currentRow     = $stmt->fetch() ?: [];
+    $currentUsername = (string) ($currentRow['username'] ?? '');
+    $currentNumber   = (string) ($currentRow['number'] ?? '');
     $usernameChanged = $input['username'] !== $currentUsername;
 
     if ($input['name'] === '') {
@@ -193,6 +195,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'personal') {
 
     if ($input['state'] !== '' && !is_valid_uf($input['state'])) {
         $errors['state'] = 'UF inválida.';
+    }
+
+    // e5_users.number e INT NOT NULL com STRICT_TRANS_TABLES: string vazia ou
+    // nao numerica estoura o UPDATE. Vazio mantem o numero atual.
+    if ($input['number'] !== '' && !ctype_digit($input['number'])) {
+        $errors['number'] = 'Número inválido: use apenas dígitos.';
     }
 
     if ($errors !== []) {
@@ -238,7 +246,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'personal') {
         ':phone'        => $input['phone'] !== '' ? $input['phone'] : null,
         ':postal_code'  => $input['postal_code'],
         ':street'       => $input['street'],
-        ':number'       => $input['number'] !== '' ? $input['number'] : null,
+        ':number'       => $input['number'] !== '' ? $input['number'] : $currentNumber,
         ':complement'   => $input['complement'] !== '' ? $input['complement'] : null,
         ':neighborhood' => $input['neighborhood'] !== '' ? $input['neighborhood'] : null,
         ':city'         => $input['city'] !== '' ? $input['city'] : null,
@@ -251,5 +259,72 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'personal') {
     api_ok($user, 'Seus dados foram atualizados.');
 }
 
+// ---------------------------------------------------------------------
+//  POST — endereço (painel Endereço; atualiza apenas os campos de endereço)
+// ---------------------------------------------------------------------
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'address') {
+    $input = [
+        'postal_code' => format_cep(only_digits($_POST['postal_code'] ?? '')),
+        'street'      => clean_text($_POST['street'] ?? ''),
+        'number'      => clean_text($_POST['number'] ?? ''),
+        'complement'  => clean_text($_POST['complement'] ?? ''),
+        'neighborhood'=> clean_text($_POST['neighborhood'] ?? ''),
+        'city'        => clean_text($_POST['city'] ?? ''),
+        'state'       => strtoupper(clean_text($_POST['state'] ?? '')),
+    ];
+
+    $errors = [];
+
+    if ($input['postal_code'] !== '' && !is_valid_cep(only_digits($input['postal_code']))) {
+        $errors['postal_code'] = 'CEP inválido.';
+    }
+
+    if ($input['street'] === '') {
+        $errors['street'] = 'Informe a rua.';
+    }
+
+    // e5_users.number e INT NOT NULL com STRICT_TRANS_TABLES: string vazia ou
+    // nao numerica estoura o UPDATE. Somente dígitos.
+    if ($input['number'] === '') {
+        $errors['number'] = 'Informe o número.';
+    } elseif (!ctype_digit($input['number'])) {
+        $errors['number'] = 'Número inválido: use apenas dígitos.';
+    }
+
+    if ($input['city'] === '') {
+        $errors['city'] = 'Informe a cidade.';
+    }
+
+    if ($input['state'] !== '' && !is_valid_uf($input['state'])) {
+        $errors['state'] = 'UF inválida.';
+    }
+
+    if ($errors !== []) {
+        api_error('Endereço não atualizado.', 400, $errors);
+    }
+
+    $stmt = $pdo->prepare(
+        'UPDATE e5_users SET
+            postal_code = :postal_code, street = :street, number = :number,
+            complement = :complement, neighborhood = :neighborhood,
+            city = :city, state = :state, updated_at = NOW()
+         WHERE id = :id'
+    );
+    $stmt->execute([
+        ':postal_code'  => $input['postal_code'],
+        ':street'       => $input['street'],
+        ':number'       => $input['number'],
+        ':complement'   => $input['complement'] !== '' ? $input['complement'] : null,
+        ':neighborhood' => $input['neighborhood'] !== '' ? $input['neighborhood'] : null,
+        ':city'         => $input['city'],
+        ':state'        => $input['state'] !== '' ? $input['state'] : null,
+        ':id'           => $userId,
+    ]);
+
+    $user = api_profile_fetch_user($pdo, $userId);
+
+    api_ok($user, 'Endereço atualizado.');
+}
+
 // Qualquer POST sem action conhecida.
-api_error('Ação não reconhecida.', 400, ['action' => 'Valores válidos: personal, avatar.']);
+api_error('Ação não reconhecida.', 400, ['action' => 'Valores válidos: personal, avatar, address.']);

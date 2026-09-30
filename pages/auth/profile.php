@@ -266,6 +266,78 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'perso
 }
 
 // ---------------------------------------------------------------------
+//  Endereço (painel Endereço; atualiza apenas os campos de endereco)
+// ---------------------------------------------------------------------
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'address') {
+    csrf_require_valid();
+
+    $savedPanel = account_panel_from_post((string) ($_POST['panel'] ?? ''));
+    $returnTo   = base_url('pages/auth/profile.php') . '#tab-endereco';
+
+    $input = [
+        'postal_code' => format_cep(only_digits($_POST['postal_code'] ?? '')),
+        'street'      => clean_text($_POST['street'] ?? ''),
+        'number'      => clean_text($_POST['number'] ?? ''),
+        'complement'  => clean_text($_POST['complement'] ?? ''),
+        'neighborhood'=> clean_text($_POST['neighborhood'] ?? ''),
+        'city'        => clean_text($_POST['city'] ?? ''),
+        'state'       => strtoupper(clean_text($_POST['state'] ?? '')),
+    ];
+
+    $errors = [];
+
+    if ($input['postal_code'] !== '' && !is_valid_cep(only_digits($input['postal_code']))) {
+        $errors['postal_code'] = 'CEP inválido.';
+    }
+
+    if ($input['street'] === '') {
+        $errors['street'] = 'Informe a rua.';
+    }
+
+    if ($input['number'] === '') {
+        $errors['number'] = 'Informe o número.';
+    } elseif (!ctype_digit($input['number'])) {
+        $errors['number'] = 'Número inválido: use apenas dígitos.';
+    }
+
+    if ($input['city'] === '') {
+        $errors['city'] = 'Informe a cidade.';
+    }
+
+    if ($input['state'] !== '' && !is_valid_uf($input['state'])) {
+        $errors['state'] = 'UF inválida.';
+    }
+
+    if ($errors !== []) {
+        $message = reset($errors);
+        $_SESSION['error'] = $message;
+        header('Location: ' . $returnTo . '&focus=' . urlencode(array_key_first($errors)));
+        exit;
+    }
+
+    $pdo->prepare(
+        'UPDATE e5_users SET
+            postal_code = :postal_code, street = :street, number = :number,
+            complement = :complement, neighborhood = :neighborhood,
+            city = :city, state = :state, updated_at = NOW()
+         WHERE id = :id'
+    )->execute([
+        ':postal_code'  => $input['postal_code'],
+        ':street'       => $input['street'],
+        ':number'       => $input['number'],
+        ':complement'   => $input['complement'] !== '' ? $input['complement'] : null,
+        ':neighborhood' => $input['neighborhood'] !== '' ? $input['neighborhood'] : null,
+        ':city'         => $input['city'],
+        ':state'        => $input['state'] !== '' ? $input['state'] : null,
+        ':id'           => (int) $_SESSION['user_id'],
+    ]);
+
+    $_SESSION['success'] = 'Endereço atualizado.';
+    header('Location: ' . $returnTo);
+    exit;
+}
+
+// ---------------------------------------------------------------------
 //  Avisos
 // ---------------------------------------------------------------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'notifications') {
@@ -412,7 +484,7 @@ account_layout_head($user, 'perfil');
     </div>
     <div class="account-panel-body">
         <section class="account-card" id="secao-dados">
-            <form method="post" novalidate data-profile-form action="<?php echo e(base_url('api/account/profile.php')); ?>">
+            <form method="post" novalidate data-account-form data-profile-form data-endpoint="<?php echo e(base_url('api/account/profile.php')); ?>" action="<?php echo e(base_url('pages/auth/profile.php')); ?>">
                 <input type="hidden" name="action" value="personal">
                 <input type="hidden" name="panel" value="dados">
                 <?php echo csrf_field(); ?>
@@ -472,8 +544,8 @@ account_layout_head($user, 'perfil');
     </div>
     <div class="account-panel-body">
         <section class="account-card" id="secao-endereco">
-            <form method="post" novalidate action="<?php echo e(base_url('pages/auth/profile.php')); ?>">
-                <input type="hidden" name="action" value="personal">
+            <form method="post" novalidate data-account-form data-endpoint="<?php echo e(base_url('pages/auth/profile.php')); ?>" action="<?php echo e(base_url('pages/auth/profile.php')); ?>">
+                <input type="hidden" name="action" value="address">
                 <input type="hidden" name="panel" value="endereco">
                 <?php echo csrf_field(); ?>
 
@@ -536,6 +608,7 @@ account_layout_head($user, 'perfil');
                     <button type="submit" class="account-btn account-btn--primary">
                         <i class="fas fa-save" aria-hidden="true"></i> Salvar endereço
                     </button>
+                    <span class="account-save-status" data-save-status role="status" aria-live="polite"></span>
                 </div>
             </form>
         </section>
@@ -559,7 +632,7 @@ account_layout_head($user, 'perfil');
                 </div>
             </header>
 
-            <form method="post" data-notifications action="<?php echo e(base_url('pages/auth/profile.php')); ?>">
+            <form method="post" data-account-form data-notifications data-endpoint="<?php echo e(base_url('api/account/notifications.php')); ?>" action="<?php echo e(base_url('pages/auth/profile.php')); ?>">
                 <input type="hidden" name="action" value="notifications">
                 <input type="hidden" name="panel" value="preferencias">
                 <?php echo csrf_field(); ?>
@@ -594,6 +667,7 @@ account_layout_head($user, 'perfil');
                     <button type="submit" class="account-btn account-btn--primary">
                         <i class="fas fa-save" aria-hidden="true"></i> Salvar preferências
                     </button>
+                    <span class="account-save-status" data-save-status role="status" aria-live="polite"></span>
                 </div>
             </form>
         </section>
@@ -614,7 +688,7 @@ account_layout_head($user, 'perfil');
                 <span class="account-hint" id="masksHint">Sua senha nunca aparece por aqui. Para trocar, use o formulário abaixo.</span>
             </div>
 
-            <form method="post" novalidate action="<?php echo e(base_url('pages/auth/profile.php')); ?>">
+            <form method="post" novalidate data-account-form data-endpoint="<?php echo e(base_url('api/account/password.php')); ?>" data-clear-passwords action="<?php echo e(base_url('pages/auth/profile.php')); ?>">
                 <input type="hidden" name="action" value="password">
                 <input type="hidden" name="panel" value="preferencias">
                 <?php echo csrf_field(); ?>
@@ -645,6 +719,7 @@ account_layout_head($user, 'perfil');
                     <button type="submit" class="account-btn">
                         <i class="fas fa-key" aria-hidden="true"></i> Alterar senha
                     </button>
+                    <span class="account-save-status" data-save-status role="status" aria-live="polite"></span>
                 </div>
             </form>
         </section>
@@ -792,82 +867,91 @@ account_layout_head($user, 'perfil');
         });
     }
 
-    // --- salvamento dos dados pessoais pela API (sem recarregar) -------
-    var profileForm = document.querySelector('form[data-profile-form]');
-    var saveStatus = document.querySelector('[data-save-status]');
+    // --- salvamento genérico de todos os formulários data-account-form ---
+    function wireForm(form) {
+        var status = form.querySelector('[data-save-status]');
+        var endpoint = form.getAttribute('data-endpoint') || form.action;
+        var clearPasswords = form.hasAttribute('data-clear-passwords');
+        var isPersonal = form.hasAttribute('data-profile-form');
+        var isNotifications = form.hasAttribute('data-notifications');
 
-    function setSave(message, type) {
-        if (!saveStatus) return;
-        saveStatus.textContent = message || '';
-        saveStatus.className = 'account-save-status' + (type ? ' account-save-status--' + type : '');
-    }
-
-    function markFieldErrors(errors) {
-        profileForm.querySelectorAll('.account-field').forEach(function (field) {
-            var input = field.querySelector('input, select');
-            if (!input || !input.name) return;
-            var has = Object.prototype.hasOwnProperty.call(errors || {}, input.name);
-            field.classList.toggle('account-field--error', has);
-            if (has) {
-                field.querySelectorAll('.account-hint').forEach(function (hint) { hint.remove(); });
-                var err = document.createElement('span');
-                err.className = 'account-hint account-hint--error';
-                err.textContent = errors[input.name];
-                field.appendChild(err);
-            }
-        });
-    }
-
-    function savedFlash(field) {
-        field.classList.remove('account-field--saved');
-        void field.offsetWidth;
-        field.classList.add('account-field--saved');
-    }
-
-    var data2field = {
-        name: 'name',
-        username: 'username',
-        email: 'email',
-        cpf: function () { return null; },   // formatado abaixo
-        phone: function () { return null; }
-    };
-
-    function applySavedValues(data) {
-        if (!data) return;
-        var sets = {
-            name: data.name,
-            username: data.username,
-            email: data.email
-        };
-        if (data.cpf) {
-            var c = data.cpf.replace(/\D/g, '').slice(0, 11);
-            sets.cpf = c.replace(/(\d{3})(\d)/, '$1.$2')
-                        .replace(/(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
-                        .replace(/(\d{3})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3-$4');
-        }
-        if (data.phone) {
-            var p = data.phone.replace(/\D/g, '').slice(0, 11);
-            sets.phone = p.replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d)(\d{4})$/, '$1-$2');
+        function setSave(message, type) {
+            if (!status) return;
+            status.textContent = message || '';
+            status.className = 'account-save-status' + (type ? ' account-save-status--' + type : '');
         }
 
-        profileForm.querySelectorAll('input').forEach(function (input) {
-            if (!input.name || !Object.prototype.hasOwnProperty.call(sets, input.name)) return;
-            input.value = sets[input.name];
-            savedFlash(input.closest('.account-field'));
-        });
-    }
+        function markFieldErrors(errors) {
+            form.querySelectorAll('.account-field').forEach(function (field) {
+                var input = field.querySelector('input, select');
+                if (!input || !input.name) return;
+                var has = Object.prototype.hasOwnProperty.call(errors || {}, input.name);
+                field.classList.toggle('account-field--error', has);
+                if (has) {
+                    field.querySelectorAll('.account-hint').forEach(function (hint) { hint.remove(); });
+                    var err = document.createElement('span');
+                    err.className = 'account-hint account-hint--error';
+                    err.textContent = errors[input.name];
+                    field.appendChild(err);
+                }
+            });
+        }
 
-    if (profileForm && saveStatus && window.fetch !== undefined) {
-        profileForm.addEventListener('submit', function (event) {
+        function savedFlash(field) {
+            field.classList.remove('account-field--saved');
+            void field.offsetWidth;
+            field.classList.add('account-field--saved');
+        }
+
+        function applySavedValues(data) {
+            if (!data) return;
+            form.querySelectorAll('input, select').forEach(function (input) {
+                if (!input.name) return;
+                if (!Object.prototype.hasOwnProperty.call(data, input.name)) return;
+
+                var val = data[input.name];
+                if (input.type === 'checkbox') {
+                    input.checked = !!val;
+                    savedFlash(input.closest('.account-field'));
+                    return;
+                }
+                if (input.type === 'radio') {
+                    input.checked = (input.value == val);
+                    savedFlash(input.closest('.account-field'));
+                    return;
+                }
+
+                // Personal form: format CPF and phone
+                if (isPersonal) {
+                    if (input.name === 'cpf' && val) {
+                        var c = val.replace(/\D/g, '').slice(0, 11);
+                        val = c.replace(/(\d{3})(\d)/, '$1.$2')
+                              .replace(/(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
+                              .replace(/(\d{3})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3-$4');
+                    }
+                    if (input.name === 'phone' && val) {
+                        var p = val.replace(/\D/g, '').slice(0, 11);
+                        val = p.replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d)(\d{4})$/, '$1-$2');
+                    }
+                }
+
+                input.value = val;
+                savedFlash(input.closest('.account-field'));
+            });
+        }
+
+        if (!window.fetch) return;
+
+        form.addEventListener('submit', function (event) {
             event.preventDefault();
 
-            var button = profileForm.querySelector('button[type="submit"]');
+            var button = form.querySelector('button[type="submit"]');
             if (button) button.disabled = true;
             setSave('Salvando...', 'pending');
 
-            fetch(profileForm.action, {
+            fetch(endpoint, {
                 method: 'POST',
-                body: new FormData(profileForm),
+                body: new FormData(form),
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             })
                 .then(function (response) {
@@ -877,8 +961,13 @@ account_layout_head($user, 'perfil');
                 })
                 .then(function (result) {
                     if (result.json && result.json.ok) {
-                        setSave('Dados salvos!', 'ok');
+                        setSave('Salvo!', 'ok');
                         applySavedValues(result.json.data);
+                        if (clearPasswords) {
+                            form.querySelectorAll('input[type="password"]').forEach(function (pw) {
+                                pw.value = '';
+                            });
+                        }
                     } else {
                         setSave((result.json && result.json.message) || 'Não foi possível salvar.', 'error');
                         markFieldErrors(result.json.errors);
@@ -892,6 +981,8 @@ account_layout_head($user, 'perfil');
                 });
         });
     }
+
+    document.querySelectorAll('form[data-account-form]').forEach(wireForm);
 })();
 </script>
 

@@ -316,6 +316,64 @@ class ApiAccountTest extends TestCase
         $this->assertArrayHasKey('avatar', $json['errors'] ?? []);
     }
 
+    public function testProfileAddressUpdatePersistsChanges(): void
+    {
+        [$status, $json] = $this->call('profile.php', 'POST', [
+            'action'      => 'address',
+            'postal_code' => '12053831',
+            'street'      => 'Rua Nova',
+            'number'      => '456',
+            'complement'  => 'Apto 101',
+            'neighborhood'=> 'Vila Nova',
+            'city'        => 'São Paulo',
+            'state'       => 'SP',
+        ]);
+
+        $this->assertSame(200, $status);
+        $this->assertTrue($json['ok']);
+        $this->assertSame('Rua Nova', $json['data']['street']);
+        $this->assertSame(456, (int) $json['data']['number']);
+        $this->assertSame('12053-831', $json['data']['postal_code']);
+        $this->assertSame('SP', $json['data']['state']);
+    }
+
+    public function testProfileAddressRejectsInvalidData(): void
+    {
+        [$status, $json] = $this->call('profile.php', 'POST', [
+            'action'      => 'address',
+            'postal_code' => '123',
+            'street'      => '',
+            'number'      => '',
+            'city'        => '',
+            'state'       => 'ZZ',
+        ]);
+
+        $this->assertSame(400, $status);
+        $this->assertFalse($json['ok']);
+        $this->assertIsArray($json['errors']);
+        $this->assertArrayHasKey('postal_code', $json['errors']);
+        $this->assertArrayHasKey('street', $json['errors']);
+        $this->assertArrayHasKey('number', $json['errors']);
+        $this->assertArrayHasKey('city', $json['errors']);
+        $this->assertArrayHasKey('state', $json['errors']);
+    }
+
+    public function testProfileAddressRejectsNonNumericNumber(): void
+    {
+        [$status, $json] = $this->call('profile.php', 'POST', [
+            'action'      => 'address',
+            'postal_code' => '12053831',
+            'street'      => 'Rua Teste',
+            'number'      => 'abc',
+            'city'        => 'São Paulo',
+            'state'       => 'SP',
+        ]);
+
+        $this->assertSame(400, $status);
+        $this->assertFalse($json['ok']);
+        $this->assertArrayHasKey('number', $json['errors']);
+    }
+
     // =================================================================
     //  CEP proxy
     // =================================================================

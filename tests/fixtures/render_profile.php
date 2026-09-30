@@ -19,7 +19,7 @@
  */
 
 if ($argc < 3) {
-    fwrite(STDERR, "uso: render_profile.php <render|avatar|personal|password> <saida>\n");
+    fwrite(STDERR, "uso: render_profile.php <render|avatar|personal|address|password> <saida>\n");
     exit(2);
 }
 
@@ -54,6 +54,19 @@ if ($mode === 'personal') {
         'email'       => 'kaua@etec.com',
         'cpf'         => '712.425.960-60',
         'phone'       => '(12) 97814-9392',
+        'postal_code' => '12230-201',
+        'street'      => 'Av. São João',
+        'number'      => 1280,
+        'complement'  => '',
+        'neighborhood'=> 'Centro',
+        'city'        => 'São José dos Campos',
+        'state'       => 'SP',
+    ];
+} elseif ($mode === 'address') {
+    $_SERVER['REQUEST_METHOD'] = 'POST';
+    $_POST = [
+        'action'      => 'address',
+        '_csrf_token' => csrf_token(),
         'postal_code' => '12230-201',
         'street'      => 'Av. São João',
         'number'      => 1280,

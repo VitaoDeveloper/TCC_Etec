@@ -151,16 +151,16 @@ class ProfileRenderTest extends TestCase
         $form = $this->dom()->query("//form[@data-profile-form]")->item(0);
         $this->assertNotNull($form, 'o form de dados pessoais deveria marcar data-profile-form');
 
-        $this->assertStringContainsString('api/account/profile.php', (string) $form->getAttribute('action'));
+        $this->assertStringContainsString('api/account/profile.php', (string) $form->getAttribute('data-endpoint'));
         $this->assertSame(
             1,
             $this->dom()->query("//form[@data-profile-form]//input[@name='panel'][@value='dados']")->length,
             'o painel da aba deve ir junto no POST para voltar à mesma aba'
         );
         $this->assertSame(
-            1,
+            4,
             $this->dom()->query("//*[@data-save-status]")->length,
-            'o status de salvamento deveria existir'
+            'cada painel deve ter seu status de salvamento'
         );
     }
 
