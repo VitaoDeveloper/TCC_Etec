@@ -18,17 +18,26 @@
  */
 
 if ($argc < 3) {
-    fwrite(STDERR, "uso: render_orders.php <list|detail> <saida.html>\n");
+    fwrite(STDERR, "uso: render_orders.php <list|list-filtered|detail> <saida.html>\n");
     exit(2);
 }
 
 $mode    = $argv[1];
 $outFile = $argv[2];
 
-$_SERVER['SCRIPT_NAME']   = '/TCC_Etec/pages/auth/' . ($mode === 'detail' ? 'order-detail.php' : 'orders.php');
-$_SERVER['REQUEST_URI']   = $_SERVER['SCRIPT_NAME'] . ($mode === 'detail' ? '?id=TMP' : '');
+// list-filtered renderiza a lista com ?status=paid para conferir a aba
+// ativa e o filtro (o pedido temporário nasce 'paid').
+$isDetail = $mode === 'detail';
+$filter   = $mode === 'list-filtered' ? 'paid' : '';
+
+$_SERVER['SCRIPT_NAME']   = '/TCC_Etec/pages/auth/' . ($isDetail ? 'order-detail.php' : 'orders.php');
+$_SERVER['REQUEST_URI']   = $_SERVER['SCRIPT_NAME'] . ($isDetail ? '?id=TMP' : ($filter !== '' ? '?status=' . $filter : ''));
 $_SERVER['HTTP_HOST']     = 'localhost';
 $_SERVER['REQUEST_METHOD'] = 'GET';
+
+if ($filter !== '') {
+    $_GET['status'] = $filter;
+}
 
 // NO CLI, atribuir $_SESSION antes de session_start() pode ser
 // descartado: o PHP substitui o array pela sessão do disco.
@@ -68,14 +77,15 @@ $meta = [
     'product_name'  => $product['name'],
     'order_status'  => 'paid',
     'order_total'   => 'R$ 1.234,56',
+    'status_filter' => $filter,
 ];
 
-if ($mode === 'detail') {
+if ($isDetail) {
     $_GET['id'] = (string) $orderId;
 }
 
 ob_start();
-require_once __DIR__ . '/../../pages/auth/' . ($mode === 'detail' ? 'order-detail.php' : 'orders.php');
+require_once __DIR__ . '/../../pages/auth/' . ($isDetail ? 'order-detail.php' : 'orders.php');
 $html = (string) ob_get_clean();
 
 // Limpeza do pedido temporário (os itens caem por ON DELETE CASCADE).

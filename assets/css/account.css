@@ -856,8 +856,203 @@
 .cep-error { color: var(--rt-danger); }
 
 /* ========================================
+   Meus Pedidos: abas de status + cards de
+   limite de cancelamento
+   ======================================== */
+
+.account-tabs {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+}
+
+.account-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+    padding: 9px 14px;
+    border: 1px solid var(--rt-border);
+    border-radius: 999px;
+    background: #2d2d2d;
+    color: var(--rt-text-secondary);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.account-tab:hover {
+    border-color: var(--rt-border-strong);
+    color: var(--rt-text-strong);
+}
+
+.account-tab.is-active {
+    background: var(--rt-accent-soft);
+    border-color: var(--rt-accent-line);
+    color: var(--rt-accent);
+}
+
+.account-tab-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--rt-text-soft);
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.account-tab.is-active .account-tab-count {
+    background: var(--rt-accent);
+    color: #1a1300;
+}
+
+/* ---------- Cards de limite de cancelamento ---------- */
+
+.account-cancel-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.account-cancel-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 18px;
+    background: #2d2d2d;
+    border: 1px solid var(--rt-border);
+    border-top: 3px solid var(--rt-accent-line);
+    border-radius: var(--account-radius);
+}
+
+.account-cancel-card--blocked {
+    border-top-color: var(--rt-border-strong);
+}
+
+.account-cancel-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.account-cancel-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    flex: 0 0 auto;
+    border-radius: 10px;
+    background: var(--rt-accent-soft);
+    color: var(--rt-accent);
+    font-size: 0.9rem;
+}
+
+.account-cancel-card--blocked .account-cancel-icon {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--rt-text-soft);
+}
+
+.account-cancel-title {
+    margin: 0;
+    font-family: 'Playfair Display', serif;
+    font-size: 0.98rem;
+    font-weight: 600;
+    color: var(--rt-text-strong);
+    line-height: 1.25;
+}
+
+.account-cancel-badge {
+    display: inline-block;
+    margin-top: 2px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--rt-accent);
+}
+
+.account-cancel-card--blocked .account-cancel-badge {
+    color: var(--rt-text-soft);
+}
+
+.account-cancel-text {
+    margin: 0;
+    flex: 1 1 auto;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    color: var(--rt-text-soft);
+}
+
+.account-cancel-limit {
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--rt-border-subtle);
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: var(--rt-text-secondary);
+}
+
+.account-cancel-limit i {
+    margin-top: 2px;
+    color: var(--rt-accent);
+    font-size: 0.7rem;
+}
+
+.account-cancel-card--blocked .account-cancel-limit i {
+    color: var(--rt-text-faint);
+}
+
+.account-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 36px 16px;
+    text-align: center;
+}
+
+.account-empty i {
+    font-size: 1.8rem;
+    color: var(--rt-text-faint);
+}
+
+.account-empty h3 {
+    margin: 0;
+    font-family: 'Playfair Display', serif;
+    font-size: 1.05rem;
+    color: var(--rt-text-strong);
+}
+
+.account-empty p {
+    margin: 0;
+    font-size: 0.86rem;
+    color: var(--rt-text-soft);
+}
+
+/* ========================================
    Responsivo
    ======================================== */
+
+@media (max-width: 1100px) {
+    .account-cancel-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
 
 @media (max-width: 900px) {
     .account-shell {
@@ -915,6 +1110,10 @@
 @media (max-width: 560px) {
     .account-card {
         padding: 16px;
+    }
+
+    .account-cancel-grid {
+        grid-template-columns: minmax(0, 1fr);
     }
 
     .account-whatsapp-label {
