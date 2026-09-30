@@ -623,24 +623,30 @@ account_layout_head($user, 'perfil');
         }
 
         function lookupCep(cep) {
-            // AbortController cobre o caso de o usuário digitar outro
-            // CEP enquanto a resposta anterior ainda não voltou.
-            var url = 'https://viacep.com.br/ws/' + cep + '/json/';
+            // Passa pelo proxy do servidor (api/account/cep.php): o
+            // ViaCEP é consultado server-side, com cache de 30 dias e
+            // rate limit. Chamar o ViaCEP direto do navegador repetiria
+            // a consulta toda vez que o endereço fosse preenchido.
+            var basePath = document.body.getAttribute('data-base-path') || '';
+            var url = basePath + 'api/account/cep.php?cep=' + encodeURIComponent(cep);
             setCepStatus('Buscando endereço...');
 
-            fetch(url)
+            fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
                 .then(function (response) { return response.json(); })
                 .then(function (data) {
-                    if (!data || data.erro) {
-                        setCepStatus('CEP não encontrado. Você pode preencher a rua manualmente.', 'error');
+                    if (!data.ok || !data.data) {
+                        setCepStatus(
+                            (data && data.message) ? data.message : 'CEP não encontrado. Você pode preencher a rua manualmente.',
+                            'error'
+                        );
                         return;
                     }
 
                     var map = {
-                        street: data.logradouro || '',
-                        neighborhood: data.bairro || '',
-                        city: data.localidade || '',
-                        state: data.uf || ''
+                        street: data.data.street || '',
+                        neighborhood: data.data.neighborhood || '',
+                        city: data.data.city || '',
+                        state: data.data.state || ''
                     };
 
                     for (var key in map) {
