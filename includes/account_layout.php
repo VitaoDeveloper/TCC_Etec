@@ -93,6 +93,9 @@ function account_nav_items(): array
             'label'   => 'Meus Pedidos',
             'icon'    => 'fa-box-open',
             'script'  => 'orders.php',
+            // O detalhe do pedido é a mesma entrada: sem isto a
+            // sidebar não marca nada e a tela "perde" o lugar na conta.
+            'also'    => ['order-detail.php'],
             'section' => 'Compras',
         ],
         [
@@ -303,6 +306,11 @@ function account_layout_head(array $user, string $active): void
                 <div class="account-identity-text">
                     <span class="account-identity-name"><?php echo e($user['name'] ?? ''); ?></span>
                     <span class="account-identity-mail"><?php echo e($user['email'] ?? ''); ?></span>
+                    <?php if (($user['role'] ?? '') === 'admin'): ?>
+                        <span class="account-identity-pill" data-account-pill="admin">
+                            <i class="fas fa-crown" aria-hidden="true"></i> Admin
+                        </span>
+                    <?php endif; ?>
                 </div>
             </div>
 
@@ -311,7 +319,8 @@ function account_layout_head(array $user, string $active): void
                     <div class="account-nav-group">
                         <span class="account-nav-heading"><?php echo e($sectionLabel); ?></span>
                         <?php foreach ($items as $item):
-                            $isCurrent = $item['script'] === $currentFile;
+                            $isCurrent = $item['script'] === $currentFile
+                                || in_array($currentFile, $item['also'] ?? [], true);
                         ?>
                             <a href="<?php echo e(base_url('pages/auth/' . $item['script'])); ?>"
                                class="account-nav-link<?php echo $isCurrent ? ' is-current' : ''; ?>"

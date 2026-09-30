@@ -25,16 +25,24 @@ use DOMXPath;
 class AccountLayoutRenderTest extends TestCase
 {
     private static string $html = '';
+    private static string $adminHtml = '';
 
     public static function setUpBeforeClass(): void
+    {
+        self::$html      = self::render('customer');
+        self::$adminHtml = self::render('admin');
+    }
+
+    private static function render(string $role): string
     {
         $out = tempnam(sys_get_temp_dir(), 'account-layout-');
 
         $command = sprintf(
-            '%s %s %s 2>&1',
+            '%s %s %s %s 2>&1',
             escapeshellarg(PHP_BINARY),
             escapeshellarg(__DIR__ . '/fixtures/render_account_layout.php'),
-            escapeshellarg($out)
+            escapeshellarg($out),
+            escapeshellarg($role)
         );
 
         exec($command, $lines, $code);
@@ -49,15 +57,15 @@ class AccountLayoutRenderTest extends TestCase
             );
         }
 
-        self::$html = $rendered;
+        return $rendered;
     }
 
-    private function dom(): DOMXPath
+    private function dom(?string $html = null): DOMXPath
     {
         $doc = new DOMDocument();
         $previous = libxml_use_internal_errors(true);
 
-        $doc->loadHTML(self::$html);
+        $doc->loadHTML($html ?? self::$html);
 
         libxml_clear_errors();
         libxml_use_internal_errors($previous);
@@ -158,6 +166,20 @@ class AccountLayoutRenderTest extends TestCase
 
         $this->assertNotNull($name, 'a sidebar nao mostrou o nome do usuario');
         $this->assertNotSame('', trim($name->textContent));
+    }
+
+    public function testAdminPillOnlyShowsForAdminRole(): void
+    {
+        $this->assertSame(
+            0,
+            $this->dom()->query('//span[@data-account-pill="admin"]')->length,
+            'cliente comum nao pode ver a pilula de admin'
+        );
+
+        $pill = $this->dom(self::$adminHtml)->query('//span[@data-account-pill="admin"]')->item(0);
+
+        $this->assertNotNull($pill, 'a pilula de admin nao apareceu para role=admin');
+        $this->assertSame('Admin', trim(preg_replace('/\s+/', ' ', $pill->textContent) ?? ''));
     }
 
     // =================================================================

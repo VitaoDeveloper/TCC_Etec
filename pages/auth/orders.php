@@ -1,18 +1,27 @@
 <?php
-$page_title = 'Meus Pedidos - Royal Tech';
-$current_page = 'pedidos';
-$base_path = '../../';
 
-session_start();
-if (!isset($_SESSION['user_id'])) {
-    header('Location: login.php?next=' . urlencode($_SERVER['REQUEST_URI']));
-    exit;
-}
+declare(strict_types=1);
 
-include '../../database/connection.php';
+/**
+ * Meus Pedidos — histórico de compras do cliente no shell da conta.
+ *
+ * A tela vive em account_layout_head()/account_layout_foot(), então a
+ * sidebar usa base_url() e o item "Meus Pedidos" fica marcado como
+ * atual. A consulta lista os pedidos do usuário da sessão, do mais
+ * recente para o mais antigo.
+ *
+ * A marcação da coluna de status reusa os badges .status-* e os rótulos
+ * de status_labels.php. O id #secao-pedidos e o título
+ * .account-page-title são os ganchos usados pelos testes de render.
+ */
+
+require_once __DIR__ . '/../../includes/account_layout.php';
 require_once __DIR__ . '/../../includes/status_labels.php';
+require_once __DIR__ . '/../../database/connection.php';
 
-$userId = (int) $_SESSION['user_id'];
+$user = account_require_login($pdo);
+
+$userId = (int) $user['id'];
 
 $stmt = $pdo->prepare('
     SELECT o.id, o.status, o.total, o.created_at,
@@ -24,40 +33,51 @@ $stmt = $pdo->prepare('
 $stmt->execute([':uid' => $userId]);
 $orders = $stmt->fetchAll();
 
-include '../../components/header.php';
-?>
-<section class="ml-section" style="padding-top: 8px;"><div class="container" style="max-width:800px; margin:0 auto;">
-    <div class="ml-section-header">
-        <h2 class="ml-section-title">Meus Pedidos</h2>
-        <span class="ml-main-count"><?php echo count($orders); ?> pedido(s)</span>
-    </div>
+$page_title = 'Meus Pedidos - Royal Tech';
 
+account_layout_head($user, 'pedidos');
+?>
+
+<div class="account-page-header">
+    <h1 class="account-page-title">Meus Pedidos</h1>
+    <p class="account-page-subtitle">Acompanhe o andamento e o histórico das suas compras.</p>
+</div>
+
+<section class="account-card" id="secao-pedidos">
     <?php if (empty($orders)): ?>
         <div class="ml-empty">
             <i class="fas fa-box-open"></i>
             <h3>Nenhum pedido ainda</h3>
             <p>Faça suas compras e acompanhe seus pedidos aqui.</p>
-            <p style="margin-top: 16px;"><a href="../products/products.php" class="ml-btn ml-btn-primary"><i class="fas fa-store"></i> Ver Produtos</a></p>
+            <p style="margin-top: 16px;">
+                <a href="<?php echo e(base_url('pages/products/products.php')); ?>" class="ml-btn ml-btn-primary">
+                    <i class="fas fa-store"></i> Ver Produtos
+                </a>
+            </p>
         </div>
     <?php else: ?>
         <div class="ml-table-wrap">
             <table class="ml-table">
                 <thead><tr><th>Pedido</th><th>Data</th><th>Itens</th><th>Total</th><th>Status</th><th></th></tr></thead>
                 <tbody>
-                <?php foreach ($orders as $o): ?>
+                <?php foreach ($orders as $o):
+                    $orderBadge = $o['status'] === 'paid' || $o['status'] === 'delivered'
+                        ? 'active'
+                        : ($o['status'] === 'canceled' ? 'inactive' : 'pending');
+                ?>
                     <tr>
-                        <td>#<?php echo str_pad((string)$o['id'], 4, '0', STR_PAD_LEFT); ?></td>
+                        <td>#<?php echo str_pad((string) $o['id'], 4, '0', STR_PAD_LEFT); ?></td>
                         <td><?php echo date('d/m/Y', strtotime($o['created_at'])); ?></td>
-                        <td><?php echo (int)$o['item_count']; ?></td>
-                        <td>R$ <?php echo number_format((float)$o['total'], 2, ',', '.'); ?></td>
-                        <td><span class="status-badge status-<?php echo $o['status'] === 'paid' || $o['status'] === 'delivered' ? 'active' : ($o['status'] === 'canceled' ? 'inactive' : 'pending'); ?>"><?php echo htmlspecialchars($statusLabelsFlat[$o['status']] ?? $o['status'], ENT_QUOTES, 'UTF-8'); ?></span></td>
-                        <td><a href="order-detail.php?id=<?php echo (int)$o['id']; ?>" class="ml-btn" style="padding:4px 12px; font-size:0.8rem;"><i class="fas fa-eye"></i></a></td>
+                        <td><?php echo (int) $o['item_count']; ?></td>
+                        <td>R$ <?php echo number_format((float) $o['total'], 2, ',', '.'); ?></td>
+                        <td><span class="status-badge status-<?php echo $orderBadge; ?>"><?php echo e($statusLabelsFlat[$o['status']] ?? $o['status']); ?></span></td>
+                        <td><a href="<?php echo e(base_url('pages/auth/order-detail.php?id=' . (int) $o['id'])); ?>" class="ml-btn" style="padding:4px 12px; font-size:0.8rem;"><i class="fas fa-eye"></i></a></td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>
             </table>
         </div>
     <?php endif; ?>
-    <div style="text-align:center; margin-top:15px; display:flex; justify-content:center; gap:10px; flex-wrap:wrap;"><a href="profile.php" class="ml-btn"><i class="fas fa-user"></i> Meu Perfil</a></div>
-</div></section>
-<?php include '../../components/footer.php'; ?>
+</section>
+
+<?php account_layout_foot();

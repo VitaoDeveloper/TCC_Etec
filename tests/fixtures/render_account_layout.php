@@ -10,11 +10,14 @@
  */
 
 if ($argc < 2) {
-    fwrite(STDERR, "uso: render_account_layout.php <saida.html>\n");
+    fwrite(STDERR, "uso: render_account_layout.php <saida.html> [admin|customer]\n");
     exit(2);
 }
 
 $outFile = $argv[1];
+// Força o papel para conferir a pílula de admin sem depender do papel
+// real do usuário 16 (que é admin no banco de desenvolvimento).
+$forcedRole = in_array($argv[2] ?? '', ['admin', 'customer'], true) ? $argv[2] : null;
 
 // Simula estar em pages/auth/, que é o caso real das telas da conta.
 $_SERVER['SCRIPT_NAME']   = '/TCC_Etec/pages/auth/profile.php';
@@ -42,6 +45,10 @@ $user = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$user) {
     fwrite(STDERR, "usuario 16 nao encontrado\n");
     exit(3);
+}
+
+if ($forcedRole !== null) {
+    $user['role'] = $forcedRole;
 }
 
 $page_title = 'Meu Perfil - Royal Tech';

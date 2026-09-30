@@ -76,6 +76,23 @@
     white-space: nowrap;
 }
 
+.account-identity-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    align-self: flex-start;
+    margin-top: 8px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--rt-accent-line);
+    background: var(--rt-accent-soft);
+    color: var(--rt-accent);
+    font-size: 0.64rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
 /* ---------- Avatar ---------- */
 
 .account-avatar {
