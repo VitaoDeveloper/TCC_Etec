@@ -3,16 +3,22 @@
 declare(strict_types=1);
 
 /**
- * Meu Perfil — dados pessoais, endereço, avisos e segurança.
+ * Perfil — dados pessoais, endereço, notificações e senha.
  *
  * Reescrita da tela que era um formulário de 600px com a senha no meio
  * dos dados (duas vezes), sem sidebar e sem avatar. Agora mora no shell
- * da conta e divide a alteração em seções próprias.
+ * da conta como um "card de menu": o avatar abre a troca de foto, o card
+ * de menu guarda as três entradas (Dados Pessoais, Endereço,
+ * Notificações e senha) e cada entrada abre o painel correspondente.
  *
- * A página funciona 100% sem JavaScript: cada card é um POST com PRG.
- * Na etapa das APIs, os mesmos fluxos passam a ser chamados por fetch()
- * e o comportamento AJAX entra por cima; esta etapa não quebra em hipótese
- * alguma.
+ * A página funciona 100% sem JavaScript: cada painel é um POST com PRG
+ * e o redirect devolve o visitante ao mesmo painel (#tab-*). Com JS, o
+ * card de menu troca de painel na hora e o salvamento dos dados pessoais
+ * é feito via fetch na API, sem recarregar a página.
+ *
+ * As seções internas preservam os ids/attrs usados pelos testes de
+ * render (secao-dados, secao-endereco, secao-avisos, secao-senha,
+ * passwordMasked, current_password, data-profile-form, data-save-status).
  */
 
 require_once __DIR__ . '/../../includes/account_layout.php';
@@ -37,6 +43,17 @@ foreach (['error', 'success'] as $key) {
         unset($_SESSION[$key]);
         break;
     }
+}
+
+// ---------------------------------------------------------------------
+//  Painel de retorno: cada form leva um hidden "panel" para o redirect
+//  PRG voltar à entrada do card de menu em que o usuário estava.
+// ---------------------------------------------------------------------
+$savedPanel = 'dados';
+
+function account_panel_from_post(?string $panel): string
+{
+    return in_array($panel, ['dados', 'endereco', 'preferencias'], true) ? $panel : 'dados';
 }
 
 // ---------------------------------------------------------------------
@@ -122,10 +139,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'avata
 }
 
 // ---------------------------------------------------------------------
-//  Dados pessoais
+//  Dados pessoais e endereço (mesmo action; o painel vem no hidden)
 // ---------------------------------------------------------------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'personal') {
     csrf_require_valid();
+
+    $savedPanel   = account_panel_from_post((string) ($_POST['panel'] ?? ''));
+    $returnTo     = base_url('pages/auth/profile.php') . '#tab-' . $savedPanel;
 
     $input = [
         'name'        => clean_text($_POST['name'] ?? ''),
@@ -232,7 +252,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'perso
             ]);
 
             $_SESSION['success'] = 'Seus dados foram atualizados.';
-            header('Location: ' . base_url('pages/auth/profile.php'));
+            header('Location: ' . $returnTo);
             exit;
         }
     }
@@ -240,7 +260,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'perso
     if ($errors !== []) {
         $message = reset($errors);
         $_SESSION['error'] = $message;
-        header('Location: ' . base_url('pages/auth/profile.php') . '?focus=' . urlencode(array_key_first($errors)));
+        header('Location: ' . $returnTo . '&focus=' . urlencode(array_key_first($errors)));
         exit;
     }
 }
@@ -259,7 +279,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'notif
         ]);
 
     $_SESSION['success'] = 'Preferências de aviso atualizadas.';
-    header('Location: ' . base_url('pages/auth/profile.php'));
+    header('Location: ' . base_url('pages/auth/profile.php') . '#tab-preferencias');
     exit;
 }
 
@@ -294,13 +314,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'passw
             ->execute([':hash' => password_hash($newPassword, PASSWORD_DEFAULT), ':id' => (int) $_SESSION['user_id']]);
 
         $_SESSION['success'] = 'Senha alterada com sucesso.';
-        header('Location: ' . base_url('pages/auth/profile.php'));
+        header('Location: ' . base_url('pages/auth/profile.php') . '#tab-preferencias');
         exit;
     }
 
     if ($errors !== []) {
         $_SESSION['error'] = reset($errors);
-        header('Location: ' . base_url('pages/auth/profile.php') . '?focus=' . urlencode(array_key_first($errors)));
+        header('Location: ' . base_url('pages/auth/profile.php') . '#tab-preferencias&focus=' . urlencode(array_key_first($errors)));
         exit;
     }
 }
@@ -312,13 +332,14 @@ $page_title = 'Meu Perfil - Royal Tech';
 $current_page = 'perfil';
 
 $maskedPassword = str_repeat('•', 8);
+$ufs = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
 
 account_layout_head($user, 'perfil');
 ?>
 
 <div class="account-page-header">
-    <h1 class="account-page-title">Meu Perfil</h1>
-    <p class="account-page-subtitle">Gerencie seus dados, endereço e preferências.</p>
+    <h1 class="account-page-title">Perfil</h1>
+    <p class="account-page-subtitle">Gerencie seus dados, endereços e preferências de contato em um só lugar.</p>
 </div>
 
 <?php if ($flash['message'] !== ''): ?>
@@ -328,259 +349,348 @@ account_layout_head($user, 'perfil');
     </div>
 <?php endif; ?>
 
-<!-- ============================ Dados pessoais ============================ -->
-<section class="account-card" id="secao-dados">
-    <header class="account-card-head">
-        <div>
-            <h2 class="account-card-title"><i class="fas fa-user-circle" aria-hidden="true"></i> Dados pessoais</h2>
-            <p class="account-card-hint">Essas informações aparecem no comprovante e no rastreio.</p>
+<div class="account-profile-grid">
+    <!-- ============================ Card: Meu avatar ============================ -->
+    <section class="account-card account-card--avatar" id="secao-avatar">
+        <header class="account-card-head">
+            <h2 class="account-card-title"><i class="fas fa-camera-retro" aria-hidden="true"></i> Meu avatar</h2>
+        </header>
+        <div class="account-card-body account-avatar-editor">
+            <button type="button" class="account-avatar-btn" id="avatarTrigger"
+                    title="Clique para trocar a foto" aria-label="Trocar foto de perfil">
+                <?php echo render_avatar($user, 'account-avatar--xl'); ?>
+                <span class="account-avatar-camera" aria-hidden="true"><i class="fas fa-camera"></i></span>
+            </button>
+
+            <form class="account-avatar-editor-actions" method="post" enctype="multipart/form-data" id="avatarForm">
+                <input type="hidden" name="action" value="avatar">
+                <?php echo csrf_field(); ?>
+                <label class="account-btn account-btn--primary account-btn--sm" for="avatarInput">
+                    <i class="fas fa-cloud-arrow-up" aria-hidden="true"></i> Trocar foto
+                </label>
+                <input type="file" id="avatarInput" name="avatar" accept="image/jpeg,image/png,image/webp" hidden>
+                <span class="account-hint">JPG, PNG ou WebP de até 2 MB. Vale clicar na foto ou no botão.</span>
+            </form>
         </div>
-    </header>
+    </section>
 
-    <div class="account-avatar-editor">
-        <?php echo render_avatar($user, 'account-avatar--lg'); ?>
+    <!-- ============================ Card: Menu ============================ -->
+    <section class="account-card account-card--menu" id="secao-menu">
+        <header class="account-card-head">
+            <h2 class="account-card-title"><i class="fas fa-list-check" aria-hidden="true"></i> Menu</h2>
+        </header>
+        <div class="account-card-body">
+            <nav class="account-menu" data-account-menu aria-label="Opções do perfil">
+                <button type="button" class="account-menu-item is-active" data-account-tab="dados"
+                        aria-controls="tab-dados" aria-selected="true">
+                    <i class="fas fa-user" aria-hidden="true"></i>
+                    <span class="account-menu-label">Dados Pessoais</span>
+                    <i class="fas fa-chevron-right account-menu-arrow" aria-hidden="true"></i>
+                </button>
+                <button type="button" class="account-menu-item" data-account-tab="endereco"
+                        aria-controls="tab-endereco" aria-selected="false">
+                    <i class="fas fa-map-location-dot" aria-hidden="true"></i>
+                    <span class="account-menu-label">Endereço</span>
+                    <i class="fas fa-chevron-right account-menu-arrow" aria-hidden="true"></i>
+                </button>
+                <button type="button" class="account-menu-item" data-account-tab="preferencias"
+                        aria-controls="tab-preferencias" aria-selected="false">
+                    <i class="fas fa-bell" aria-hidden="true"></i>
+                    <span class="account-menu-label">Notificações e senha</span>
+                    <i class="fas fa-chevron-right account-menu-arrow" aria-hidden="true"></i>
+                </button>
+            </nav>
+        </div>
+    </section>
+</div>
 
-        <form class="account-avatar-editor-actions" method="post" enctype="multipart/form-data" id="avatarForm">
-            <input type="hidden" name="action" value="avatar">
-            <?php echo csrf_field(); ?>
-            <label class="account-btn account-btn--primary account-btn--sm" for="avatarInput">
-                <i class="fas fa-camera" aria-hidden="true"></i> Trocar foto
-            </label>
-            <input type="file" id="avatarInput" name="avatar" accept="image/jpeg,image/png,image/webp" hidden>
-            <span class="account-hint">JPG, PNG ou WebP de até 2 MB.</span>
-        </form>
+<!-- ============================ Painel: Dados pessoais ============================ -->
+<section class="account-panel is-active" id="tab-dados" data-account-panel="dados" role="tabpanel">
+    <div class="account-panel-head">
+        <h2 class="account-panel-title">Dados pessoais</h2>
+        <p class="account-panel-hint">Essas informações aparecem no comprovante e no rastreio. Os valores salvos ficam destacados.</p>
     </div>
+    <div class="account-panel-body">
+        <section class="account-card" id="secao-dados">
+            <form method="post" novalidate data-profile-form action="<?php echo e(base_url('api/account/profile.php')); ?>">
+                <input type="hidden" name="action" value="personal">
+                <input type="hidden" name="panel" value="dados">
+                <?php echo csrf_field(); ?>
 
-    <form method="post" novalidate data-profile-form>
-        <input type="hidden" name="action" value="personal">
-        <?php echo csrf_field(); ?>
+                <div class="account-grid account-grid--2">
+                    <div class="account-field">
+                        <label class="account-label" for="name">Nome completo</label>
+                        <input class="account-input" type="text" id="name" name="name" maxlength="80"
+                               value="<?php echo e($user['name'] ?? ''); ?>" required>
+                    </div>
 
-        <div class="account-grid account-grid--2">
+                    <div class="account-field">
+                        <label class="account-label" for="username">Usuário</label>
+                        <input class="account-input" type="text" id="username" name="username" maxlength="30"
+                               value="<?php echo e($user['username'] ?? ''); ?>" required>
+                    </div>
+
+                    <div class="account-field">
+                        <label class="account-label" for="email">E-mail</label>
+                        <input class="account-input" type="email" id="email" name="email" maxlength="120"
+                               value="<?php echo e($user['email'] ?? ''); ?>" required>
+                    </div>
+
+                    <div class="account-field">
+                        <label class="account-label" for="cpf">CPF</label>
+                        <input class="account-input" type="text" id="cpf" name="cpf" inputmode="numeric" maxlength="14"
+                               value="<?php echo e($user['cpf'] ? format_cpf($user['cpf']) : ''); ?>" required
+                               placeholder="000.000.000-00">
+                        <span class="account-hint">Não conseguimos alterar o CPF sozinho — escreva para o suporte.</span>
+                    </div>
+
+                    <div class="account-field">
+                        <label class="account-label" for="phone">Telefone (WhatsApp)</label>
+                        <input class="account-input" type="tel" id="phone" name="phone" inputmode="numeric" maxlength="16"
+                               value="<?php echo e($user['phone'] ? format_phone($user['phone']) : ''); ?>"
+                               placeholder="(12) 97814-9392">
+                        <span class="account-hint">Usado no rastreio do pedido e nos avisos de entrega.</span>
+                    </div>
+                </div>
+
+                <div class="account-actions">
+                    <button type="submit" class="account-btn account-btn--primary">
+                        <i class="fas fa-save" aria-hidden="true"></i> Salvar dados
+                    </button>
+                    <span class="account-save-status" data-save-status role="status" aria-live="polite"></span>
+                </div>
+            </form>
+        </section>
+    </div>
+</section>
+
+<!-- ============================ Painel: Endereço ============================ -->
+<section class="account-panel" id="tab-endereco" data-account-panel="endereco" role="tabpanel">
+    <div class="account-panel-head">
+        <h2 class="account-panel-title">Endereço de entrega</h2>
+        <p class="account-panel-hint">O CEP preenche rua, bairro, cidade e UF automaticamente.</p>
+    </div>
+    <div class="account-panel-body">
+        <section class="account-card" id="secao-endereco">
+            <form method="post" novalidate action="<?php echo e(base_url('pages/auth/profile.php')); ?>">
+                <input type="hidden" name="action" value="personal">
+                <input type="hidden" name="panel" value="endereco">
+                <?php echo csrf_field(); ?>
+
+                <div class="account-field">
+                    <label class="account-label" for="postal_code">CEP</label>
+                    <div class="account-input-group">
+                        <input class="account-input" type="text" id="postal_code" name="postal_code" inputmode="numeric"
+                               maxlength="9" value="<?php echo e($user['postal_code'] ?? ''); ?>"
+                               placeholder="00000-000" autocomplete="postal-code">
+                        <button type="button" class="account-btn account-btn--sm" id="cepLookup">
+                            <i class="fas fa-location-arrow" aria-hidden="true"></i> Buscar
+                        </button>
+                    </div>
+                    <span class="account-hint" id="cepStatus" role="status" aria-live="polite"></span>
+                </div>
+
+                <div class="account-grid account-grid--2">
+                    <div class="account-field">
+                        <label class="account-label" for="street">Rua</label>
+                        <input class="account-input" type="text" id="street" name="street" maxlength="120"
+                               value="<?php echo e($user['street'] ?? ''); ?>" autocomplete="address-line1">
+                    </div>
+
+                    <div class="account-field">
+                        <label class="account-label" for="number">Número</label>
+                        <input class="account-input" type="text" id="number" name="number" maxlength="10"
+                               value="<?php echo e($user['number'] ?? ''); ?>" autocomplete="address-line2">
+                    </div>
+
+                    <div class="account-field">
+                        <label class="account-label" for="complement">Complemento</label>
+                        <input class="account-input" type="text" id="complement" name="complement" maxlength="80"
+                               value="<?php echo e($user['complement'] ?? ''); ?>" placeholder="Apto., bloco, andar...">
+                    </div>
+
+                    <div class="account-field">
+                        <label class="account-label" for="neighborhood">Bairro</label>
+                        <input class="account-input" type="text" id="neighborhood" name="neighborhood" maxlength="80"
+                               value="<?php echo e($user['neighborhood'] ?? ''); ?>">
+                    </div>
+
+                    <div class="account-field">
+                        <label class="account-label" for="city">Cidade</label>
+                        <input class="account-input" type="text" id="city" name="city" maxlength="80"
+                               value="<?php echo e($user['city'] ?? ''); ?>" autocomplete="address-level2">
+                    </div>
+
+                    <div class="account-field">
+                        <label class="account-label" for="state">UF</label>
+                        <select class="account-select" id="state" name="state" autocomplete="address-level1">
+                            <option value="">—</option>
+                            <?php foreach ($ufs as $uf): ?>
+                                <option value="<?php echo e($uf); ?>" <?php echo $user['state'] === $uf ? 'selected' : ''; ?>><?php echo e($uf); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="account-actions">
+                    <button type="submit" class="account-btn account-btn--primary">
+                        <i class="fas fa-save" aria-hidden="true"></i> Salvar endereço
+                    </button>
+                </div>
+            </form>
+        </section>
+    </div>
+</section>
+
+<!-- ==================== Painel: Notificações e senha ==================== -->
+<section class="account-panel" id="tab-preferencias" data-account-panel="preferencias" role="tabpanel">
+    <div class="account-panel-head">
+        <h2 class="account-panel-title">Notificações e senha</h2>
+        <p class="account-panel-hint">Avisos de entrega e a segurança da sua conta, lado a lado.</p>
+    </div>
+    <div class="account-panel-body">
+
+        <!-- ==================== Avisos ==================== -->
+        <section class="account-card" id="secao-avisos">
+            <header class="account-card-head">
+                <div>
+                    <h2 class="account-card-title"><i class="fas fa-bell" aria-hidden="true"></i> Avisos</h2>
+                    <p class="account-card-hint">Escolha como quer ser avisado durante a entrega.</p>
+                </div>
+            </header>
+
+            <form method="post" data-notifications action="<?php echo e(base_url('pages/auth/profile.php')); ?>">
+                <input type="hidden" name="action" value="notifications">
+                <input type="hidden" name="panel" value="preferencias">
+                <?php echo csrf_field(); ?>
+
+                <div class="account-toggle-row">
+                    <div class="account-toggle-text">
+                        <span class="account-toggle-label">Avisos por e-mail</span>
+                        <span class="account-toggle-hint">Status do pedido, comprovante e novidades.</span>
+                    </div>
+                    <label class="account-toggle">
+                        <input type="checkbox" name="notify_email" value="1"
+                               <?php echo (int) ($user['notify_email'] ?? 1) === 1 ? 'checked' : ''; ?>>
+                        <span class="account-toggle-track" aria-hidden="true"></span>
+                        <span class="sr-only">Avisos por e-mail</span>
+                    </label>
+                </div>
+
+                <div class="account-toggle-row">
+                    <div class="account-toggle-text">
+                        <span class="account-toggle-label">Avisos no WhatsApp</span>
+                        <span class="account-toggle-hint">A loja não envia WhatsApp automático: o aviso fica na fila do painel e a equipe envia pelo link pronto.</span>
+                    </div>
+                    <label class="account-toggle">
+                        <input type="checkbox" name="notify_whatsapp" value="1"
+                               <?php echo (int) ($user['notify_whatsapp'] ?? 1) === 1 ? 'checked' : ''; ?>>
+                        <span class="account-toggle-track" aria-hidden="true"></span>
+                        <span class="sr-only">Avisos no WhatsApp</span>
+                    </label>
+                </div>
+
+                <div class="account-actions">
+                    <button type="submit" class="account-btn account-btn--primary">
+                        <i class="fas fa-save" aria-hidden="true"></i> Salvar preferências
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <!-- ==================== Segurança ==================== -->
+        <section class="account-card" id="secao-senha">
+            <header class="account-card-head">
+                <div>
+                    <h2 class="account-card-title"><i class="fas fa-lock" aria-hidden="true"></i> Segurança</h2>
+                    <p class="account-card-hint">Troque a senha da sua conta aqui. Nenhum histórico é guardado.</p>
+                </div>
+            </header>
+
             <div class="account-field">
-                <label class="account-label" for="name">Nome completo</label>
-                <input class="account-input" type="text" id="name" name="name" maxlength="80"
-                       value="<?php echo e($user['name'] ?? ''); ?>" required>
-            </div>
-
-            <div class="account-field">
-                <label class="account-label" for="username">Usuário</label>
-                <input class="account-input" type="text" id="username" name="username" maxlength="20"
-                       value="<?php echo e($user['username'] ?? ''); ?>" required>
-            </div>
-
-            <div class="account-field">
-                <label class="account-label" for="email">E-mail</label>
-                <input class="account-input" type="email" id="email" name="email" maxlength="120"
-                       value="<?php echo e($user['email'] ?? ''); ?>" required>
-            </div>
-
-            <div class="account-field">
-                <label class="account-label" for="cpf">CPF</label>
-                <input class="account-input" type="text" id="cpf" name="cpf" inputmode="numeric" maxlength="14"
-                       value="<?php echo e($user['cpf'] ? format_cpf($user['cpf']) : ''); ?>" required
-                       placeholder="000.000.000-00">
-                <span class="account-hint">Não conseguimos alterar o CPF sozinho — escreva para o suporte. Se houver erro aqui, ajuste e salve.</span>
-            </div>
-
-            <div class="account-field">
-                <label class="account-label" for="phone">Telefone (WhatsApp)</label>
-                <input class="account-input" type="tel" id="phone" name="phone" inputmode="numeric" maxlength="16"
-                       value="<?php echo e($user['phone'] ? format_phone($user['phone']) : ''); ?>"
-                       placeholder="(12) 97814-9392">
-                <span class="account-hint">Usado no rastreio do pedido e nos avisos de entrega.</span>
-            </div>
-
-            <div class="account-field">
-                <label class="account-label" for="passwordMasked">Senha</label>
+                <label class="account-label" for="passwordMasked">Senha atual</label>
                 <input class="account-input" type="password" id="passwordMasked" value="<?php echo e($maskedPassword); ?>"
                        disabled aria-describedby="masksHint">
-                <span class="account-hint" id="masksHint">Por segurança, trocamos a senha só na seção própria, mais abaixo.</span>
-            </div>
-        </div>
-
-        <div class="account-actions">
-            <button type="submit" class="account-btn account-btn--primary">
-                <i class="fas fa-save" aria-hidden="true"></i> Salvar dados
-            </button>
-            <span class="account-save-status" data-save-status role="status" aria-live="polite"></span>
-        </div>
-    </form>
-</section>
-
-<!-- ============================ Endereço ============================ -->
-<section class="account-card" id="secao-endereco">
-    <header class="account-card-head">
-        <div>
-            <h2 class="account-card-title"><i class="fas fa-map-location-dot" aria-hidden="true"></i> Endereço de entrega</h2>
-            <p class="account-card-hint">O CEP preenche rua, bairro, cidade e UF automaticamente.</p>
-        </div>
-    </header>
-
-    <form method="post" novalidate>
-        <input type="hidden" name="action" value="personal">
-        <?php echo csrf_field(); ?>
-
-        <div class="account-field">
-            <label class="account-label" for="postal_code">CEP</label>
-            <div class="account-input-group">
-                <input class="account-input" type="text" id="postal_code" name="postal_code" inputmode="numeric"
-                       maxlength="9" value="<?php echo e($user['postal_code'] ?? ''); ?>"
-                       placeholder="00000-000" autocomplete="postal-code">
-                <button type="button" class="account-btn account-btn--sm" id="cepLookup">
-                    <i class="fas fa-location-arrow" aria-hidden="true"></i> Buscar
-                </button>
-            </div>
-            <span class="account-hint" id="cepStatus" role="status" aria-live="polite"></span>
-        </div>
-
-        <div class="account-grid account-grid--2">
-            <div class="account-field">
-                <label class="account-label" for="street">Rua</label>
-                <input class="account-input" type="text" id="street" name="street" maxlength="120"
-                       value="<?php echo e($user['street'] ?? ''); ?>" autocomplete="address-line1">
+                <span class="account-hint" id="masksHint">Sua senha nunca aparece por aqui. Para trocar, use o formulário abaixo.</span>
             </div>
 
-            <div class="account-field">
-                <label class="account-label" for="number">Número</label>
-                <input class="account-input" type="text" id="number" name="number" maxlength="10"
-                       value="<?php echo e($user['number'] ?? ''); ?>" autocomplete="address-line2">
-            </div>
+            <form method="post" novalidate action="<?php echo e(base_url('pages/auth/profile.php')); ?>">
+                <input type="hidden" name="action" value="password">
+                <input type="hidden" name="panel" value="preferencias">
+                <?php echo csrf_field(); ?>
 
-            <div class="account-field">
-                <label class="account-label" for="complement">Complemento</label>
-                <input class="account-input" type="text" id="complement" name="complement" maxlength="80"
-                       value="<?php echo e($user['complement'] ?? ''); ?>"
-                       placeholder="Apto., bloco, andar...">
-            </div>
+                <div class="account-grid account-grid--3">
+                    <div class="account-field">
+                        <label class="account-label" for="current_password">Senha atual</label>
+                        <input class="account-input" type="password" id="current_password" name="current_password"
+                               autocomplete="current-password" required>
+                    </div>
 
-            <div class="account-field">
-                <label class="account-label" for="neighborhood">Bairro</label>
-                <input class="account-input" type="text" id="neighborhood" name="neighborhood" maxlength="80"
-                       value="<?php echo e($user['neighborhood'] ?? ''); ?>">
-            </div>
+                    <div class="account-field">
+                        <label class="account-label" for="new_password">Nova senha</label>
+                        <input class="account-input" type="password" id="new_password" name="new_password"
+                               minlength="6" maxlength="72" autocomplete="new-password"
+                               aria-describedby="passwordRules" required>
+                        <span class="account-hint" id="passwordRules">Mínimo 6 caracteres, máximo 72.</span>
+                    </div>
 
-            <div class="account-field">
-                <label class="account-label" for="city">Cidade</label>
-                <input class="account-input" type="text" id="city" name="city" maxlength="80"
-                       value="<?php echo e($user['city'] ?? ''); ?>" autocomplete="address-level2">
-            </div>
+                    <div class="account-field">
+                        <label class="account-label" for="confirm_password">Confirmar nova senha</label>
+                        <input class="account-input" type="password" id="confirm_password" name="confirm_password"
+                               minlength="6" maxlength="72" autocomplete="new-password" required>
+                    </div>
+                </div>
 
-            <div class="account-field">
-                <label class="account-label" for="state">UF</label>
-                <?php $ufs = [
-                    'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA',
-                    'PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO',
-                ]; ?>
-                <select class="account-select" id="state" name="state" autocomplete="address-level1">
-                    <option value="">—</option>
-                    <?php foreach ($ufs as $uf): ?>
-                        <option value="<?php echo e($uf); ?>" <?php echo $user['state'] === $uf ? 'selected' : ''; ?>><?php echo e($uf); ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-        </div>
-
-        <div class="account-actions">
-            <button type="submit" class="account-btn account-btn--primary">
-                <i class="fas fa-save" aria-hidden="true"></i> Salvar endereço
-            </button>
-        </div>
-    </form>
-</section>
-
-<!-- ============================ Avisos ============================ -->
-<section class="account-card" id="secao-avisos">
-    <header class="account-card-head">
-        <div>
-            <h2 class="account-card-title"><i class="fas fa-bell" aria-hidden="true"></i> Avisos</h2>
-            <p class="account-card-hint">Escolha como quer ser avisado durante a entrega.</p>
-        </div>
-    </header>
-
-    <form method="post" data-notifications>
-        <input type="hidden" name="action" value="notifications">
-        <?php echo csrf_field(); ?>
-
-        <div class="account-toggle-row">
-            <div class="account-toggle-text">
-                <span class="account-toggle-label">Avisos por e-mail</span>
-                <span class="account-toggle-hint">Status do pedido, comprovante e novidades.</span>
-            </div>
-            <label class="account-toggle">
-                <input type="checkbox" name="notify_email" value="1"
-                       <?php echo (int) ($user['notify_email'] ?? 1) === 1 ? 'checked' : ''; ?>>
-                <span class="account-toggle-track" aria-hidden="true"></span>
-                <span class="sr-only">Avisos por e-mail</span>
-            </label>
-        </div>
-
-        <div class="account-toggle-row">
-            <div class="account-toggle-text">
-                <span class="account-toggle-label">Avisos no WhatsApp</span>
-                <span class="account-toggle-hint">A loja não envia WhatsApp automático: o aviso fica na fila do painel e a equipe envia pelo link pronto.</span>
-            </div>
-            <label class="account-toggle">
-                <input type="checkbox" name="notify_whatsapp" value="1"
-                       <?php echo (int) ($user['notify_whatsapp'] ?? 1) === 1 ? 'checked' : ''; ?>>
-                <span class="account-toggle-track" aria-hidden="true"></span>
-                <span class="sr-only">Avisos no WhatsApp</span>
-            </label>
-        </div>
-
-        <div class="account-actions">
-            <button type="submit" class="account-btn account-btn--primary">
-                <i class="fas fa-save" aria-hidden="true"></i> Salvar preferências
-            </button>
-        </div>
-    </form>
-</section>
-
-<!-- ============================ Segurança ============================ -->
-<section class="account-card" id="secao-senha">
-    <header class="account-card-head">
-        <div>
-            <h2 class="account-card-title"><i class="fas fa-lock" aria-hidden="true"></i> Segurança</h2>
-            <p class="account-card-hint">Troque a senha da sua conta aqui. Nenhum histórico é guardado.</p>
-        </div>
-    </header>
-
-    <form method="post" novalidate>
-        <input type="hidden" name="action" value="password">
-        <?php echo csrf_field(); ?>
-
-        <div class="account-grid account-grid--3">
-            <div class="account-field">
-                <label class="account-label" for="current_password">Senha atual</label>
-                <input class="account-input" type="password" id="current_password" name="current_password"
-                       autocomplete="current-password" required>
-            </div>
-
-            <div class="account-field">
-                <label class="account-label" for="new_password">Nova senha</label>
-                <input class="account-input" type="password" id="new_password" name="new_password"
-                       minlength="6" maxlength="72" autocomplete="new-password"
-                       aria-describedby="passwordRules" required>
-                <span class="account-hint" id="passwordRules">Mínimo 6 caracteres, máximo 72.</span>
-            </div>
-
-            <div class="account-field">
-                <label class="account-label" for="confirm_password">Confirmar nova senha</label>
-                <input class="account-input" type="password" id="confirm_password" name="confirm_password"
-                       minlength="6" maxlength="72" autocomplete="new-password" required>
-            </div>
-        </div>
-
-        <div class="account-actions">
-            <button type="submit" class="account-btn">
-                <i class="fas fa-key" aria-hidden="true"></i> Alterar senha
-            </button>
-        </div>
-    </form>
+                <div class="account-actions">
+                    <button type="submit" class="account-btn">
+                        <i class="fas fa-key" aria-hidden="true"></i> Alterar senha
+                    </button>
+                </div>
+            </form>
+        </section>
+    </div>
 </section>
 
 <script>
 (function () {
-    // --- mascara de CPF e telefone sem lib externa -------------------
+    'use strict';
+
+    // --- card de menu: troca de painel ---------------------------------
+    var menu = document.querySelector('[data-account-menu]');
+    var panels = document.querySelectorAll('[data-account-panel]');
+
+    function activateTab(name) {
+        var selected = 'tab-' + name;
+
+        menu.querySelectorAll('.account-menu-item').forEach(function (item) {
+            var on = item.getAttribute('data-account-tab') === name;
+            item.classList.toggle('is-active', on);
+            item.setAttribute('aria-selected', on ? 'true' : 'false');
+        });
+
+        panels.forEach(function (panel) {
+            var on = panel.id === selected;
+            panel.hidden = !on;
+            panel.classList.toggle('is-active', on);
+        });
+
+        if (window.history && history.replaceState) {
+            history.replaceState(null, '', '#tab-' + name);
+        }
+    }
+
+    if (menu && panels.length) {
+        menu.addEventListener('click', function (event) {
+            var item = event.target.closest('.account-menu-item');
+            if (item) activateTab(item.getAttribute('data-account-tab'));
+        });
+
+        // Sem JS todos os painéis aparecem; com JS começa no do hash.
+        var initial = (location.hash || '').replace('#tab-', '');
+        activateTab(['dados', 'endereco', 'preferencias'].indexOf(initial) !== -1 ? initial : 'dados');
+    }
+
+    // --- mascara de CPF e telefone sem lib externa ----------------------
     var cpf = document.getElementById('cpf');
     if (cpf) {
         cpf.addEventListener('input', function () {
@@ -600,9 +710,13 @@ account_layout_head($user, 'perfil');
         });
     }
 
-    // --- upload de avatar enviado na hora ----------------------------
+    // --- clicar no avatar abre o seletor de arquivo ---------------------
+    var avatarTrigger = document.getElementById('avatarTrigger');
     var avatarInput = document.getElementById('avatarInput');
     var avatarForm = document.getElementById('avatarForm');
+    if (avatarTrigger && avatarInput) {
+        avatarTrigger.addEventListener('click', function () { avatarInput.click(); });
+    }
     if (avatarInput && avatarForm) {
         avatarInput.addEventListener('change', function () {
             if (avatarInput.files && avatarInput.files.length) {
@@ -611,17 +725,58 @@ account_layout_head($user, 'perfil');
         });
     }
 
-    // --- preenchimento do endereço pelo CEP --------------------------
-    // Nesta etapa a consulta vai direto à ViaCEP. A etapa das APIs
-    // substitui por um proxy próprio (api/account/cep.php) para não
-    // expor a chamada de terceiro no navegador e permitir cache.
+    // --- preenchimento do endereço pelo CEP ----------------------------
+    // Consulta passa pelo proxy do servidor (api/account/cep.php).
     var cepInput = document.getElementById('postal_code');
     var cepButton = document.getElementById('cepLookup');
     var cepStatus = document.getElementById('cepStatus');
 
     function cepField(id) { return document.getElementById(id); }
 
-    if (cepInput && cepButton && cepStatus) {
+    function setCepStatus(msg, type) {
+        if (!cepStatus) return;
+        cepStatus.textContent = msg || '';
+        cepStatus.className = 'account-hint cep-' + (type || 'idle');
+    }
+
+    function lookupCep(cep) {
+        var basePath = document.body.getAttribute('data-base-path') || '';
+        var url = basePath + 'api/account/cep.php?cep=' + encodeURIComponent(cep);
+        setCepStatus('Buscando endereço...');
+
+        fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function (response) { return response.json(); })
+            .then(function (data) {
+                if (!data.ok || !data.data) {
+                    setCepStatus(
+                        (data && data.message) ? data.message : 'CEP não encontrado. Você pode preencher a rua manualmente.',
+                        'error'
+                    );
+                    return;
+                }
+
+                var map = {
+                    street: data.data.street || '',
+                    neighborhood: data.data.neighborhood || '',
+                    city: data.data.city || '',
+                    state: data.data.state || ''
+                };
+
+                for (var key in map) {
+                    if (Object.prototype.hasOwnProperty.call(map, key)) {
+                        var field = cepField(key);
+                        if (field && map[key] !== '') field.value = map[key];
+                    }
+                }
+
+                setCepStatus('Endereço encontrado.', 'ok');
+            })
+            .catch(function () {
+                setCepStatus('Não foi possível consultar o CEP agora. Preencha manualmente.', 'error');
+            });
+    }
+
+    if (cepInput && cepButton) {
         cepInput.addEventListener('input', function () {
             var v = cepInput.value.replace(/\D/g, '').slice(0, 8);
             cepInput.value = v.replace(/(\d{5})(\d)/, '$1-$2');
@@ -635,52 +790,107 @@ account_layout_head($user, 'perfil');
             var v = cepInput.value.replace(/\D/g, '');
             if (v.length === 8) lookupCep(v);
         });
+    }
 
-        function setCepStatus(msg, type) {
-            cepStatus.textContent = msg || '';
-            cepStatus.className = 'account-hint cep-' + (type || 'idle');
+    // --- salvamento dos dados pessoais pela API (sem recarregar) -------
+    var profileForm = document.querySelector('form[data-profile-form]');
+    var saveStatus = document.querySelector('[data-save-status]');
+
+    function setSave(message, type) {
+        if (!saveStatus) return;
+        saveStatus.textContent = message || '';
+        saveStatus.className = 'account-save-status' + (type ? ' account-save-status--' + type : '');
+    }
+
+    function markFieldErrors(errors) {
+        profileForm.querySelectorAll('.account-field').forEach(function (field) {
+            var input = field.querySelector('input, select');
+            if (!input || !input.name) return;
+            var has = Object.prototype.hasOwnProperty.call(errors || {}, input.name);
+            field.classList.toggle('account-field--error', has);
+            if (has) {
+                field.querySelectorAll('.account-hint').forEach(function (hint) { hint.remove(); });
+                var err = document.createElement('span');
+                err.className = 'account-hint account-hint--error';
+                err.textContent = errors[input.name];
+                field.appendChild(err);
+            }
+        });
+    }
+
+    function savedFlash(field) {
+        field.classList.remove('account-field--saved');
+        void field.offsetWidth;
+        field.classList.add('account-field--saved');
+    }
+
+    var data2field = {
+        name: 'name',
+        username: 'username',
+        email: 'email',
+        cpf: function () { return null; },   // formatado abaixo
+        phone: function () { return null; }
+    };
+
+    function applySavedValues(data) {
+        if (!data) return;
+        var sets = {
+            name: data.name,
+            username: data.username,
+            email: data.email
+        };
+        if (data.cpf) {
+            var c = data.cpf.replace(/\D/g, '').slice(0, 11);
+            sets.cpf = c.replace(/(\d{3})(\d)/, '$1.$2')
+                        .replace(/(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
+                        .replace(/(\d{3})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3-$4');
+        }
+        if (data.phone) {
+            var p = data.phone.replace(/\D/g, '').slice(0, 11);
+            sets.phone = p.replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d)(\d{4})$/, '$1-$2');
         }
 
-        function lookupCep(cep) {
-            // Passa pelo proxy do servidor (api/account/cep.php): o
-            // ViaCEP é consultado server-side, com cache de 30 dias e
-            // rate limit. Chamar o ViaCEP direto do navegador repetiria
-            // a consulta toda vez que o endereço fosse preenchido.
-            var basePath = document.body.getAttribute('data-base-path') || '';
-            var url = basePath + 'api/account/cep.php?cep=' + encodeURIComponent(cep);
-            setCepStatus('Buscando endereço...');
+        profileForm.querySelectorAll('input').forEach(function (input) {
+            if (!input.name || !Object.prototype.hasOwnProperty.call(sets, input.name)) return;
+            input.value = sets[input.name];
+            savedFlash(input.closest('.account-field'));
+        });
+    }
 
-            fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-                .then(function (response) { return response.json(); })
-                .then(function (data) {
-                    if (!data.ok || !data.data) {
-                        setCepStatus(
-                            (data && data.message) ? data.message : 'CEP não encontrado. Você pode preencher a rua manualmente.',
-                            'error'
-                        );
-                        return;
+    if (profileForm && saveStatus && window.fetch !== undefined) {
+        profileForm.addEventListener('submit', function (event) {
+            event.preventDefault();
+
+            var button = profileForm.querySelector('button[type="submit"]');
+            if (button) button.disabled = true;
+            setSave('Salvando...', 'pending');
+
+            fetch(profileForm.action, {
+                method: 'POST',
+                body: new FormData(profileForm),
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+                .then(function (response) {
+                    return response.json().then(function (json) {
+                        return { status: response.status, json: json };
+                    });
+                })
+                .then(function (result) {
+                    if (result.json && result.json.ok) {
+                        setSave('Dados salvos!', 'ok');
+                        applySavedValues(result.json.data);
+                    } else {
+                        setSave((result.json && result.json.message) || 'Não foi possível salvar.', 'error');
+                        markFieldErrors(result.json.errors);
                     }
-
-                    var map = {
-                        street: data.data.street || '',
-                        neighborhood: data.data.neighborhood || '',
-                        city: data.data.city || '',
-                        state: data.data.state || ''
-                    };
-
-                    for (var key in map) {
-                        if (Object.prototype.hasOwnProperty.call(map, key)) {
-                            var field = cepField(key);
-                            if (field && map[key] !== '') field.value = map[key];
-                        }
-                    }
-
-                    setCepStatus('Endereço encontrado.', 'ok');
                 })
                 .catch(function () {
-                    setCepStatus('Não foi possível consultar o CEP agora. Preencha manualmente.', 'error');
+                    setSave('Sem conexão com o servidor agora. Tente de novo.', 'error');
+                })
+                .then(function () {
+                    if (button) button.disabled = false;
                 });
-        }
+        });
     }
 })();
 </script>

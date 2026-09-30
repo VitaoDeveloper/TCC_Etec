@@ -643,6 +643,202 @@
 }
 
 /* ========================================
+   Perfil — card de menu (Etapa 3)
+   ======================================== */
+
+.account-profile-grid {
+    display: grid;
+    grid-template-columns: 250px minmax(0, 1fr);
+    gap: var(--account-gap);
+    align-items: start;
+}
+
+.account-card--avatar .account-card-body,
+.account-card--menu .account-card-body {
+    padding-top: 2px;
+}
+
+/* ---------- Avatar editável ---------- */
+
+.account-avatar--xl {
+    width: 72px;
+    height: 72px;
+    font-size: 1.4rem;
+}
+
+.account-avatar-btn {
+    position: relative;
+    display: inline-flex;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.account-avatar-btn:hover .account-avatar {
+    box-shadow: 0 0 0 2px #2d2d2d, 0 0 0 4px var(--rt-accent);
+}
+
+.account-avatar-btn .account-avatar {
+    transition: box-shadow 0.15s ease;
+}
+
+.account-avatar-camera {
+    position: absolute;
+    right: -1px;
+    bottom: -1px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    background: var(--rt-accent);
+    border: 2px solid #2d2d2d;
+    border-radius: 50%;
+    color: var(--rt-text-on-accent);
+    font-size: 0.62rem;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+/* ---------- Card de menu ---------- */
+
+.account-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.account-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 12px 14px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    color: var(--rt-text-secondary);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.94rem;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.account-menu-item > i:first-child {
+    width: 18px;
+    text-align: center;
+    font-size: 0.9rem;
+    color: var(--rt-text-soft);
+    transition: color 0.15s ease;
+}
+
+.account-menu-label {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.account-menu-arrow {
+    font-size: 0.72rem !important;
+    color: var(--rt-text-faint);
+    transition: transform 0.15s ease, color 0.15s ease;
+}
+
+.account-menu-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--rt-text-strong);
+}
+
+.account-menu-item.is-active {
+    background: var(--rt-accent-soft);
+    border-color: rgba(212, 175, 55, 0.35);
+    color: var(--rt-accent);
+}
+
+.account-menu-item.is-active > i:first-child,
+.account-menu-item.is-active .account-menu-arrow {
+    color: var(--rt-accent);
+}
+
+.account-menu-item:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--rt-accent-glow);
+}
+
+/* ---------- Painéis do perfil ---------- */
+
+.account-panel {
+    margin-top: var(--account-gap);
+}
+
+.account-panel[hidden] {
+    display: none;
+}
+
+.account-panel-head {
+    margin-bottom: var(--account-gap);
+}
+
+.account-panel-title {
+    font-family: 'Playfair Display', serif;
+    font-weight: 600;
+    font-size: 1.18rem;
+    color: var(--rt-text-strong);
+    margin: 0;
+    line-height: 1.25;
+}
+
+.account-panel-hint {
+    margin: 4px 0 0;
+    font-size: 0.82rem;
+    color: var(--rt-text-soft);
+}
+
+.account-panel-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--account-gap);
+}
+
+.account-panel-body .account-card {
+    margin-top: 0;
+}
+
+/* ---------- Estados de salvamento ---------- */
+
+.account-field--error .account-input {
+    border-color: var(--rt-danger);
+    box-shadow: 0 0 0 3px var(--rt-danger-soft);
+}
+
+.account-hint--error {
+    color: var(--rt-danger) !important;
+}
+
+.account-field--saved .account-input {
+    border-color: var(--rt-success);
+    box-shadow: 0 0 0 3px var(--rt-success-soft);
+    animation: account-saved-pulse 1s ease-out;
+}
+
+@keyframes account-saved-pulse {
+    0%   { box-shadow: 0 0 0 3px var(--rt-success-soft); }
+    100% { box-shadow: 0 0 0 3px transparent; }
+}
+
+.account-save-status--ok { color: var(--rt-success); }
+.account-save-status--error { color: var(--rt-danger); }
+.account-save-status--pending { color: var(--rt-text-faint); }
+
+.cep-ok   { color: var(--rt-success); }
+.cep-error { color: var(--rt-danger); }
+
+/* ========================================
    Responsivo
    ======================================== */
 
@@ -691,6 +887,10 @@
 
     .account-grid--2,
     .account-grid--3 {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .account-profile-grid {
         grid-template-columns: minmax(0, 1fr);
     }
 }

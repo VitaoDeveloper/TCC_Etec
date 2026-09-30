@@ -104,6 +104,66 @@ class ProfileRenderTest extends TestCase
         }
     }
 
+    public function testAvatarCardWithCameraBadge(): void
+    {
+        $this->assertSame(1, $this->dom()->query("//*[@id='secao-avatar']")->length);
+        $this->assertSame(1, $this->dom()->query("//*[@id='avatarTrigger']")->length);
+        $this->assertSame(
+            1,
+            $this->dom()->query("//*[@id='avatarTrigger']//*[contains(@class,'account-avatar-camera')]")->length,
+            'a camerinha deveria ficar sobre o avatar'
+        );
+        $this->assertSame(
+            1,
+            $this->dom()->query("//*[@id='avatarTrigger']//*[contains(@class,'account-avatar--initials')]")->length,
+            'o avatar deveria manter as iniciais (data-initials)'
+        );
+    }
+
+    public function testMenuCardHasThreeRows(): void
+    {
+        $this->assertSame(1, $this->dom()->query("//*[@id='secao-menu']")->length);
+
+        $labels = [];
+        foreach ($this->dom()->query("//nav[@data-account-menu]//*[contains(@class,'account-menu-item')]//*[contains(@class,'account-menu-label')]") as $label) {
+            $labels[] = trim($label->textContent);
+        }
+
+        $this->assertSame(['Dados Pessoais', 'Endereço', 'Notificações e senha'], $labels);
+    }
+
+    public function testThreePanelsAndDadosActiveByDefault(): void
+    {
+        foreach (['tab-dados', 'tab-endereco', 'tab-preferencias'] as $id) {
+            $this->assertSame(
+                1,
+                $this->dom()->query("//*[@id='{$id}'][@data-account-panel]")->length,
+                "painel {$id} ausente"
+            );
+        }
+
+        $active = $this->dom()->query("//*[@class='account-menu-item is-active']//*[contains(@class,'account-menu-label')]")->item(0);
+        $this->assertSame('Dados Pessoais', trim((string) $active?->textContent));
+    }
+
+    public function testPersonalFormPostsToApiAndKeepsPanel(): void
+    {
+        $form = $this->dom()->query("//form[@data-profile-form]")->item(0);
+        $this->assertNotNull($form, 'o form de dados pessoais deveria marcar data-profile-form');
+
+        $this->assertStringContainsString('api/account/profile.php', (string) $form->getAttribute('action'));
+        $this->assertSame(
+            1,
+            $this->dom()->query("//form[@data-profile-form]//input[@name='panel'][@value='dados']")->length,
+            'o painel da aba deve ir junto no POST para voltar à mesma aba'
+        );
+        $this->assertSame(
+            1,
+            $this->dom()->query("//*[@data-save-status]")->length,
+            'o status de salvamento deveria existir'
+        );
+    }
+
     public function testPersonalProfileFieldsPresent(): void
     {
         foreach (['name', 'username', 'email', 'cpf', 'phone'] as $field) {
