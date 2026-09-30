@@ -18,11 +18,11 @@ declare(strict_types=1);
  * rodar de novo não muda nada.
  */
 
-require __DIR__ . '/../includes/config.php';
-require __DIR__ . '/../includes/validators.php';
+require_once __DIR__ . '/../includes/config.php';
+require_once __DIR__ . '/../includes/validators.php';
 loadEnv(__DIR__ . '/../.env');
 
-require __DIR__ . '/connection.php';
+require_once __DIR__ . '/connection.php';
 
 $pdo->exec(
     'CREATE TABLE IF NOT EXISTS e5_username_migration_log (
