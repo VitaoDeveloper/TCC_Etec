@@ -5,7 +5,7 @@
 // por ele, senao o navegador continua servindo a versao em cache. (Bug historico:
 // theme-extras nao aparecia porque o bump foi esquecido.)
 // gambiarra oficialmente batizada, favor não questionar
-define('ASSET_VERSION', '20260929e');
+define('ASSET_VERSION', '20260930a');
 
 function loadEnv(string $path): void
 {
@@ -76,13 +76,42 @@ function store_config(?string $key = null)
     return $settings[$key] ?? null;
 }
 
+// Procura o upload mais recente de logo em assets/img/site (nome
+// "logo-<timestamp>.<ext>"). Usado como fallback quando nada foi salvo em
+// e5_settings, para a logo continuar aparecendo no site inteiro.
+function find_uploaded_site_logo(): string
+{
+    static $found = false;
+    static $cached = '';
+
+    if ($found) {
+        return $cached;
+    }
+    $found = true;
+
+    $dir = dirname(__DIR__) . '/assets/img/site';
+    if (!is_dir($dir)) {
+        return $cached;
+    }
+
+    $matches = glob($dir . '/logo-*') ?: [];
+    $matches = array_filter($matches, 'is_file');
+    if (!$matches) {
+        return $cached;
+    }
+
+    // Ordena por nome: o timestamp no sufixo do upload é sempre crescente.
+    rsort($matches, SORT_STRING);
+    return $cached = '/' . ltrim(str_replace(dirname(__DIR__), '', $matches[0]), '/\\');
+}
+
 // Retorna o caminho absoluto (com /) do logo salvo, no formato de URL,
 // ou '' quando nenhum foi enviado (o template usa o logo padrão).
 function get_site_logo(): string
 {
     $path = (string) store_config('store_logo');
     if ($path === '' || preg_match('#^https?://#i', $path)) {
-        return $path;
+        return $path !== '' ? $path : find_uploaded_site_logo();
     }
     return '/' . ltrim($path, '/');
 }

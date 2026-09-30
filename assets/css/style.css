@@ -1380,6 +1380,13 @@ textarea:focus:valid {
     font-size: 1.5rem;
 }
 
+.footer-logo-img {
+    width: auto;
+    height: 48px;
+    max-width: 220px;
+    object-fit: contain;
+}
+
 .footer-desc {
     color: var(--color-gray-light);
     margin-bottom: 25px;
