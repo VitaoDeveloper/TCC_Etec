@@ -224,6 +224,26 @@ class ValidatorsTest extends TestCase
         $this->assertFalse(is_valid_username(''));
     }
 
+    public function testNormalizesLegacyUsername(): void
+    {
+        $this->assertSame('kaua.caetano', normalize_legacy_username('Kauã.Caetano'));
+        $this->assertSame('kaua', normalize_legacy_username('KAUA'));
+        $this->assertSame('joao.silva', normalize_legacy_username('João Silva'));
+        $this->assertSame('cajamar', normalize_legacy_username('Cajamar'));
+        $this->assertSame('f.m.c', normalize_legacy_username('F.M.C'));
+        $this->assertSame('', normalize_legacy_username('   '), 'só espaço -> vazio (fallback da migração)');
+        $this->assertSame('', normalize_legacy_username('@@@'), 'só símbolos -> vazio');
+        $this->assertSame('kaua', normalize_legacy_username('.kaua.'));
+    }
+
+    public function testNormalizedLegacyUsernamePassesCurrentRules(): void
+    {
+        foreach (['Kauã.Caetano', 'João Silva', 'maria_estevam', 'Luiz.Fernando'] as $legacy) {
+            $normalized = normalize_legacy_username($legacy);
+            $this->assertTrue(is_valid_username($normalized), "{$legacy} -> {$normalized}");
+        }
+    }
+
     public function testValidatesEmail(): void
     {
         $this->assertTrue(is_valid_email('k@royaltech.com'));

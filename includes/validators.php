@@ -375,3 +375,29 @@ function order_reference(int|string|null $id): string
 {
     return str_pad((string) (int) $id, 4, '0', STR_PAD_LEFT);
 }
+
+/**
+ * Normaliza um username legado (criado antes das regras atuais) para o
+ * formato novo: minusculas, sem acentos, somente a-z0-9._-, espaco vira
+ * ponto e sem ponto/hifen nas pontas.
+ *
+ * Pode devolver '' (ex.: um username que era so simbolos); quem chama
+ * (a migracao database/migration_username.php) decide o fallback.
+ */
+function normalize_legacy_username(?string $username): string
+{
+    $u = trim((string) $username);
+
+    // Converte acentos e latinidades para as letras proximas (c, a, e...).
+    $ascii = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $u);
+    if ($ascii !== false) {
+        $u = $ascii;
+    }
+
+    $u = mb_strtolower($u, 'UTF-8');
+    $u = preg_replace('/[\s_]+/u', '.', $u) ?? $u;
+    $u = preg_replace('/[^a-z0-9.\-]/', '', $u) ?? $u;
+    $u = preg_replace('/\.{2,}/', '.', $u) ?? $u;
+
+    return trim($u, '.-');
+}

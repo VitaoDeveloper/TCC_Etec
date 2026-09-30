@@ -185,6 +185,130 @@ class ApiAccountTest extends TestCase
         $this->assertArrayHasKey('cpf', $json['errors']);
     }
 
+    public function testProfileUsernameUnchangedLegacyIsAccepted(): void
+    {
+        $setup = tempnam(sys_get_temp_dir(), 'tcc_legacy_');
+        file_put_contents($setup,
+            "INSERT INTO e5_users (id, name, username, email, password, role, postal_code, street, number)
+             VALUES (4100, 'Cliente Legado', 'Cliente.Legado', 'legado@etec.com', '', 'customer', '', '', 0);"
+        );
+
+        try {
+            [$status, $json] = $this->call('profile.php', 'POST', [
+                'action'      => 'personal',
+                'name'        => 'Cliente Legado',
+                'username'    => 'Cliente.Legado',
+                'email'       => 'legado@etec.com',
+                'cpf'         => '52998224725',
+                'phone'       => '12978149392',
+                'postal_code' => '',
+                'street'      => 'Rua Legado',
+                'number'      => '12',
+                'complement'  => '',
+                'neighborhood'=> '',
+                'city'        => '',
+                'state'       => '',
+            ], 4100, $setup);
+
+            $this->assertSame(200, $status);
+            $this->assertTrue($json['ok']);
+            $this->assertSame('Cliente.Legado', $json['data']['username']);
+        } finally {
+            @unlink($setup);
+        }
+    }
+
+    public function testProfileUsernameChangedOverridesLegacyValue(): void
+    {
+        $setup = tempnam(sys_get_temp_dir(), 'tcc_legacy_');
+        file_put_contents($setup,
+            "INSERT INTO e5_users (id, name, username, email, password, role, postal_code, street, number)
+             VALUES (4100, 'Cliente Legado', 'Cliente.Legado', 'legado@etec.com', '', 'customer', '', '', 0);"
+        );
+
+        try {
+            [$status, $json] = $this->call('profile.php', 'POST', [
+                'action'      => 'personal',
+                'name'        => 'Cliente Legado',
+                'username'    => 'novo.legado',
+                'email'       => 'legado@etec.com',
+                'cpf'         => '52998224725',
+                'phone'       => '12978149392',
+                'postal_code' => '',
+                'street'      => 'Rua Legado',
+                'number'      => '12',
+                'complement'  => '',
+                'neighborhood'=> '',
+                'city'        => '',
+                'state'       => '',
+            ], 4100, $setup);
+
+            $this->assertSame(200, $status);
+            $this->assertTrue($json['ok']);
+            $this->assertSame('novo.legado', $json['data']['username']);
+        } finally {
+            @unlink($setup);
+        }
+    }
+
+    public function testProfileUsernameCollisionReportsTheField(): void
+    {
+        $setup = tempnam(sys_get_temp_dir(), 'tcc_collid_');
+        file_put_contents($setup,
+            "INSERT INTO e5_users (id, name, username, email, password, role, postal_code, street, number) VALUES
+             (4100, 'Cliente Um',   'cliente.um',   'um@etec.com',   '', 'customer', '', '', 0),
+             (4101, 'Cliente Dois', 'cliente.dois', 'dois@etec.com', '', 'customer', '', '', 0);"
+        );
+
+        try {
+            // Username trocado para um que já é de outra conta -> erra o campo username.
+            [$status, $json] = $this->call('profile.php', 'POST', [
+                'action'      => 'personal',
+                'name'        => 'Cliente Um',
+                'username'    => 'cliente.dois',
+                'email'       => 'um@etec.com',
+                'cpf'         => '52998224725',
+                'phone'       => '12978149392',
+                'postal_code' => '',
+                'street'      => 'Rua Legado',
+                'number'      => '12',
+                'complement'  => '',
+                'neighborhood'=> '',
+                'city'        => '',
+                'state'       => '',
+            ], 4100, $setup);
+
+            $this->assertSame(409, $status);
+            $this->assertFalse($json['ok']);
+            $this->assertArrayHasKey('username', $json['errors'] ?? []);
+            $this->assertArrayNotHasKey('email', $json['errors'] ?? []);
+
+            // E-mail trocado para o de outra conta -> erra o campo email.
+            [$status, $json] = $this->call('profile.php', 'POST', [
+                'action'      => 'personal',
+                'name'        => 'Cliente Um',
+                'username'    => 'cliente.um',
+                'email'       => 'dois@etec.com',
+                'cpf'         => '52998224725',
+                'phone'       => '12978149392',
+                'postal_code' => '',
+                'street'      => 'Rua Legado',
+                'number'      => '12',
+                'complement'  => '',
+                'neighborhood'=> '',
+                'city'        => '',
+                'state'       => '',
+            ], 4100, $setup);
+
+            $this->assertSame(409, $status);
+            $this->assertFalse($json['ok']);
+            $this->assertArrayHasKey('email', $json['errors'] ?? []);
+            $this->assertArrayNotHasKey('username', $json['errors'] ?? []);
+        } finally {
+            @unlink($setup);
+        }
+    }
+
     public function testProfileAvatarRejectsMissingFile(): void
     {
         [$status, $json] = $this->call('profile.php', 'POST', ['action' => 'avatar']);

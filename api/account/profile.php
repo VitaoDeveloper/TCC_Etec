@@ -156,6 +156,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'personal') {
 
     $errors = [];
 
+    // Username so e validado quando muda: contas legadas (registradas
+    // antes das regras atuais) podem conter um valor que nao passa na
+    // validacao, mas continua valido enquanto nao for alterado. Se o
+    // usuario tocar no campo, passa a valer o formato novo.
+    $stmt = $pdo->prepare('SELECT username FROM e5_users WHERE id = :id LIMIT 1');
+    $stmt->execute([':id' => $userId]);
+    $currentUsername = (string) $stmt->fetchColumn();
+    $usernameChanged = $input['username'] !== $currentUsername;
+
     if ($input['name'] === '') {
         $errors['name'] = 'Informe seu nome.';
     } elseif (mb_strlen($input['name']) > 80) {
@@ -166,8 +175,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'personal') {
         $errors['email'] = 'E-mail inválido.';
     }
 
-    if (!is_valid_username($input['username'])) {
-        $errors['username'] = 'Usuário inválido: use letras, números, ponto, hífen ou sublinhado, com 3 a 20 caracteres.';
+    if ($usernameChanged && !is_valid_username($input['username'])) {
+        $errors['username'] = 'Usuário inválido: use letras, números, ponto, hífen ou sublinhado, com 3 a 30 caracteres.';
     }
 
     if (!is_valid_cpf($input['cpf'])) {
@@ -190,17 +199,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'personal') {
         api_error(reset($errors), 400, $errors);
     }
 
-    $stmt = $pdo->prepare(
-        'SELECT id FROM e5_users WHERE (email = :email OR username = :username) AND id != :id LIMIT 1'
-    );
-    $stmt->execute([
-        ':email'    => $input['email'],
-        ':username' => $input['username'],
-        ':id'       => $userId,
-    ]);
+    // Unicidade por campo: colisao de e-mail aponta o e-mail, colisao de
+    // username aponta o username (nunca o username legado, que so passa
+    // na checagem quando mudou).
+    $stmt = $pdo->prepare('SELECT id FROM e5_users WHERE email = :email AND id != :id LIMIT 1');
+    $stmt->execute([':email' => $input['email'], ':id' => $userId]);
 
     if ($stmt->fetch()) {
-        api_error('E-mail ou usuário já em uso por outra conta.', 409, ['email' => 'Já em uso.']);
+        $errors['email'] = 'Este e-mail já está em uso por outra conta.';
+    }
+
+    if ($usernameChanged) {
+        $stmt = $pdo->prepare('SELECT id FROM e5_users WHERE username = :username AND id != :id LIMIT 1');
+        $stmt->execute([':username' => $input['username'], ':id' => $userId]);
+
+        if ($stmt->fetch()) {
+            $errors['username'] = 'Este nome de usuário já está em uso por outra conta.';
+        }
+    }
+
+    if ($errors !== []) {
+        api_error(reset($errors), 409, $errors);
     }
 
     $pdo->prepare(
