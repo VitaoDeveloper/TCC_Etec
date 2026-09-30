@@ -83,6 +83,13 @@ $assetVersion = ASSET_VERSION;
     <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/mercadolivre-style.css?v=<?php echo $assetVersion; ?>">
     <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/auth.css?v=<?php echo $assetVersion; ?>">
     <link rel="stylesheet" href="<?php echo $basePath; ?>assets/css/components.css?v=<?php echo $assetVersion; ?>">
+    <!-- Folhas extras da propria tela (ex.: a area da conta). Vem depois das
+         globais de proposito: assim sobrescreve sem depender de !important.
+         O header e aberto dentro de account_layout_head(), que monta as
+         telas da conta; por isso o link nao pode ficar no corpo. -->
+    <?php foreach (($extra_head_css ?? []) as $extraCssHref): ?>
+    <link rel="stylesheet" href="<?php echo htmlspecialchars($extraCssHref, ENT_QUOTES, 'UTF-8'); ?>">
+    <?php endforeach; ?>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">

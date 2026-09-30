@@ -1,0 +1,666 @@
+/* ========================================
+   ROYAL TECH — Área da conta
+   Perfil, Meus Pedidos e Detalhes do Pedido.
+
+   Carregado depois de tokens.css / style.css / mercadolivre-style.css
+   para poder sobrescrever sem !important. Só o shell da conta mora
+   aqui; os componentes internos (cards, badges) reaproveitam as
+   classes .ml-* que já existem.
+   ======================================== */
+
+.account-shell {
+    --account-sidebar-w: 220px;
+    --account-gap: 18px;
+    --account-radius: 14px;
+    --account-input-bg: #101010;
+
+    display: grid;
+    grid-template-columns: var(--account-sidebar-w) minmax(0, 1fr);
+    gap: var(--account-gap);
+    width: 100%;
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 22px 16px 40px;
+    align-items: start;
+}
+
+/* ========================================
+   Sidebar
+   ======================================== */
+
+.account-sidebar {
+    position: sticky;
+    top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 16px;
+    background: #2d2d2d;
+    border: 1px solid var(--rt-border);
+    border-radius: var(--account-radius);
+}
+
+/* ---------- Identidade ---------- */
+
+.account-identity {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--rt-border);
+}
+
+.account-identity-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.account-identity-name {
+    font-family: 'Playfair Display', serif;
+    font-weight: 600;
+    font-size: 0.98rem;
+    color: var(--rt-text-strong);
+    line-height: 1.25;
+    /* Nome longo não pode empurrar a sidebar para fora da grade. */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.account-identity-mail {
+    font-size: 0.76rem;
+    color: var(--rt-text-soft);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ---------- Avatar ---------- */
+
+.account-avatar {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    overflow: hidden;
+    border-radius: 50%;
+    background: #1a1a1a;
+    color: var(--rt-accent);
+    font-family: 'Playfair Display', serif;
+    font-weight: 700;
+    line-height: 1;
+    text-align: center;
+    user-select: none;
+    /* O anel dourado é o que separa a foto do fundo escuro. */
+    box-shadow: 0 0 0 2px #2d2d2d, 0 0 0 3.5px var(--rt-accent);
+}
+
+.account-avatar--lg {
+    width: 56px;
+    height: 56px;
+    font-size: 1.15rem;
+}
+
+.account-avatar--md {
+    width: 40px;
+    height: 40px;
+    font-size: 0.85rem;
+}
+
+.account-avatar--sm {
+    width: 32px;
+    height: 32px;
+    font-size: 0.72rem;
+}
+
+.account-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.account-avatar--initials {
+    background: linear-gradient(140deg, #2f2f2f, #1a1a1a);
+    letter-spacing: 0.02em;
+}
+
+/* Avatar grande no topo do formulário de perfil. */
+.account-avatar-editor {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.account-avatar-editor-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* ---------- Navegação ---------- */
+
+.account-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.account-nav-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.account-nav-heading {
+    padding: 0 10px 6px;
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--rt-text-faint);
+}
+
+.account-nav-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 10px;
+    border-radius: 9px;
+    color: var(--rt-text-secondary);
+    font-size: 0.88rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.account-nav-link i {
+    width: 16px;
+    text-align: center;
+    font-size: 0.82rem;
+    color: var(--rt-text-soft);
+    transition: color 0.15s ease;
+}
+
+.account-nav-link:hover {
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--rt-text-strong);
+}
+
+.account-nav-link.is-current {
+    background: var(--rt-accent-soft);
+    color: var(--rt-accent);
+    font-weight: 600;
+}
+
+.account-nav-link.is-current i {
+    color: var(--rt-accent);
+}
+
+/* ========================================
+   Conteúdo
+   ======================================== */
+
+.account-main {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--account-gap);
+}
+
+.account-menu-toggle {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    align-self: flex-start;
+    padding: 9px 14px;
+    background: #2d2d2d;
+    border: 1px solid var(--rt-border);
+    border-radius: 9px;
+    color: var(--rt-text-secondary);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.account-page-title {
+    font-family: 'Playfair Display', serif;
+    font-weight: 700;
+    font-size: 1.5rem;
+    color: var(--rt-text-strong);
+    margin: 0;
+    line-height: 1.2;
+}
+
+.account-page-subtitle {
+    margin: 4px 0 0;
+    font-size: 0.88rem;
+    color: var(--rt-text-soft);
+}
+
+.account-card {
+    background: #2d2d2d;
+    border: 1px solid var(--rt-border);
+    border-radius: var(--account-radius);
+    padding: 20px;
+}
+
+.account-card + .account-card {
+    margin-top: 0;
+}
+
+.account-card-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-family: 'Playfair Display', serif;
+    font-weight: 600;
+    font-size: 1.05rem;
+    color: var(--rt-text-strong);
+    margin: 0 0 4px;
+}
+
+.account-card-hint {
+    margin: 0 0 16px;
+    font-size: 0.8rem;
+    color: var(--rt-text-soft);
+}
+
+/* ========================================
+   Formulários
+   ======================================== */
+
+.account-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 15px;
+}
+
+.account-label {
+    font-size: 0.74rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--rt-text-soft);
+}
+
+.account-input,
+.account-select,
+.account-textarea {
+    width: 100%;
+    padding: 10px 13px;
+    background: var(--account-input-bg);
+    border: 1px solid var(--rt-border-strong);
+    border-radius: 9px;
+    color: var(--rt-text);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.92rem;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.account-input:focus,
+.account-select:focus,
+.account-textarea:focus {
+    outline: none;
+    border-color: var(--rt-accent);
+    box-shadow: 0 0 0 3px var(--rt-accent-glow);
+}
+
+.account-input:disabled,
+.account-input[readonly] {
+    color: var(--rt-text-faint);
+    background: #0c0c0c;
+    cursor: not-allowed;
+}
+
+.account-hint {
+    font-size: 0.76rem;
+    color: var(--rt-text-faint);
+}
+
+.account-grid {
+    display: grid;
+    gap: 0 15px;
+}
+
+.account-grid--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.account-grid--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+.account-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 18px;
+}
+
+.account-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: #2d2d2d;
+    border: 1px solid var(--rt-border-strong);
+    border-radius: 9px;
+    color: var(--rt-text-secondary);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    transition: border-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+}
+
+.account-btn:hover:not(:disabled) {
+    border-color: var(--rt-accent);
+    color: var(--rt-accent);
+}
+
+.account-btn:disabled {
+    opacity: 0.55;
+    cursor: progress;
+}
+
+.account-btn--primary {
+    background: var(--rt-accent-gradient);
+    border-color: var(--rt-accent);
+    color: var(--rt-text-on-accent);
+}
+
+.account-btn--primary:hover:not(:disabled) {
+    color: var(--rt-text-on-accent);
+    filter: brightness(1.06);
+}
+
+.account-btn--danger {
+    border-color: rgba(255, 97, 97, 0.4);
+    color: var(--rt-danger);
+}
+
+.account-btn--danger:hover:not(:disabled) {
+    border-color: var(--rt-danger);
+    color: var(--rt-danger);
+}
+
+.account-btn--sm {
+    padding: 6px 13px;
+    font-size: 0.8rem;
+}
+
+/* ========================================
+   Toggle de notificação
+   ======================================== */
+
+.account-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 13px 0;
+    border-bottom: 1px solid var(--rt-border-subtle);
+}
+
+.account-toggle-row:last-of-type {
+    border-bottom: 0;
+}
+
+.account-toggle-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.account-toggle-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--rt-text);
+}
+
+.account-toggle-hint {
+    font-size: 0.76rem;
+    color: var(--rt-text-faint);
+}
+
+/* O input fica escondido mas continua no DOM: sem ele o campo não
+   seria enviado no POST. O estado é lido por :checked. */
+.account-toggle {
+    position: relative;
+    flex: 0 0 auto;
+    width: 44px;
+    height: 24px;
+}
+
+.account-toggle input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+    z-index: 1;
+}
+
+.account-toggle-track {
+    position: absolute;
+    inset: 0;
+    background: #4a4a4a;
+    border-radius: 999px;
+    transition: background-color 0.2s ease;
+}
+
+.account-toggle-track::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 18px;
+    height: 18px;
+    background: #cfcfcf;
+    border-radius: 50%;
+    transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.account-toggle input:checked ~ .account-toggle-track {
+    background: var(--rt-accent);
+}
+
+.account-toggle input:checked ~ .account-toggle-track::after {
+    transform: translateX(20px);
+    background: #14140c;
+}
+
+.account-toggle input:focus-visible ~ .account-toggle-track {
+    box-shadow: 0 0 0 3px var(--rt-accent-glow);
+}
+
+/* ========================================
+   Badges de status
+   ======================================== */
+
+.account-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 11px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+
+.account-badge--pending   { background: var(--rt-warning-soft, rgba(245,166,35,0.15)); color: #f5a623; }
+.account-badge--active   { background: var(--rt-success-soft); color: #35c46b; }
+.account-badge--shipped  { background: rgba(124, 92, 214, 0.16); color: #9b7ce8; }
+.account-badge--inactive { background: var(--rt-danger-soft); color: var(--rt-danger); }
+.account-badge--neutral  { background: rgba(255, 255, 255, 0.06); color: var(--rt-text-soft); }
+
+.account-badge-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+/* ========================================
+   WhatsApp flutuante
+   ======================================== */
+
+.account-whatsapp {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 90;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    padding: 12px 18px;
+    background: #25d366;
+    border-radius: 999px;
+    color: #fff;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.86rem;
+    font-weight: 700;
+    text-decoration: none;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.account-whatsapp:hover {
+    transform: translateY(-2px);
+    color: #fff;
+    box-shadow: 0 12px 26px rgba(0, 0, 0, 0.45);
+}
+
+.account-whatsapp i {
+    font-size: 1.2rem;
+}
+
+/* ========================================
+   Estados vazios e alertas
+   ======================================== */
+
+.account-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 46px 20px;
+    text-align: center;
+    color: var(--rt-text-soft);
+}
+
+.account-empty i {
+    font-size: 2.1rem;
+    color: var(--rt-accent);
+    opacity: 0.6;
+}
+
+.account-empty-title {
+    font-family: 'Playfair Display', serif;
+    font-weight: 600;
+    font-size: 1.05rem;
+    color: var(--rt-text);
+}
+
+.account-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 15px;
+    border-radius: 10px;
+    font-size: 0.86rem;
+    border: 1px solid transparent;
+}
+
+.account-alert--ok {
+    background: var(--rt-success-soft);
+    border-color: rgba(0, 166, 80, 0.3);
+    color: #6ee7a0;
+}
+
+.account-alert--error {
+    background: var(--rt-danger-soft);
+    border-color: rgba(255, 97, 97, 0.3);
+    color: #ff9a9a;
+}
+
+.account-alert[hidden] {
+    display: none;
+}
+
+/* ========================================
+   Responsivo
+   ======================================== */
+
+@media (max-width: 900px) {
+    .account-shell {
+        grid-template-columns: minmax(0, 1fr);
+        padding: 16px 12px 40px;
+    }
+
+    .account-menu-toggle {
+        display: inline-flex;
+    }
+
+    .account-sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        z-index: 120;
+        width: min(280px, 84vw);
+        border-radius: 0;
+        border-right: 1px solid var(--rt-border);
+        transform: translateX(-102%);
+        transition: transform 0.22s ease;
+        overflow-y: auto;
+    }
+
+    .account-sidebar.is-open {
+        transform: translateX(0);
+    }
+
+    .account-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 110;
+        background: rgba(0, 0, 0, 0.62);
+    }
+
+    .account-overlay[hidden] {
+        display: none;
+    }
+
+    body.account-nav-open {
+        overflow: hidden;
+    }
+
+    .account-grid--2,
+    .account-grid--3 {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 560px) {
+    .account-card {
+        padding: 16px;
+    }
+
+    .account-whatsapp-label {
+        display: none;
+    }
+
+    .account-whatsapp {
+        padding: 13px;
+    }
+}

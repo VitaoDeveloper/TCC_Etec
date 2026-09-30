@@ -5,7 +5,7 @@
 // por ele, senao o navegador continua servindo a versao em cache. (Bug historico:
 // theme-extras nao aparecia porque o bump foi esquecido.)
 // gambiarra oficialmente batizada, favor não questionar
-define('ASSET_VERSION', '20260929a');
+define('ASSET_VERSION', '20260929b');
 
 function loadEnv(string $path): void
 {
