@@ -8,6 +8,7 @@
 
 test
 vendor
+node_modules
 storage/*
 !storage/.htaccess
 
