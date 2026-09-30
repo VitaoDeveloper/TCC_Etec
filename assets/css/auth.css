@@ -75,6 +75,13 @@
     color: var(--ml-accent);
 }
 
+.auth-brand-logo-img {
+    width: auto;
+    height: 56px;
+    max-width: 260px;
+    object-fit: contain;
+}
+
 .auth-brand-tagline {
     max-width: 300px;
     font-size: 1.05rem;
