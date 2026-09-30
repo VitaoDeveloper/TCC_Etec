@@ -72,14 +72,18 @@ function asset_url(string $path): string
  *
  * ENT_QUOTES cobre aspas simples e duplas: sem isso, um nome com " no
  * meio quebraria o atributo e o resto do nome viraria tag.
+ *
+ * Aceita int/float além de string porque colunas como e5_users.number
+ * são INT e NULL-áveis: o fetch devolve 0 ou 1, e e() não pode ser o
+ * ponto onde o instanceof quebra.
  */
-function e(?string $value): string
+function e(string|int|float|null $value): string
 {
     return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
 /** Escapa para uso dentro de um atributo que vira URL. */
-function e_url(?string $value): string
+function e_url(string|int|float|null $value): string
 {
     return e(rawurlencode((string) $value));
 }

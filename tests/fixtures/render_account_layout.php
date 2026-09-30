@@ -22,6 +22,13 @@ $_SERVER['REQUEST_URI']   = '/TCC_Etec/pages/auth/profile.php';
 $_SERVER['REQUEST_METHOD'] = 'GET';
 $_SERVER['HTTP_HOST']     = 'localhost';
 
+// NO CLI, atribuir $_SESSION antes de session_start() pode ser
+// descartado: o PHP substitui o array pela sessão do disco. Por isso a
+// sessão nasce primeiro e só depois ganha os valores. Sem isso o header
+// renderizaria a loja como "logado de fora".
+session_id('account-layout-fixture');
+session_start();
+
 $_SESSION['user_id']   = 16;
 $_SESSION['user_role'] = 'customer';
 
