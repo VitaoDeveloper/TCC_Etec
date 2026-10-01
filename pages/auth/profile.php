@@ -493,7 +493,7 @@ account_layout_head($user, 'perfil');
             </div>
         </div>
 
-        <div class="account-grid">
+        <div class="form-grid">
             <div class="account-field account-field--full">
                 <label class="account-label" for="name">Nome completo</label>
                 <input class="account-input" type="text" id="name" name="name" maxlength="80"
@@ -636,11 +636,17 @@ account_layout_head($user, 'perfil');
             <input type="hidden" name="action" value="password">
             <?php echo csrf_field(); ?>
 
-            <div class="account-grid account-grid--3">
+            <div class="form-grid cols-3">
                 <div class="account-field">
                     <label class="account-label" for="current_password">Senha atual</label>
-                    <input class="account-input" type="password" id="current_password"
-                           name="current_password" autocomplete="current-password" required>
+                    <div class="account-input-group">
+                        <input class="account-input" type="password" id="current_password"
+                               name="current_password" autocomplete="current-password" required>
+                        <button type="button" class="account-btn account-btn--sm js-toggle-password"
+                                aria-label="Mostrar senha atual">
+                            <i class="fas fa-eye" aria-hidden="true"></i>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="account-field">
@@ -658,9 +664,15 @@ account_layout_head($user, 'perfil');
 
                 <div class="account-field">
                     <label class="account-label" for="confirm_password">Confirmar nova senha</label>
-                    <input class="account-input" type="password" id="confirm_password"
-                           name="confirm_password" minlength="6" maxlength="72"
-                           autocomplete="new-password" required>
+                    <div class="account-input-group">
+                        <input class="account-input" type="password" id="confirm_password"
+                               name="confirm_password" minlength="6" maxlength="72"
+                               autocomplete="new-password" required>
+                        <button type="button" class="account-btn account-btn--sm js-toggle-password"
+                                aria-label="Mostrar confirmação">
+                            <i class="fas fa-eye" aria-hidden="true"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -765,7 +777,7 @@ account_layout_head($user, 'perfil');
             <input type="hidden" name="id" value="">
             <?php echo csrf_field(); ?>
 
-            <div class="account-grid">
+            <div class="form-grid">
                 <div class="account-field account-field--full">
                     <label class="account-label" for="addr_label">Apelido</label>
                     <input class="account-input" type="text" id="addr_label" name="label"
@@ -810,8 +822,8 @@ account_layout_head($user, 'perfil');
 
                 <div class="account-field">
                     <label class="account-label" for="addr_state">UF</label>
-        <select class="account-select" id="addr_state" name="state" required>
-                            <option value="">—</option>
+                    <select class="account-select" id="addr_state" name="state" required>
+                        <option value="">—</option>
                         <?php foreach ($ufs as $uf): ?>
                             <option value="<?php echo e($uf); ?>"><?php echo e($uf); ?></option>
                         <?php endforeach; ?>

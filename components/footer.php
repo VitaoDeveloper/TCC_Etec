@@ -67,11 +67,6 @@
         </div>
     </footer>
 
-    <!-- WhatsApp Flutuante -->
-    <a href="https://wa.me/5511999999999" class="whatsapp-float" target="_blank">
-        <i class="fab fa-whatsapp"></i>
-    </a>
-
     <!-- Toast Container -->
     <div class="toast-container" id="toastContainer"></div>
 
