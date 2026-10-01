@@ -1051,6 +1051,10 @@
 .account-breadcrumb {
     display: flex;
     align-items: center;
+    /* Sangria negativa casada com o padding lateral do .account-shell
+       para o fundo #2d2d2d ir de ponta a ponta (especificação: largura
+       total). Em telas estreitas a margem precisa acompanhar o padding
+       do shell, senão a barra estoura a janela e cria scroll horizontal. */
     margin: 0 -16px 16px;
     padding: 10px 16px;
     background: #2d2d2d;
@@ -1536,6 +1540,11 @@ body.account-modal-open {
     .account-shell {
         grid-template-columns: minmax(0, 1fr);
         padding: 16px 12px 40px;
+    }
+
+    /* Acompanha o padding lateral reduzido do shell. */
+    .account-breadcrumb {
+        margin: 0 -12px 16px;
     }
 
     /* Detalhe do pedido: timeline vira coluna, cards empilham. */
