@@ -345,14 +345,30 @@ class AccountOrdersRenderTest extends TestCase
         );
     }
 
-    public function testDetailOfPaidOrderHasNoCancelForm(): void
+    public function testDetailOfCancelableOrderShowsCancelFormAndRule(): void
     {
-        // O pedido temporário nasce 'paid': o botão de cancelar só
-        // existe para pedidos pendentes.
-        $this->assertStringNotContainsString(
-            'name="action" value="cancel"',
-            self::$detailHtml,
-            'pedido pago nao pode oferecer cancelamento'
+        // O pedido temporário nasce 'paid'. A regra de domínio
+        // (order_can_cancel, OrderStateTest) permite cancelar em
+        // pending/paid/preparing: o detalhe segue a regra central em vez
+        // de duplicar a lógica na tela.
+        $dom = $this->dom(self::$detailHtml);
+
+        $this->assertSame(
+            1,
+            $dom->query("//form//input[@name='action'][@value='cancel']")->length,
+            'pedido pago ainda permite cancelar e deve oferecer o form'
+        );
+
+        // A regra aparece como frase discreta, nunca como card de política.
+        $this->assertGreaterThanOrEqual(
+            1,
+            $dom->query("//*[contains(@class,'account-cancel-rule')]")->length,
+            'faltou a frase discreta de regra de cancelamento'
+        );
+        $this->assertSame(
+            0,
+            $dom->query("//*[contains(@class,'account-cancel-card')]")->length,
+            'a tela de detalhe nao pode ter card de política de cancelamento'
         );
     }
 }

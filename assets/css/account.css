@@ -1045,6 +1045,354 @@
 }
 
 /* ========================================
+   Breadcrumb (especificação: fundo #2d2d2d, largura total)
+   ======================================== */
+
+.account-breadcrumb {
+    display: flex;
+    align-items: center;
+    margin: 0 -16px 16px;
+    padding: 10px 16px;
+    background: #2d2d2d;
+    border-radius: 0 0 var(--account-radius) var(--account-radius);
+    border-bottom: 1px solid var(--rt-border);
+}
+
+.account-breadcrumb ol {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.account-breadcrumb li {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.82rem;
+    color: var(--rt-text-soft);
+}
+
+.account-breadcrumb a {
+    color: var(--rt-text-secondary);
+    text-decoration: none;
+    transition: color 0.15s ease;
+}
+
+.account-breadcrumb a:hover {
+    color: var(--rt-accent);
+}
+
+.account-breadcrumb li:not(:last-child)::after {
+    content: '/';
+    color: var(--rt-text-faint);
+}
+
+.account-breadcrumb li[aria-current="page"] {
+    color: var(--rt-text-strong);
+    font-weight: 600;
+}
+
+/* ========================================
+   Avatar badge da sidebar (câmera dourada clicável)
+   ======================================== */
+
+.account-identity {
+    position: relative;
+}
+
+.account-avatar-btn {
+    position: absolute;
+    right: -4px;
+    bottom: -4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: var(--rt-accent);
+    border: 2px solid #2d2d2d;
+    border-radius: 50%;
+    color: var(--rt-text-on-accent);
+    font-size: 0.62rem;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    z-index: 2;
+}
+
+.account-avatar-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+}
+
+.account-avatar-btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--rt-accent-glow), 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.account-avatar-btn:focus-visible .account-avatar {
+    box-shadow: 0 0 0 2px #2d2d2d, 0 0 0 3.5px var(--rt-accent);
+}
+
+/* Esconde o botão "Trocar foto" dentro do card de avatar (não existe na sidebar) */
+.account-avatar-editor .account-avatar-btn { display: none; }
+
+/* ========================================
+   Fix card-header: ícone à esquerda, título Playfair à esquerda
+   ======================================== */
+
+.account-card-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.account-card-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    flex: 0 0 auto;
+    border-radius: 10px;
+    background: var(--rt-accent-soft);
+    color: var(--rt-accent);
+    font-size: 0.9rem;
+}
+
+.account-card-head .account-card-title {
+    margin: 0;
+    font-family: 'Playfair Display', serif;
+    font-weight: 600;
+    font-size: 1.05rem;
+    color: var(--rt-text-strong);
+    line-height: 1.3;
+    text-align: left;
+}
+
+/* Subtítulo muted abaixo do título */
+.account-card-head .account-card-hint {
+    margin: 4px 0 0;
+    font-size: 0.8rem;
+    color: var(--rt-text-soft);
+}
+
+/* ========================================
+   Detalhe do pedido (Etapa 4a)
+   ======================================== */
+
+/* Linha do título: título à esquerda, pill de status à direita. */
+.account-page-header-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+/* ---------- Faixa de aviso (cancelado) ---------- */
+
+.account-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 11px;
+    margin-bottom: var(--account-gap);
+    padding: 13px 16px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    border: 1px solid transparent;
+}
+
+.account-banner i {
+    margin-top: 2px;
+    font-size: 1rem;
+}
+
+.account-banner--danger {
+    background: var(--rt-danger-soft, rgba(255, 97, 97, 0.12));
+    border-color: rgba(255, 97, 97, 0.4);
+    color: #ff9a9a;
+}
+
+.account-banner-note {
+    display: block;
+    margin-top: 3px;
+    font-size: 0.8rem;
+    color: var(--rt-text-soft);
+}
+
+/* ---------- Linha do tempo (histórico) ---------- */
+
+.account-progress {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    margin-bottom: 22px;
+    padding: 4px 2px 0;
+}
+
+.account-progress-step {
+    position: relative;
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 6px;
+    padding: 0 6px;
+}
+
+/* Conector dourado entre etapas concluídas. */
+.account-progress-step:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 15px;
+    left: calc(50% + 16px);
+    right: calc(-50% + 16px);
+    height: 2px;
+    background: var(--rt-border);
+}
+
+.account-progress-step.is-done:not(:last-child)::after {
+    background: var(--rt-accent);
+}
+
+.account-progress-dot {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: #1a1a1a;
+    border: 1px solid var(--rt-border);
+    color: var(--rt-text-faint);
+    font-size: 0.78rem;
+}
+
+.account-progress-step.is-done .account-progress-dot {
+    background: var(--rt-accent-soft);
+    border-color: var(--rt-accent);
+    color: var(--rt-accent);
+}
+
+.account-progress-label {
+    font-size: 0.74rem;
+    font-weight: 600;
+    line-height: 1.25;
+    color: var(--rt-text-soft);
+}
+
+.account-progress-step.is-done .account-progress-label {
+    color: var(--rt-text-strong);
+}
+
+.account-progress-date {
+    font-size: 0.68rem;
+    color: var(--rt-text-faint);
+    min-height: 1em;
+}
+
+/* ---------- Itens (snapshot) ---------- */
+
+.account-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.account-item-thumb {
+    width: 46px;
+    height: 46px;
+    object-fit: cover;
+    border-radius: 8px;
+    flex: 0 0 auto;
+    background: #1a1a1a;
+}
+
+.account-item-name {
+    font-weight: 600;
+    color: var(--rt-text);
+    min-width: 0;
+    word-break: break-word;
+}
+
+/* ---------- Cards Entrega / Pagamento lado a lado ---------- */
+
+.account-pair {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--account-gap);
+    margin-top: var(--account-gap);
+}
+
+.account-card--inner {
+    padding: 16px;
+}
+
+/* Lista de rótulo/valor dentro dos cards. */
+.account-kv {
+    display: grid;
+    grid-template-columns: minmax(84px, auto) minmax(0, 1fr);
+    gap: 8px 14px;
+    margin: 0;
+}
+
+.account-kv dt {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--rt-text-faint);
+}
+
+.account-kv dd {
+    margin: 0;
+    font-size: 0.88rem;
+    color: var(--rt-text);
+    word-break: break-word;
+}
+
+/* ---------- Regra de cancelamento (frase discreta) ---------- */
+
+.account-cancel-rule {
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: var(--rt-text-soft);
+    align-self: center;
+}
+
+/* ---------- Pill de status (pedidos e detalhe) ---------- */
+
+.account-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 11px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    flex: 0 0 auto;
+}
+
+.account-status-pill--warning { background: var(--rt-warning-soft, rgba(245,166,35,0.15)); color: #f5a623; }
+.account-status-pill--success { background: var(--rt-success-soft); color: #35c46b; }
+.account-status-pill--info    { background: rgba(58, 124, 214, 0.16); color: #6ea8fe; }
+.account-status-pill--purple  { background: rgba(124, 92, 214, 0.16); color: #9b7ce8; }
+.account-status-pill--danger  { background: var(--rt-danger-soft); color: var(--rt-danger); }
+
+/* ========================================
    Responsivo
    ======================================== */
 
@@ -1058,6 +1406,33 @@
     .account-shell {
         grid-template-columns: minmax(0, 1fr);
         padding: 16px 12px 40px;
+    }
+
+    /* Detalhe do pedido: timeline vira coluna, cards empilham. */
+    .account-progress {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .account-progress-step {
+        flex-direction: row;
+        align-items: center;
+        gap: 10px;
+        text-align: left;
+        padding: 0;
+    }
+
+    .account-progress-step:not(:last-child)::after {
+        display: none;
+    }
+
+    .account-progress-label {
+        font-size: 0.82rem;
+    }
+
+    .account-pair {
+        grid-template-columns: minmax(0, 1fr);
     }
 
     .account-menu-toggle {
