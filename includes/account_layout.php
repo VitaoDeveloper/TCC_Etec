@@ -269,11 +269,18 @@ function account_prepare_base_path(): string
  *
  * @param array $user   linha de e5_users do visitante
  * @param string $active chave de account_nav_items() correspondente à tela
+ * @param string|null $breadcrumb rótulo da última etapa do breadcrumb.
+ *        Por padrão cai no rótulo de $active, mas a tela de detalhe do
+ *        pedido precisa de "Detalhes do Pedido" mantendo "Meus Pedidos"
+ *        marcado na sidebar — daí o parâmetro separado.
  */
-function account_layout_head(array $user, string $active): void
+function account_layout_head(array $user, string $active, ?string $breadcrumb = null): void
 {
     $page_title    = $GLOBALS['page_title'] ?? 'Minha Conta - Royal Tech';
     $page_description = $GLOBALS['page_description'] ?? 'Gerencie seu perfil, pedidos e dados na Royal Tech.';
+
+    $breadcrumb = $breadcrumb
+        ?? ($active === 'perfil' ? 'Meu Perfil' : ($active === 'pedidos' ? 'Meus Pedidos' : 'Detalhes do Pedido'));
 
     // O header.php legado lê $base_path; agora ele sai de base_url(),
     // que é calculado a partir do SCRIPT_NAME e não quebra se a página
@@ -334,7 +341,7 @@ function account_layout_head(array $user, string $active): void
             <nav class="account-breadcrumb" aria-label="Navegação estrutural">
                 <ol>
                     <li><a href="<?php echo e(base_url('/')); ?>">Início</a></li>
-                    <li aria-current="page"><?php echo e($active === 'perfil' ? 'Meu Perfil' : ($active === 'pedidos' ? 'Meus Pedidos' : 'Detalhes do Pedido')); ?></li>
+                    <li aria-current="page"><?php echo e($breadcrumb); ?></li>
                 </ol>
             </nav>
     <?php

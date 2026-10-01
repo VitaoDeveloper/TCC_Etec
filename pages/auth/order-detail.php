@@ -102,7 +102,9 @@ $trackUrl       = trim((string) (($shipmentEvents[0]['label_url'] ?? '')));
 // O <title> do documento é genérico: o número do pedido já vai no <h1>.
 $page_title = 'Detalhes do Pedido - Royal Tech';
 
-account_layout_head($user, 'pedidos');
+// A sidebar continua em "Meus Pedidos" (o item de nav marca order-detail.php
+// como atual), mas a última etapa do breadcrumb é a tela, não a seção.
+account_layout_head($user, 'pedidos', 'Detalhes do Pedido');
 ?>
 
 <?php if ($message !== null): ?>

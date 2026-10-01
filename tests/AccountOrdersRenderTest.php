@@ -287,6 +287,18 @@ class AccountOrdersRenderTest extends TestCase
         $this->assertSame('Meus Pedidos', trim($current->item(0)->textContent));
     }
 
+    public function testDetailBreadcrumbEndsOnTheScreenNotOnTheSection(): void
+    {
+        $labels = [];
+        foreach ($this->dom(self::$detailHtml)->query('//nav[contains(@class,"account-breadcrumb")]//li') as $li) {
+            $labels[] = trim(preg_replace('/\s+/', ' ', $li->textContent) ?? '');
+        }
+
+        // A sidebar continua em "Meus Pedidos", mas a última etapa do
+        // breadcrumb é a tela, não a seção: "Início / Detalhes do Pedido".
+        $this->assertSame(['Início', 'Detalhes do Pedido'], $labels);
+    }
+
     public function testDetailShowsOrderNumberItemsAndTotal(): void
     {
         $this->assertSame(
