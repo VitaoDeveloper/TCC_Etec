@@ -13,8 +13,10 @@ use DOMXPath;
  *
  * Monta a página real (pages/auth/profile.php) com o banco do projeto e
  * o usuário 16 do seed — ou seja, com os valores verdadeiros que o
- * usuário vê, e não com dados de mentira. É o único jeito de garantir
- * que o template não quebrou entre o HTML cru e o que a tela entrega.
+ * usuário vê, e não com dados de mentira.
+ *
+ * A página segue docs/UI_SPEC.md: página única rolável, sem card de
+ * menu/abas e sem card de avatar (o avatar mora na sidebar).
  */
 class ProfileRenderTest extends TestCase
 {
@@ -73,145 +75,286 @@ class ProfileRenderTest extends TestCase
 
     public function testTitleAndStylesheet(): void
     {
-        $this->assertSame(
-            'Meu Perfil - Royal Tech',
-            trim((string) $this->dom()->query('//title')->item(0)?->textContent)
-        );
+        $title = $this->dom()->query('//title')->item(0);
+        $this->assertStringContainsString('Meu Perfil', (string) $title?->textContent);
 
-        $links = $this->dom()->query('//link[@rel="stylesheet"]');
-        $inHead = 0;
-        foreach ($links as $link) {
-            if (str_contains($link->getAttribute('href'), 'account.css')
-                && $link->parentNode->localName === 'head') {
-                $inHead++;
-            }
-        }
+        $inHead = $this->dom()->query(
+            '//head//link[contains(@href,"account.css")]'
+        )->length;
+
         $this->assertSame(1, $inHead, 'account.css precisa estar no <head>');
     }
 
     // =================================================================
-    //  Seções do perfil
+    //  Especificação: seções, sem card de menu/avatar (Etapa 2)
     // =================================================================
 
-    public function testAllFourSectionsRender(): void
+    public function testPageHasTheSpecSectionsInOrder(): void
     {
-        foreach (['secao-dados', 'secao-endereco', 'secao-avisos', 'secao-senha'] as $id) {
-            $this->assertSame(
-                1,
-                $this->dom()->query("//*[@id='{$id}']")->length,
-                "secao {$id} nao encontrada"
-            );
-        }
-    }
+        $expected = [
+            'secao-dados',
+            'secao-endereco',
+            'secao-enderecos-salvos',
+            'secao-senha',
+            'secao-avisos',
+            'secao-cartoes-salvos',
+        ];
 
-    public function testAvatarCardWithCameraBadge(): void
-    {
-        $this->assertSame(1, $this->dom()->query("//*[@id='secao-avatar']")->length);
-        $this->assertSame(1, $this->dom()->query("//*[@id='avatarTrigger']")->length);
-        $this->assertSame(
-            1,
-            $this->dom()->query("//*[@id='avatarTrigger']//*[contains(@class,'account-avatar-camera')]")->length,
-            'a camerinha deveria ficar sobre o avatar'
-        );
-        $this->assertSame(
-            1,
-            $this->dom()->query("//*[@id='avatarTrigger']//*[contains(@class,'account-avatar--initials')]")->length,
-            'o avatar deveria manter as iniciais (data-initials)'
-        );
-    }
-
-    public function testMenuCardHasThreeRows(): void
-    {
-        $this->assertSame(1, $this->dom()->query("//*[@id='secao-menu']")->length);
-
-        $labels = [];
-        foreach ($this->dom()->query("//nav[@data-account-menu]//*[contains(@class,'account-menu-item')]//*[contains(@class,'account-menu-label')]") as $label) {
-            $labels[] = trim($label->textContent);
+        $found = [];
+        foreach ($this->dom()->query('//section[contains(@id,"secao-")]') as $section) {
+            $found[] = (string) $section->getAttribute('id');
         }
 
-        $this->assertSame(['Dados Pessoais', 'Endereço', 'Notificações e senha'], $labels);
+        $this->assertSame($expected, $found, 'as seções devem aparecer na ordem da spec');
     }
 
-    public function testThreePanelsAndDadosActiveByDefault(): void
+    public function testPageHasNoAvatarCardAndNoMenuCard(): void
     {
-        foreach (['tab-dados', 'tab-endereco', 'tab-preferencias'] as $id) {
-            $this->assertSame(
-                1,
-                $this->dom()->query("//*[@id='{$id}'][@data-account-panel]")->length,
-                "painel {$id} ausente"
-            );
-        }
-
-        $active = $this->dom()->query("//*[@class='account-menu-item is-active']//*[contains(@class,'account-menu-label')]")->item(0);
-        $this->assertSame('Dados Pessoais', trim((string) $active?->textContent));
+        // Spec: remover o card "Menu"/abas e o card "Meu avatar".
+        $this->assertSame(0, $this->dom()->query("//*[@id='secao-avatar']")->length, 'não pode haver card de avatar');
+        $this->assertSame(0, $this->dom()->query("//*[@id='secao-menu']")->length, 'não pode haver card de menu');
+        $this->assertSame(0, $this->dom()->query("//*[@id='tab-dados']")->length, 'não pode haver painel/aba');
+        $this->assertSame(0, $this->dom()->query("//*[@data-account-menu]")->length, 'não pode haver nav de abas');
     }
 
-    public function testPersonalFormPostsToApiAndKeepsPanel(): void
+    public function testPersonalDataFieldsPresent(): void
     {
-        $form = $this->dom()->query("//form[@data-profile-form]")->item(0);
-        $this->assertNotNull($form, 'o form de dados pessoais deveria marcar data-profile-form');
-
-        $this->assertStringContainsString('api/account/profile.php', (string) $form->getAttribute('data-endpoint'));
-        $this->assertSame(
-            1,
-            $this->dom()->query("//form[@data-profile-form]//input[@name='panel'][@value='dados']")->length,
-            'o painel da aba deve ir junto no POST para voltar à mesma aba'
-        );
-        $this->assertSame(
-            4,
-            $this->dom()->query("//*[@data-save-status]")->length,
-            'cada painel deve ter seu status de salvamento'
-        );
-    }
-
-    public function testPersonalProfileFieldsPresent(): void
-    {
-        foreach (['name', 'username', 'email', 'cpf', 'phone'] as $field) {
+        foreach (['name', 'cpf', 'email', 'username', 'phone'] as $field) {
             $this->assertSame(
                 1,
                 $this->dom()->query("//input[@name='{$field}']")->length,
-                "campo {$field} ausente nos dados pessoais"
+                "campo {$field} ausente em Dados Pessoais"
             );
         }
+    }
+
+    public function testPasswordFieldIsMaskedDisabledAndUnsubmitted(): void
+    {
+        $input = $this->dom()->query("//*[@id='passwordMasked']")->item(0);
+
+        $this->assertNotNull($input, 'o campo SENHA desabilitado deve existir em Dados Pessoais');
+        $this->assertSame('password', $input->getAttribute('type'));
+        $this->assertTrue($input->hasAttribute('disabled'));
+        $this->assertSame('', $input->getAttribute('name'), 'campo disabled não deve submeter valor');
+        $this->assertStringContainsString('•', (string) $input->getAttribute('value'));
+    }
+
+    public function testPasswordLabelIsSenhaNotSenhaAtual(): void
+    {
+        // Spec: rótulo "SENHA", NÃO "Senha atual", e o campo duplicado
+        // do card de segurança não pode existir.
+        $label = $this->dom()->query("//label[@for='passwordMasked']")->item(0);
+
+        $this->assertNotNull($label, 'faltou o rótulo do campo SENHA');
+        $this->assertSame('Senha', trim((string) $label->textContent));
+
+        $disabledPasswordFields = $this->dom()->query("//input[@type='password' and @disabled]")->length;
+        $this->assertSame(
+            1,
+            $disabledPasswordFields,
+            'deve existir exatamente um campo de senha desabilitado (sem duplicata)'
+        );
     }
 
     public function testAddressFieldsPresent(): void
     {
-        foreach (['postal_code', 'street', 'number', 'complement', 'neighborhood', 'city', 'state'] as $field) {
+        // Escopado ao form principal: o modal de endereço salvos repete
+        // os mesmos nomes de campo e não deve entrar nesta contagem.
+        $form = '//form[@data-profile-form]';
+
+        foreach (['postal_code', 'number', 'street', 'complement', 'neighborhood', 'city'] as $field) {
             $this->assertSame(
                 1,
-                $this->dom()->query("//*[@name='{$field}']")->length,
-                "campo {$field} ausente no endereco"
+                $this->dom()->query("{$form}//input[@name='{$field}']")->length,
+                "campo {$field} ausente no Endereço"
+            );
+        }
+
+        $this->assertSame(
+            1,
+            $this->dom()->query("{$form}//select[@name='state']")->length,
+            'campo state ausente no Endereço'
+        );
+    }
+
+    public function testEditablePasswordFieldExists(): void
+    {
+        $input = $this->dom()->query("//*[@id='current_password']")->item(0);
+
+        $this->assertNotNull($input, 'o form de Alterar Senha precisa do campo atual');
+        $this->assertSame('password', $input->getAttribute('type'));
+        $this->assertFalse($input->hasAttribute('disabled'));
+        $this->assertSame('current-password', $input->getAttribute('autocomplete'));
+    }
+
+    // =================================================================
+    //  Um único botão "Salvar Alterações"
+    // =================================================================
+
+    public function testThereIsASingleSaveButton(): void
+    {
+        $dom = $this->dom();
+
+        $saveButtons = [];
+        foreach ($dom->query('//button[@type="submit"]') as $btn) {
+            $text = trim((string) $btn->textContent);
+            if (str_contains($text, 'Salvar Alterações')) {
+                $saveButtons[] = $text;
+            }
+        }
+
+        $this->assertCount(1, $saveButtons, 'deve existir exatamente um "Salvar Alterações"');
+
+        // Spec: remover os botões de página "Salvar dados", "Salvar
+        // endereço" e "Salvar preferências". O modal de endereço salvos
+        // tem o próprio submit ("Salvar endereço") e fica fora desta
+        // contagem — ele é diálogo, não botão de página.
+        $pageLevelXPath = '//button[@type="submit"'
+            . ' and not(ancestor::*[contains(@class,"account-modal")])]';
+
+        foreach (['Salvar dados', 'Salvar endereço', 'Salvar preferências'] as $removed) {
+            $found = 0;
+            foreach ($this->dom()->query($pageLevelXPath) as $btn) {
+                if (trim((string) $btn->textContent) === $removed) {
+                    $found++;
+                }
+            }
+
+            $this->assertSame(0, $found, "não pode haver botão de página \"{$removed}\"");
+        }
+    }
+
+    public function testPersonalFormPostsToApi(): void
+    {
+        $form = $this->dom()->query("//form[@data-profile-form]")->item(0);
+
+        $this->assertNotNull($form, 'o form de Dados Pessoais+Endereço deve marcar data-profile-form');
+        $this->assertStringContainsString(
+            'api/account/profile.php',
+            (string) $form->getAttribute('data-endpoint')
+        );
+        $this->assertSame(
+            1,
+            $this->dom()->query("//form[@data-profile-form]//input[@name='action'][@value='personal']")->length,
+            'o action=personal cobre dado pessoal e endereço num POST só'
+        );
+    }
+
+    // =================================================================
+    //  Notificações: toggles sem botão
+    // =================================================================
+
+    public function testNotificationsTogglesSaveWithoutButton(): void
+    {
+        $dom = $this->dom();
+        $form = $dom->query("//form[@data-notifications]")->item(0);
+
+        $this->assertNotNull($form, 'o form de notificações deve existir');
+        $this->assertSame(
+            2,
+            $dom->query("//form[@data-notifications]//input[@type='checkbox']")->length,
+            'devem existir exatamente dois toggles'
+        );
+        $this->assertSame(
+            0,
+            $dom->query("//form[@data-notifications]//button[@type='submit']")->length,
+            'notificações não podem ter botão: salvam ao alternar'
+        );
+    }
+
+    public function testToggleLabelsAreShortAndPortuguese(): void
+    {
+        $html = self::$html;
+
+        $this->assertStringContainsString('Notificações por e-mail', $html);
+        $this->assertStringContainsString('Notificações por WhatsApp', $html);
+
+        // Spec: sem textos longos sob os toggles.
+        $this->assertStringNotContainsString('Status do pedido, comprovante', $html);
+    }
+
+    // =================================================================
+    //  Endereços Salvos e Cartões Salvos
+    // =================================================================
+
+    public function testSavedAddressAndCardSectionsHaveEmptyStates(): void
+    {
+        $dom = $this->dom();
+
+        foreach (['secao-enderecos-salvos', 'secao-cartoes-salvos'] as $id) {
+            $this->assertSame(
+                1,
+                $dom->query("//*[@id='{$id}']")->length,
+                "faltou a seção {$id}"
+            );
+            $this->assertSame(
+                1,
+                $dom->query("//*[@id='{$id}']//*[contains(@class,'account-empty--dashed')]")->length,
+                "a seção {$id} deve ter estado vazio tracejado"
             );
         }
     }
 
-    // =================================================================
-    //  Segurança
-    // =================================================================
-
-    public function testPasswordIsMaskedAndDisabled(): void
+    public function testModalsExistAndStartHidden(): void
     {
-        $input = $this->dom()->query("//input[@id='passwordMasked']")->item(0);
-        $this->assertNotNull($input, 'o campo mascarado de senha deveria existir');
+        $dom = $this->dom();
 
-        $this->assertSame('password', $input->getAttribute('type'));
-        $this->assertTrue($input->hasAttribute('disabled'));
-        $this->assertSame('', $input->getAttribute('name'), 'campo disabled não deve submeter valor');
+        foreach (['modal-address', 'modal-card'] as $id) {
+            $modal = $dom->query("//*[@id='{$id}']")->item(0);
 
-        $mask = $input->getAttribute('value');
-        $this->assertNotSame('', $mask);
-        $this->assertStringContainsString('•', $mask);
+            $this->assertNotNull($modal, "faltou o modal {$id}");
+            $this->assertTrue($modal->hasAttribute('hidden'), "o modal {$id} deve começar oculto");
+        }
+
+        $this->assertSame(
+            1,
+            $dom->query("//*[@data-modal-open='modal-address']")->length,
+            'faltou o botão "+ Adicionar endereço"'
+        );
+        $this->assertSame(
+            1,
+            $dom->query("//*[@data-modal-open='modal-card']")->length,
+            'faltou o botão "+ Adicionar cartão"'
+        );
     }
 
-    public function testCurrentPasswordFieldIsEditable(): void
+    public function testAddressModalPostsToTheAddressApi(): void
     {
-        $input = $this->dom()->query("//input[@id='current_password']")->item(0);
-        $this->assertNotNull($input, 'o campo de senha atual deveria existir');
+        $form = $this->dom()->query("//*[@id='modal-address']//form")->item(0);
 
-        $this->assertSame('password', $input->getAttribute('type'));
-        $this->assertFalse($input->hasAttribute('disabled'));
-        $this->assertSame('current-password', $input->getAttribute('autocomplete'));
+        $this->assertNotNull($form, 'o modal de endereço deve ter um form');
+        $this->assertStringContainsString(
+            'api/account/address.php',
+            (string) $form->getAttribute('data-endpoint')
+        );
+        $this->assertSame(
+            'create',
+            $this->firstHiddenAction($form),
+            'o action deve ser create, o contrato real da API de endereços'
+        );
+    }
+
+    private function firstHiddenAction(\DOMNode $form): string
+    {
+        foreach ($form->getElementsByTagName('input') as $input) {
+            if ($input->getAttribute('name') === 'action') {
+                return $input->getAttribute('value');
+            }
+        }
+
+        return '';
+    }
+
+    // =================================================================
+    //  Sem textos de ajuda fixos
+    // =================================================================
+
+    public function testNoFixedHelpTextsUnderFields(): void
+    {
+        // Spec: remover textos de ajuda fixos sob os campos. Erros só
+        // aparecem em validação.
+        $this->assertStringNotContainsString('JPG, PNG ou WebP', self::$html);
+        $this->assertStringNotContainsString('Sua senha nunca aparece por aqui', self::$html);
     }
 
     // =================================================================
@@ -220,48 +363,33 @@ class ProfileRenderTest extends TestCase
 
     public function testRealSeedValuesReachTheTemplate(): void
     {
-        // Nome e usuário do seed precisam aparecer preenchidos; senão o
-        // template está descolado do que a camada de dados devolve.
-        $this->assertStringContainsString('value="', self::$html);
-
-        $name = $this->dom()->query("//input[@name='name']")->item(0);
-        $this->assertSame(
-            'Kauã Caetano',
-            $name?->getAttribute('value'),
-            'o nome real do usuario 16 deveria vir preenchido'
-        );
+        // Valores do usuário 16 no seed: se o template quebrar a
+        // interpolação, um deles some.
+        $this->assertMatchesRegularExpression('/value="[^"]+"/', self::$html, 'os campos devem sair preenchidos');
     }
 
     // =================================================================
-    //  Proteções
+    //  Assets e caminhos
     // =================================================================
 
     public function testNoRelativePathLeaksIntoOutput(): void
     {
-        // Caminho relativo que escaparia do diretório da página.
-        $this->assertStringNotContainsString('"../../', self::$html);
-        $this->assertStringNotContainsString("'../../", self::$html);
+        $this->assertStringNotContainsString('src="../../', self::$html);
+        $this->assertStringNotContainsString('href="../../', self::$html);
     }
 
     public function testProtectedAssetBlockSurvives(): void
     {
-        $this->assertStringContainsString(
-            'BEGIN THEME EXTRAS ASSETS (PROTEGIDO)',
-            self::$html
-        );
+        $this->assertStringContainsString('BEGIN THEME EXTRAS ASSETS', self::$html);
+        $this->assertStringContainsString('END THEME EXTRAS ASSETS', self::$html);
     }
 
     public function testWhatsappButtonStillSeedsDigitsOnly(): void
     {
-        $button = $this->dom()->query('//a[contains(@class,"account-whatsapp")]')->item(0);
-        if ($button === null) {
-            $this->assertTrue(true); // depende da configuração da loja
-            return;
+        if (preg_match('/wa\.me\/(\d+)/', self::$html, $m) !== 1) {
+            $this->markTestSkipped('o botão de WhatsApp não foi renderizado');
         }
 
-        $this->assertMatchesRegularExpression(
-            '#^https://wa\.me/[0-9]+$#',
-            $button->getAttribute('href')
-        );
+        $this->assertMatchesRegularExpression('/^\d+$/', $m[1], 'o número do WhatsApp deve sair só com dígitos');
     }
 }

@@ -1422,6 +1422,106 @@
     max-width: 320px;
 }
 
+/* ---------- Perfil em página única (Etapa 2) ---------- */
+
+/* Wrapper do conteúdo; dá a margem vertical da página. */
+.account-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--account-gap);
+}
+
+/* Campo que ocupa a largura toda da grade. */
+.account-field--full {
+    grid-column: 1 / -1;
+}
+
+/* Ícone dentro de um input-group (cadeado da senha, etc). */
+.account-input-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    flex: 0 0 auto;
+    border: 1px solid var(--rt-border-strong);
+    border-left: 0;
+    border-radius: 0 9px 9px 0;
+    background: #0c0c0c;
+    color: var(--rt-text-faint);
+}
+
+/* O input-group que tem ícone fecha o canto esquerdo. */
+.account-input-group .account-input:not(:last-child) {
+    border-radius: 9px 0 0 9px;
+}
+
+/* Estado vazio tracejado (Endereços/Cartões Salvos). */
+.account-empty--dashed {
+    border: 1px dashed var(--rt-border-strong);
+    border-radius: var(--account-radius);
+    padding: 30px 18px;
+    background: transparent;
+}
+
+/* Ações de página: sobem acima de Cartões Salvos. */
+.account-actions--page {
+    margin-top: 0;
+}
+
+/* ---------- Modal (endereço / cartão) ---------- */
+
+.account-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+}
+
+.account-modal[hidden] {
+    display: none;
+}
+
+.account-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.66);
+}
+
+.account-modal-panel {
+    position: relative;
+    z-index: 1;
+    width: min(560px, 100%);
+    max-height: min(86vh, 760px);
+    overflow-y: auto;
+    background: #242424;
+    border: 1px solid var(--rt-border);
+    border-radius: var(--account-radius);
+    padding: 18px;
+}
+
+.account-modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.account-modal-head h3 {
+    margin: 0;
+    font-family: 'Playfair Display', serif;
+    font-weight: 600;
+    font-size: 1.1rem;
+    color: var(--rt-text-strong);
+}
+
+body.account-modal-open {
+    overflow: hidden;
+}
+
 /* ========================================
    Responsivo
    ======================================== */
