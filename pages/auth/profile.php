@@ -941,10 +941,11 @@ account_layout_head($user, 'perfil');
                            maxlength="40" placeholder="Casa, Trabalho..." required>
                 </div>
 
-                <div class="account-field">
+<div class="account-field">
                     <label class="account-label" for="addr_postal_code">CEP</label>
                     <input class="account-input" type="text" id="addr_postal_code" name="postal_code"
                            maxlength="9" placeholder="00000-000" inputmode="numeric" required>
+                    <span class="account-hint" id="cepStatus" role="status" aria-live="polite"></span>
                 </div>
 
                 <div class="account-field">
@@ -1175,7 +1176,8 @@ account_layout_head($user, 'perfil');
     }
 
     // --- CEP Autocomplete on 8 digits (FASE 4) ----------------------------
-    var cepInput   = document.getElementById('postal_code');
+    // Supports both modal (addr_postal_code) and legacy (postal_code)
+    var cepInput   = document.getElementById('addr_postal_code') || document.getElementById('postal_code');
     var cepButton  = document.getElementById('cepLookup');
     var cepStatus  = document.getElementById('cepStatus');
     var cepDebounce = null;
@@ -1199,10 +1201,10 @@ account_layout_head($user, 'perfil');
                     return;
                 }
                 var map = {
-                    street: data.data.street || '',
-                    neighborhood: data.data.neighborhood || '',
-                    city: data.data.city || '',
-                    state: data.data.state || ''
+                    addr_street: data.data.street || '',
+                    addr_neighborhood: data.data.neighborhood || '',
+                    addr_city: data.data.city || '',
+                    addr_state: data.data.state || ''
                 };
                 for (var key in map) {
                     if (Object.prototype.hasOwnProperty.call(map, key)) {
