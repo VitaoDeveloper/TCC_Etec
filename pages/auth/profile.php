@@ -891,10 +891,86 @@ account_layout_head($user, 'perfil');
         });
     }
 
-    // --- CEP lookup -----------------------------------------------------
+    // --- Toast Utility (FASE 4) ---------------------------------------------
+    var toastContainer = null;
+
+    function ensureToastContainer() {
+        if (toastContainer) return toastContainer;
+        toastContainer = document.createElement('div');
+        toastContainer.className = 'account-toast-container';
+        document.body.appendChild(toastContainer);
+        return toastContainer;
+    }
+
+    function showToast(message, type) {
+        var container = ensureToastContainer();
+        var toast = document.createElement('div');
+        toast.className = 'account-toast account-toast--' + (type || 'info');
+        toast.setAttribute('role', 'alert');
+        toast.setAttribute('aria-live', 'polite');
+        toast.innerHTML = '<span>' + message + '</span>';
+        container.appendChild(toast);
+        // Force reflow then show
+        toast.offsetHeight;
+        toast.classList.add('show');
+        setTimeout(function () {
+            toast.classList.remove('show');
+            setTimeout(function () { toast.remove(); }, 400);
+        }, 4000);
+    }
+
+    // --- Loading Button State (FASE 4) ------------------------------------
+    function setButtonLoading(button, loading) {
+        if (!button) return;
+        if (loading) {
+            button.classList.add('btn-loading');
+            button.disabled = true;
+            button.dataset.originalText = button.innerHTML;
+        } else {
+            button.classList.remove('btn-loading');
+            button.disabled = false;
+            if (button.dataset.originalText) {
+                button.innerHTML = button.dataset.originalText;
+                delete button.dataset.originalText;
+            }
+        }
+    }
+
+    // --- Form Dirty Tracking (FASE 4) -------------------------------------
+    var formDirty = false;
+    var originalFormValues = {};
+
+    function captureFormState(form) {
+        var inputs = form.querySelectorAll('input, select, textarea');
+        originalFormValues = {};
+        inputs.forEach(function (input) {
+            if (input.name) originalFormValues[input.name] = input.value;
+        });
+    }
+
+    function checkFormDirty(form) {
+        var dirty = false;
+        var inputs = form.querySelectorAll('input, select, textarea');
+        inputs.forEach(function (input) {
+            if (input.name && originalFormValues[input.name] !== input.value) {
+                dirty = true;
+            }
+        });
+        formDirty = dirty;
+        return dirty;
+    }
+
+    function markFieldDirty(field) {
+        if (field && field.closest('.account-field')) {
+            field.closest('.account-field').classList.add('account-field--dirty');
+        }
+    }
+
+    // --- CEP Autocomplete on 8 digits (FASE 4) ----------------------------
     var cepInput   = document.getElementById('postal_code');
     var cepButton  = document.getElementById('cepLookup');
     var cepStatus  = document.getElementById('cepStatus');
+    var cepDebounce = null;
 
     function setCepStatus(msg, type) {
         if (!cepStatus) return;
@@ -933,16 +1009,51 @@ account_layout_head($user, 'perfil');
             });
     }
 
-    if (cepInput && cepButton) {
+    if (cepInput) {
+        // Autocomplete on 8 digits (FASE 4c)
+        cepInput.addEventListener('input', function () {
+            var v = cepInput.value.replace(/\D/g, '');
+            if (v.length === 8) {
+                clearTimeout(cepDebounce);
+                cepDebounce = setTimeout(function () { lookupCep(v); }, 300);
+            }
+        });
+        // Also trigger on blur/change for backward compatibility
         cepInput.addEventListener('change', function () {
             var v = cepInput.value.replace(/\D/g, '');
             if (v.length === 8) lookupCep(v);
         });
-        cepButton.addEventListener('click', function () {
-            var v = cepInput.value.replace(/\D/g, '');
-            if (v.length === 8) lookupCep(v);
+        if (cepButton) {
+            cepButton.addEventListener('click', function () {
+                var v = cepInput.value.replace(/\D/g, '');
+                if (v.length === 8) lookupCep(v);
+            });
+        }
+    }
+
+    // --- Unsaved Changes Warning (FASE 4d) --------------------------------
+    var profileForm = document.getElementById('profile-form');
+    if (profileForm) {
+        captureFormState(profileForm);
+        // Track changes
+        profileForm.querySelectorAll('input, select').forEach(function (input) {
+            input.addEventListener('change', function () {
+                checkFormDirty(profileForm);
+                markFieldDirty(input);
+            });
+            input.addEventListener('input', function () {
+                if (input.type === 'checkbox' || input.type === 'radio') return;
+                checkFormDirty(profileForm);
+            });
         });
     }
+
+    window.addEventListener('beforeunload', function (e) {
+        if (formDirty) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
 
     // --- Olho da nova senha --------------------------------------------
     document.querySelectorAll('.js-toggle-password').forEach(function (btn) {
@@ -957,8 +1068,30 @@ account_layout_head($user, 'perfil');
         });
     });
 
-    // --- Modais ---------------------------------------------------------
+    // --- Modais (FASE 4f: Focus Trap) ---------------------------------------
     var lastFocused = null;
+    var focusableSelectors = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
+    function getFocusableElements(modal) {
+        return Array.from(modal.querySelectorAll(focusableSelectors)).filter(function (el) {
+            return el.offsetWidth > 0 || el.offsetHeight > 0;
+        });
+    }
+
+    function handleTabKey(e, modal) {
+        if (e.key !== 'Tab') return;
+        var focusable = getFocusableElements(modal);
+        if (focusable.length === 0) return;
+        var first = focusable[0];
+        var last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+        }
+    }
 
     function openModal(id) {
         var modal = document.getElementById(id);
@@ -968,13 +1101,34 @@ account_layout_head($user, 'perfil');
         document.body.classList.add('account-modal-open');
         var first = modal.querySelector('input, select, button');
         if (first) first.focus();
+        // Add focus trap listener (FASE 4f)
+        modal._focusTrapHandler = function (e) { handleTabKey(e, modal); };
+        modal.addEventListener('keydown', modal._focusTrapHandler);
     }
 
     function closeModal(modal) {
         if (!modal) return;
+        if (modal._focusTrapHandler) {
+            modal.removeEventListener('keydown', modal._focusTrapHandler);
+        }
         modal.hidden = true;
         document.body.classList.remove('account-modal-open');
         if (lastFocused && typeof lastFocused.focus === 'function') lastFocused.focus();
+    }
+
+    function handleTabKey(e, modal) {
+        if (e.key !== 'Tab') return;
+        var focusable = getFocusableElements(modal);
+        if (focusable.length === 0) return;
+        var first = focusable[0];
+        var last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+        }
     }
 
     document.querySelectorAll('[data-modal-open]').forEach(function (btn) {
@@ -1086,7 +1240,7 @@ account_layout_head($user, 'perfil');
             event.preventDefault();
 
             var button = form.querySelector('button[type="submit"]');
-            if (button) button.disabled = true;
+            setButtonLoading(button, true);
             setSave('Salvando...', 'pending');
 
             fetch(endpoint, {
@@ -1098,6 +1252,7 @@ account_layout_head($user, 'perfil');
                 .then(function (res) {
                     if (res.json && res.json.ok) {
                         setSave('Salvo!', 'ok');
+                        showToast('Salvo com sucesso!', 'success');
                         applySaved(res.json.data);
                         if (clearPass) form.querySelectorAll('input[type="password"]').forEach(function (p) { p.value = ''; });
                         if (isModal) {
@@ -1105,13 +1260,22 @@ account_layout_head($user, 'perfil');
                             var modal = form.closest('.account-modal');
                             setTimeout(function () { closeModal(modal); }, 600);
                         }
+                        // Reset dirty state on successful save
+                        if (form === profileForm) {
+                            captureFormState(profileForm);
+                            formDirty = false;
+                        }
                     } else {
                         setSave((res.json && res.json.message) || 'Não foi possível salvar.', 'error');
+                        showToast(res.json && res.json.message || 'Erro ao salvar', 'error');
                         markErrors(res.json && res.json.errors);
                     }
                 })
-                .catch(function () { setSave('Sem conexão com o servidor agora. Tente de novo.', 'error'); })
-                .then(function () { if (button) button.disabled = false; });
+                .catch(function () {
+                    setSave('Sem conexão com o servidor agora. Tente de novo.', 'error');
+                    showToast('Erro de conexão. Tente novamente.', 'error');
+                })
+                .then(function () { setButtonLoading(button, false); });
         });
     }
 
@@ -1222,16 +1386,20 @@ account_layout_head($user, 'perfil');
 
             if (action === 'delete' && !window.confirm('Remover este endereço?')) return;
 
-            btn.disabled = true;
+            setButtonLoading(btn, true);
             setAddrStatus('Salvando...', 'pending');
             callAddress(action, id).then(function (json) {
                 if (!afterAddressChange(json)) {
-                    btn.disabled = false;
+                    setButtonLoading(btn, false);
                     setAddrStatus((json && json.message) || 'Não foi possível salvar.', 'error');
+                    showToast((json && json.message) || 'Erro ao salvar', 'error');
+                } else {
+                    showToast('Endereço salvo!', 'success');
                 }
             }).catch(function () {
-                btn.disabled = false;
+                setButtonLoading(btn, false);
                 setAddrStatus('Sem conexão com o servidor.', 'error');
+                showToast('Erro de conexão. Tente novamente.', 'error');
             });
         });
     });
@@ -1261,20 +1429,23 @@ account_layout_head($user, 'perfil');
             };
             var id = addrId ? addrId.value : '';
 
-            if (button) button.disabled = true;
+            setButtonLoading(button, true);
             setSave('Salvando...', 'pending');
 
             callAddress(action, id, payload).then(function (json) {
                 if (json && json.ok) {
                     setSave('Salvo!', 'ok');
+                    showToast('Endereço salvo!', 'success');
                     setTimeout(function () { window.location.reload(); }, 600);
                 } else {
                     setSave((json && json.message) || 'Não foi possível salvar.', 'error');
-                    if (button) button.disabled = false;
+                    showToast(json && json.message || 'Erro ao salvar', 'error');
+                    setButtonLoading(button, false);
                 }
             }).catch(function () {
                 setSave('Sem conexão com o servidor agora. Tente de novo.', 'error');
-                if (button) button.disabled = false;
+                showToast('Erro de conexão. Tente novamente.', 'error');
+                setButtonLoading(button, false);
             });
         });
     }

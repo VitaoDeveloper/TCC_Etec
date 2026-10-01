@@ -1920,3 +1920,129 @@ body.account-modal-open {
         padding: 13px;
     }
 }
+
+/* ========================================
+   FASE 4: Loading, Toast, Accessibility
+   ======================================== */
+
+/* Loading button state */
+.account-btn.btn-loading {
+    position: relative;
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.account-btn.btn-loading::after {
+    content: '';
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: account-btn-spin 0.6s linear infinite;
+    vertical-align: middle;
+    margin-left: 6px;
+}
+
+@keyframes account-btn-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Toast notifications (reusing style.css .toast but scoped to account) */
+.account-toast-container {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+}
+
+.account-toast {
+    pointer-events: auto;
+    padding: 14px 20px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+    transform: translateX(120%);
+    opacity: 0;
+    transition: transform 0.4s ease, opacity 0.4s ease;
+    max-width: 380px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.account-toast.show {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.account-toast--success {
+    background: #103a1f;
+    color: #b5f5cb;
+    border: 1px solid #41a967;
+}
+
+.account-toast--error {
+    background: #3a1010;
+    color: #ffb3b3;
+    border: 1px solid #c54242;
+}
+
+.account-toast--info {
+    background: #1a2a40;
+    color: #b3d4ff;
+    border: 1px solid #427bc5;
+}
+
+/* Focus visible for accessibility */
+.account-input:focus-visible,
+.account-select:focus-visible,
+.account-btn:focus-visible,
+.account-tab:focus-visible,
+.side-menu a:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--rt-accent-glow, rgba(212,175,55,0.4));
+}
+
+/* Focus trap for modals */
+.account-modal[aria-modal="true"] {
+    /* Focus trap handled by JS */
+}
+
+/* CEP feedback */
+.cep-feedback {
+    font-size: 0.76rem;
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.cep-feedback--pending { color: var(--rt-text-faint); }
+.cep-feedback--ok { color: var(--rt-success); }
+.cep-feedback--error { color: var(--rt-danger); }
+
+/* Form dirty indicator */
+.account-field--dirty .account-input,
+.account-field--dirty .account-select {
+    border-color: var(--rt-accent);
+}
+
+/* Screen reader only */
+.sr-only {
+    position: absolute !important;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
