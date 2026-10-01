@@ -687,7 +687,7 @@ account_layout_head($user, 'perfil');
                  desabilitado da página, metade da largura. -->
             <div class="account-field">
                 <label class="account-label" for="passwordMasked">Senha</label>
-                <div class="account-input-group">
+                <div class="account-input-group account-input-group--password">
                     <input class="account-input" type="password" id="passwordMasked"
                            value="<?php echo e($maskedPassword); ?>" disabled>
                     <span class="account-input-icon" aria-hidden="true"><i class="fas fa-lock"></i></span>
@@ -700,13 +700,15 @@ account_layout_head($user, 'perfil');
 <section class="account-card" id="secao-enderecos-salvos">
     <div class="account-card-head">
         <span class="account-card-icon" aria-hidden="true"><i class="fas fa-map-marked-alt"></i></span>
-        <div>
+        <div class="account-card-title-wrapper">
             <h2 class="account-card-title">Endereços Salvos</h2>
             <p class="account-card-hint">Gerencie múltiplos endereços de entrega</p>
         </div>
-        <button type="button" class="account-btn account-btn--outline" data-modal-open="modal-address" data-address-reset>
-            <i class="fas fa-plus" aria-hidden="true"></i> Adicionar endereço
-        </button>
+        <div class="account-card-actions">
+            <button type="button" class="account-btn account-btn--outline" data-modal-open="modal-address" data-address-reset>
+                <i class="fas fa-plus" aria-hidden="true"></i> Adicionar endereço
+            </button>
+        </div>
     </div>
 
         <?php if ($addresses === []): ?>
@@ -1010,16 +1012,58 @@ account_layout_head($user, 'perfil');
             </button>
         </header>
 
-        <!-- A API de cartões hoje só lista e remove (api/account/cards.php:
-             GET + action=delete). Cadastro de cartão exige nova ação na
-             API e armazenamento tokenizado; o formulário abaixo fica
-             desabilitado até esse endpoint existir, em vez de fingir que
-             grava. -->
-        <div class="account-empty">
-            <i class="fas fa-shield-halved" aria-hidden="true"></i>
-            <p>O cadastro de cartões está indisponível no momento.</p>
-            <p class="account-hint">Nenhum dado de cartão é armazenado nesta loja.</p>
-        </div>
+        <form method="post" data-card-form
+              data-endpoint="<?php echo e(base_url('api/account/cards.php')); ?>"
+              action="<?php echo e(base_url('pages/auth/profile.php')); ?>">
+            <input type="hidden" name="action" value="create">
+            <?php echo csrf_field(); ?>
+
+            <div class="form-grid">
+                <div class="account-field account-field--full">
+                    <label class="account-label" for="card_number">Número do cartão</label>
+                    <div class="account-input-group">
+                        <input class="account-input" type="text" id="card_number" name="number"
+                               maxlength="19" placeholder="0000 0000 0000 0000"
+                               inputmode="numeric" autocomplete="cc-number" required>
+                        <span class="account-input-icon" aria-hidden="true"><i class="fas fa-credit-card"></i></span>
+                    </div>
+                    <span class="account-hint" id="cardBrandHint"></span>
+                </div>
+
+                <div class="account-field account-field--full">
+                    <label class="account-label" for="card_holder">Titular do cartão</label>
+                    <input class="account-input" type="text" id="card_holder" name="holder_name"
+                           maxlength="100" placeholder="NOME SOBRENOME"
+                           autocomplete="cc-name" required>
+                </div>
+
+                <div class="account-field">
+                    <label class="account-label" for="card_exp">Validade</label>
+                    <div class="account-input-group">
+                        <input class="account-input" type="text" id="card_exp" name="exp"
+                               maxlength="5" placeholder="MM/AA"
+                               inputmode="numeric" autocomplete="cc-exp" required>
+                        <span class="account-input-icon" aria-hidden="true"><i class="fas fa-calendar-alt"></i></span>
+                    </div>
+                </div>
+
+                <div class="account-field">
+                    <label class="account-label" for="card_installments">Parcelas máximas</label>
+                    <select class="account-select" id="card_installments" name="max_installments">
+                        <?php for ($i = 1; $i <= 12; $i++): ?>
+                            <option value="<?php echo $i; ?>"><?php echo $i; ?>x</option>
+                        <?php endfor; ?>
+                    </select>
+                </div>
+            </div>
+
+            <div class="account-actions">
+                <button type="submit" class="account-btn account-btn--primary">
+                    <i class="fas fa-save" aria-hidden="true"></i> Salvar cartão
+                </button>
+                <span class="account-save-status" data-save-status role="status" aria-live="polite"></span>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -1031,43 +1075,45 @@ account_layout_head($user, 'perfil');
     <div class="account-modal-backdrop" data-avatar-close></div>
     <div class="account-modal-panel account-modal-panel--full">
         <header class="account-modal-head">
-            <h3 id="modal-avatar-title">Ajustar foto</h3>
+            <div>
+                <h3 id="modal-avatar-title">Ajustar foto</h3>
+                <p>Arraste para posicionar e use o zoom para enquadrar</p>
+            </div>
             <button type="button" class="account-btn account-btn--sm" data-avatar-close aria-label="Fechar">
                 <i class="fas fa-xmark" aria-hidden="true"></i>
             </button>
         </header>
-        <div class="account-modal-body">
-            <div class="avatar-editor">
-                <!-- Área de corte principal -->
-                <div class="avatar-editor-preview">
-                    <div class="avatar-editor-frame">
-                        <img id="avatarCropperImage" src="" alt="Foto para recortar">
-                    </div>
-                    <div class="avatar-editor-preview-mini" aria-hidden="true">
-                        <div class="avatar-editor-preview-circle"></div>
-                    </div>
+        <div class="account-modal-body avatar-editor">
+            <!-- Área de corte principal -->
+            <div class="avatar-editor-preview">
+                <div class="avatar-editor-frame">
+                    <img id="avatarCropperImage" src="" alt="Foto para recortar">
                 </div>
-                <!-- Controles -->
-                <div class="avatar-editor-controls">
-                    <div class="avatar-editor-zoom">
-                        <button type="button" class="avatar-editor-btn" id="zoomOut" aria-label="Diminuir zoom"><i class="fas fa-minus"></i></button>
-                        <input type="range" id="zoomSlider" min="0.1" max="3" step="0.05" value="1" aria-label="Zoom">
-                        <button type="button" class="avatar-editor-btn" id="zoomIn" aria-label="Aumentar zoom"><i class="fas fa-plus"></i></button>
-                    </div>
-                    <div class="avatar-editor-rotate">
-                        <button type="button" class="avatar-editor-btn" id="rotateLeft" aria-label="Girar 90° à esquerda"><i class="fas fa-rotate-left"></i></button>
-                        <button type="button" class="avatar-editor-btn" id="rotateRight" aria-label="Girar 90° à direita"><i class="fas fa-rotate-right"></i></button>
-                    </div>
+                <div class="avatar-editor-preview-mini" aria-hidden="true">
+                    <div class="avatar-editor-preview-circle"></div>
                 </div>
-                <!-- Ações -->
-                <div class="avatar-editor-actions">
-                    <button type="button" class="account-btn account-btn--outline" id="avatarReset">Redefinir</button>
-                    <button type="button" class="account-btn account-btn--danger" id="avatarRemove" style="display:none;">Remover foto</button>
-                    <button type="button" class="account-btn account-btn--secondary" id="avatarCancel">Cancelar</button>
-                    <button type="button" class="account-btn account-btn--primary" id="avatarSave">
-                        <i class="fas fa-save" aria-hidden="true"></i> Salvar foto
-                    </button>
+            </div>
+            <!-- Controles -->
+            <div class="avatar-editor-controls">
+                <p class="avatar-editor-instructions">Arraste a imagem para posicionar. Use o slider ou a roda do mouse para dar zoom.</p>
+                <div class="avatar-editor-zoom">
+                    <button type="button" class="avatar-editor-btn" id="zoomOut" aria-label="Diminuir zoom"><i class="fas fa-minus"></i></button>
+                    <input type="range" id="zoomSlider" min="0.1" max="3" step="0.05" value="1" aria-label="Zoom">
+                    <button type="button" class="avatar-editor-btn" id="zoomIn" aria-label="Aumentar zoom"><i class="fas fa-plus"></i></button>
                 </div>
+                <div class="avatar-editor-rotate">
+                    <button type="button" class="avatar-editor-btn" id="rotateLeft" aria-label="Girar 90° à esquerda"><i class="fas fa-rotate-left"></i></button>
+                    <button type="button" class="avatar-editor-btn" id="rotateRight" aria-label="Girar 90° à direita"><i class="fas fa-rotate-right"></i></button>
+                </div>
+            </div>
+            <!-- Ações -->
+            <div class="avatar-editor-actions">
+                <button type="button" class="account-btn account-btn--outline" id="avatarReset">Redefinir</button>
+                <button type="button" class="account-btn account-btn--danger link-danger" id="avatarRemove" style="display:none;">Remover foto</button>
+                <button type="button" class="account-btn account-btn--secondary" id="avatarCancel">Cancelar</button>
+                <button type="button" class="account-btn account-btn--primary" id="avatarSave">
+                    <i class="fas fa-save" aria-hidden="true"></i> Salvar foto
+                </button>
             </div>
         </div>
     </div>
@@ -1270,13 +1316,14 @@ account_layout_head($user, 'perfil');
     var avatarCropperModal = document.getElementById('modal-avatar');
     var avatarCropperImage = document.getElementById('avatarCropperImage');
     var avatarPreviewCircle = avatarCropperModal ? avatarCropperModal.querySelector('.avatar-editor-preview-circle') : null;
+    var avatarHasChanges = false;
 
     // Abrir editor ao selecionar arquivo
     var avatarInput = document.getElementById('avatarInput');
     var avatarForm = document.getElementById('avatarForm');
     if (avatarInput && avatarForm && avatarCropperModal) {
         avatarInput.dataset.cropper = "true";
-            avatarInput.addEventListener('change', function () {
+        avatarInput.addEventListener('change', function () {
             var file = avatarInput.files[0];
             if (!file) return;
 
@@ -1293,62 +1340,113 @@ account_layout_head($user, 'perfil');
                 return;
             }
 
-            // Cria URL temporária e abre modal
+            // Cria URL temporária e abre modal PRIMEIRO
             var objectUrl = URL.createObjectURL(file);
             avatarCropperImage.src = objectUrl;
             avatarCropperImage.onload = function () {
                 URL.revokeObjectURL(objectUrl);
             };
 
-            // Inicializa Cropper.js
-            if (avatarCropper) {
-                avatarCropper.destroy();
-            }
-            avatarCropper = new Cropper(avatarCropperImage, {
-                aspectRatio: 1,
-                viewMode: 1,
-                dragMode: 'move',
-                autoCropArea: 0.9,
-                cropBoxMovable: false,
-                cropBoxResizable: false,
-                guides: false,
-                center: false,
-                highlight: false,
-                background: false,
-                toggleDragModeOnDblclick: false,
-                checkOrientation: true,
-                ready: function () {
-                    // Atualiza prévia mini
-                    updateAvatarPreview();
-                },
-                cropmove: function () {
-                    updateAvatarPreview();
-                },
-                zoom: function () {
-                    updateAvatarPreview();
-                },
-            });
-
-            // Atualiza botões de rotação
-            document.getElementById('rotateLeft').onclick = function () { if (avatarCropper) avatarCropper.rotate(-90); };
-            document.getElementById('rotateRight').onclick = function () { if (avatarCropper) avatarCropper.rotate(90); };
-            document.getElementById('zoomIn').onclick = function () { if (avatarCropper) avatarCropper.zoom(0.1); };
-            document.getElementById('zoomOut').onclick = function () { if (avatarCropper) avatarCropper.zoom(-0.1); };
-            document.getElementById('zoomSlider').oninput = function () { if (avatarCropper) avatarCropper.zoomTo(parseFloat(this.value)); };
-            document.getElementById('avatarReset').onclick = function () { if (avatarCropper) { avatarCropper.reset(); updateAvatarPreview(); } };
-            document.getElementById('avatarRemove').onclick = function () { removeAvatar(); };
-            document.getElementById('avatarCancel').onclick = function () { closeAvatarModal(); };
-            document.getElementById('avatarSave').onclick = function () { saveAvatarCrop(); };
-
-            // Slider de zoom
-            var zoomSlider = document.getElementById('zoomSlider');
-            zoomSlider.oninput = function () {
-                if (avatarCropper) avatarCropper.zoomTo(parseFloat(this.value));
-            };
-
-            // Abre modal
+            // Abre modal PRIMEIRO para que o frame tenha dimensões
             openAvatarModal();
+
+            // Inicializa Cropper.js DEPOIS que o modal estiver visível
+            // Usa requestAnimationFrame para garantir que o layout foi calculado
+            requestAnimationFrame(function () {
+                if (avatarCropper) {
+                    avatarCropper.destroy();
+                }
+                avatarCropper = new Cropper(avatarCropperImage, {
+                    aspectRatio: 1,
+                    viewMode: 3,
+                    dragMode: 'move',
+                    autoCropArea: 1,
+                    cropBoxMovable: false,
+                    cropBoxResizable: false,
+                    guides: false,
+                    center: false,
+                    highlight: false,
+                    background: false,
+                    toggleDragModeOnDblclick: false,
+                    checkOrientation: true,
+                    ready: function () {
+                        // Ajusta a caixa de corte para preencher o palco
+                        setCropBoxToStage();
+                        // Configura slider de zoom com limites corretos
+                        setupZoomSlider();
+                        // Atualiza prévia mini
+                        updateAvatarPreview();
+                    },
+                    cropmove: function () {
+                        avatarHasChanges = true;
+                        updateAvatarPreview();
+                    },
+                    zoom: function () {
+                        avatarHasChanges = true;
+                        updateAvatarPreview();
+                    },
+                });
+
+                // Atualiza botões de rotação
+                document.getElementById('rotateLeft').onclick = function () { if (avatarCropper) { avatarCropper.rotate(-90); avatarHasChanges = true; } };
+                document.getElementById('rotateRight').onclick = function () { if (avatarCropper) { avatarCropper.rotate(90); avatarHasChanges = true; } };
+                document.getElementById('zoomIn').onclick = function () { if (avatarCropper) { avatarCropper.zoom(0.1); avatarHasChanges = true; } };
+                document.getElementById('zoomOut').onclick = function () { if (avatarCropper) { avatarCropper.zoom(-0.1); avatarHasChanges = true; } };
+                document.getElementById('zoomSlider').oninput = function () { if (avatarCropper) { avatarCropper.zoomTo(parseFloat(this.value)); avatarHasChanges = true; } };
+                document.getElementById('avatarReset').onclick = function () { if (avatarCropper) { avatarCropper.reset(); setCropBoxToStage(); setupZoomSlider(); avatarHasChanges = true; updateAvatarPreview(); } };
+                document.getElementById('avatarRemove').onclick = function () { removeAvatar(); };
+                document.getElementById('avatarCancel').onclick = function () { closeAvatarModalWithConfirm(); };
+                document.getElementById('avatarSave').onclick = function () { saveAvatarCrop(); };
+
+                // Mouse wheel zoom
+                avatarCropperImage.addEventListener('wheel', function (e) {
+                    e.preventDefault();
+                    if (!avatarCropper) return;
+                    var delta = e.deltaY > 0 ? -0.1 : 0.1;
+                    var currentZoom = avatarCropper.getData().width / avatarCropper.getImageData().naturalWidth;
+                    var newZoom = Math.max(avatarCropper._minZoom, Math.min(avatarCropper._maxZoom, currentZoom + delta));
+                    avatarCropper.zoomTo(newZoom);
+                    avatarHasChanges = true;
+                }, { passive: false });
+            });
         });
+    }
+
+    function setCropBoxToStage() {
+        if (!avatarCropper) return;
+        var containerData = avatarCropper.getContainerData();
+        // O frame é circular e preenche o container (sem padding extra)
+        var stageSize = Math.min(containerData.width, containerData.height);
+        var left = (containerData.width - stageSize) / 2;
+        var top = (containerData.height - stageSize) / 2;
+        avatarCropper.setCropBoxData({
+            left: left,
+            top: top,
+            width: stageSize,
+            height: stageSize
+        });
+    }
+
+    function setupZoomSlider() {
+        if (!avatarCropper) return;
+        var imageData = avatarCropper.getImageData();
+        var containerData = avatarCropper.getContainerData();
+        var stageSize = Math.min(containerData.width, containerData.height);
+        // Zoom mínimo = zoom de cobertura (imagem preenche o palco)
+        var minZoom = stageSize / Math.min(imageData.naturalWidth, imageData.naturalHeight);
+        // Zoom máximo = 3x o mínimo
+        var maxZoom = minZoom * 3;
+        var currentZoom = avatarCropper.getData().width / imageData.naturalWidth;
+
+        // Guarda no cropper para usar no wheel
+        avatarCropper._minZoom = minZoom;
+        avatarCropper._maxZoom = maxZoom;
+
+        var zoomSlider = document.getElementById('zoomSlider');
+        zoomSlider.min = minZoom.toFixed(2);
+        zoomSlider.max = maxZoom.toFixed(2);
+        zoomSlider.step = '0.01';
+        zoomSlider.value = currentZoom.toFixed(2);
     }
 
     function updateAvatarPreview() {
@@ -1367,7 +1465,13 @@ account_layout_head($user, 'perfil');
 
     function openAvatarModal() {
         if (!avatarCropperModal) return;
-        var lastFocused = document.activeElement;
+        avatarHasChanges = false;
+        // Mostra/esconde botão "Remover foto" se já houver avatar
+        var avatarRemoveBtn = document.getElementById('avatarRemove');
+        var hasAvatar = document.querySelector('.avatar, .account-avatar-img')?.tagName === 'IMG';
+        if (avatarRemoveBtn) {
+            avatarRemoveBtn.style.display = hasAvatar ? 'inline-flex' : 'none';
+        }
         avatarCropperModal.hidden = false;
         document.body.classList.add('account-modal-open');
         var first = avatarCropperModal.querySelector('button, input, select');
@@ -1388,7 +1492,7 @@ account_layout_head($user, 'perfil');
                     first.focus();
                 }
             } else if (e.key === 'Escape') {
-                closeAvatarModal();
+                closeAvatarModalWithConfirm();
             }
         };
         avatarCropperModal.addEventListener('keydown', avatarCropperModal._focusTrapHandler);
@@ -1411,15 +1515,36 @@ account_layout_head($user, 'perfil');
         document.body.classList.remove('account-modal-open');
         var avatarInput = document.getElementById('avatarInput');
         if (avatarInput) avatarInput.value = '';
+        // Devolve foco ao badge de câmera na sidebar
+        var cameraBadge = document.querySelector('.avatar-camera-badge, [data-avatar-trigger]');
+        if (cameraBadge && typeof cameraBadge.focus === 'function') {
+            cameraBadge.focus();
+        }
     }
 
-    // Fechar ao clicar no backdrop ou botão fechar
+    function closeAvatarModalWithConfirm() {
+        if (avatarHasChanges) {
+            if (!confirm('Há ajustes não salvos. Deseja descartar e fechar?')) return;
+        }
+        closeAvatarModal();
+    }
+
+    // Fechar ao clicar no backdrop ou botão fechar (com confirmação se houver mudanças)
     if (avatarCropperModal) {
         var backdrop = avatarCropperModal.querySelector('.account-modal-backdrop');
         var closeBtn = avatarCropperModal.querySelector('[data-avatar-close]');
-        if (backdrop) backdrop.addEventListener('click', closeAvatarModal);
-        if (closeBtn) closeBtn.addEventListener('click', closeAvatarModal);
+        if (backdrop) backdrop.addEventListener('click', closeAvatarModalWithConfirm);
+        if (closeBtn) closeBtn.addEventListener('click', closeAvatarModalWithConfirm);
     }
+
+    // Redimensionar cropper ao redimensionar janela
+    window.addEventListener('resize', function () {
+        if (avatarCropper && !avatarCropperModal.hidden) {
+            avatarCropper.resize();
+            setCropBoxToStage();
+            setupZoomSlider();
+        }
+    });
 
     // Salvar recorte
     function saveAvatarCrop() {
@@ -1428,6 +1553,25 @@ account_layout_head($user, 'perfil');
         setButtonLoading(saveBtn, true);
 
         try {
+            // Valida se o crop está dentro da imagem
+            var cropData = avatarCropper.getData();
+            var imageData = avatarCropper.getImageData();
+            if (cropData.x < 0 || cropData.y < 0 ||
+                cropData.x + cropData.width > imageData.naturalWidth ||
+                cropData.y + cropData.height > imageData.naturalHeight) {
+                // Corrige movendo/zoom para caber
+                var maxX = imageData.naturalWidth - cropData.width;
+                var maxY = imageData.naturalHeight - cropData.height;
+                var newX = Math.max(0, Math.min(cropData.x, maxX));
+                var newY = Math.max(0, Math.min(cropData.y, maxY));
+                avatarCropper.setCropBoxData({
+                    left: newX,
+                    top: newY,
+                    width: cropData.width,
+                    height: cropData.height
+                });
+            }
+
             var canvas = avatarCropper.getCroppedCanvas({
                 width: 512,
                 height: 512,
@@ -1747,6 +1891,201 @@ account_layout_head($user, 'perfil');
     }
 
     document.querySelectorAll('form[data-account-form]').forEach(wireForm);
+
+    // --- Cartões salvos -------------------------------------------------------
+    var cardForm = document.querySelector('form[data-card-form]');
+    if (cardForm) {
+        var cardNumberInput = cardForm.querySelector('[name="number"]');
+        var cardHolderInput = cardForm.querySelector('[name="holder_name"]');
+        var cardExpInput = cardForm.querySelector('[name="exp"]');
+        var cardBrandHint = cardForm.querySelector('#cardBrandHint');
+
+        // Formata número do cartão (espaços a cada 4 dígitos)
+        if (cardNumberInput) {
+            cardNumberInput.addEventListener('input', function () {
+                var v = this.value.replace(/\D/g, '').slice(0, 16);
+                this.value = v.replace(/(.{4})/g, '$1 ').trim();
+                updateCardBrand(v);
+            });
+        }
+
+        // Formata validade MM/AA
+        if (cardExpInput) {
+            cardExpInput.addEventListener('input', function () {
+                var v = this.value.replace(/\D/g, '').slice(0, 4);
+                if (v.length >= 3) {
+                    v = v.slice(0, 2) + '/' + v.slice(2);
+                }
+                this.value = v;
+            });
+        }
+
+        function updateCardBrand(digits) {
+            if (!cardBrandHint) return;
+            if (digits.length < 1) {
+                cardBrandHint.textContent = '';
+                cardBrandHint.className = 'account-hint';
+                return;
+            }
+            // Detecta bandeira (mesma lógica do backend)
+            var brand = detectCardBrandJS(digits);
+            var labels = {
+                'visa': 'Visa', 'mastercard': 'Mastercard', 'elo': 'Elo',
+                'hipercard': 'Hipercard', 'amex': 'American Express',
+                'diners': 'Diners', 'discover': 'Discover', 'others': 'Cartão'
+            };
+            cardBrandHint.textContent = 'Bandeira detectada: ' + (labels[brand] || 'Cartão');
+            cardBrandHint.className = 'account-hint';
+        }
+
+        // Luhn check (portado do PHP)
+        function luhnCheck(digits) {
+            var sum = 0;
+            var double = false;
+            for (var i = digits.length - 1; i >= 0; i--) {
+                var digit = parseInt(digits[i], 10);
+                if (double) {
+                    digit *= 2;
+                    if (digit > 9) digit -= 9;
+                }
+                sum += digit;
+                double = !double;
+            }
+            return sum % 10 === 0;
+        }
+
+        // Detecção de bandeira (portado do PHP)
+        function detectCardBrandJS(digits) {
+            if (!digits) return 'others';
+            var six = digits.slice(0, 6);
+            var four = digits.slice(0, 4);
+            var three = digits.slice(0, 3);
+            var two = digits.slice(0, 2);
+
+            if (six === '606282') return 'hipercard';
+
+            var eloFour = ['4312', '4389', '4514', '4573', '5041', '5066', '5090', '6277', '6362', '6363'];
+            if (eloFour.includes(four)) return 'elo';
+            var eloThree = ['650', '651'];
+            if (eloThree.includes(three)) {
+                var group = parseInt(digits.slice(3, 5), 10);
+                if (group <= 11) return 'elo';
+            }
+
+            if (digits.startsWith('4')) return 'visa';
+            if (/^5[1-5]/.test(digits)) return 'mastercard';
+            var range = parseInt(digits.slice(0, 4), 10);
+            if (range >= 2221 && range <= 2720) return 'mastercard';
+            if (two === '34' || two === '37') return 'amex';
+            if (/^3(0[0-5]|6|8)/.test(digits)) return 'diners';
+            if (four === '6011' || two === '65') return 'discover';
+
+            return 'others';
+        }
+
+        function validateCardForm() {
+            var errors = {};
+            var number = (cardNumberInput?.value || '').replace(/\D/g, '');
+            var holder = (cardHolderInput?.value || '').trim();
+            var exp = (cardExpInput?.value || '').trim();
+
+            if (!number || number.length < 13 || number.length > 19 || !luhnCheck(number)) {
+                errors.number = 'Número de cartão inválido.';
+            }
+            if (!holder) {
+                errors.holder_name = 'Informe o nome do titular.';
+            }
+            if (!exp || !/^(0[1-9]|1[0-2])\s*\/\s*(\d{2})$/.test(exp)) {
+                errors.exp = 'Validade inválida (MM/AA).';
+            } else {
+                var m = exp.match(/^(0[1-9]|1[0-2])\s*\/\s*(\d{2})$/);
+                var month = parseInt(m[1], 10);
+                var year = 2000 + parseInt(m[2], 10);
+                var now = new Date();
+                var refYear = now.getFullYear();
+                var refMonth = now.getMonth() + 1;
+                if (year < refYear || (year === refYear && month < refMonth)) {
+                    errors.exp = 'Cartão expirado.';
+                }
+            }
+            return errors;
+        }
+
+        cardForm.addEventListener('submit', function (event) {
+            event.preventDefault();
+
+            var errors = validateCardForm();
+            var hasErrors = Object.keys(errors).length > 0;
+
+            // Marca erros nos campos
+            cardForm.querySelectorAll('.account-field').forEach(function (field) {
+                var input = field.querySelector('input, select');
+                if (!input || !input.name) return;
+                var fieldErrors = errors[input.name] || (input.name === 'exp' ? errors.exp : null);
+                field.classList.toggle('account-field--error', !!fieldErrors);
+                field.querySelectorAll('.account-hint--error').forEach(function (n) { n.remove(); });
+                if (fieldErrors) {
+                    var err = document.createElement('span');
+                    err.className = 'account-hint account-hint--error';
+                    err.textContent = fieldErrors;
+                    field.appendChild(err);
+                }
+            });
+
+            if (hasErrors) return;
+
+            var button = cardForm.querySelector('button[type="submit"]');
+            var status = cardForm.querySelector('[data-save-status]');
+            var endpoint = cardForm.getAttribute('data-endpoint');
+
+            function setSave(msg, type) {
+                if (!status) return;
+                status.textContent = msg || '';
+                status.className = 'account-save-status' + (type ? ' account-save-status--' + type : '');
+            }
+
+            setButtonLoading(button, true);
+            setSave('Salvando...', 'pending');
+
+            // Prepara payload convertendo exp MM/AA para exp_month/exp_year
+            var formData = new FormData(cardForm);
+            var exp = formData.get('exp');
+            if (exp && exp.includes('/')) {
+                var parts = exp.split('/');
+                formData.set('exp_month', parts[0]);
+                formData.set('exp_year', '20' + parts[1]);
+            }
+            formData.delete('exp');
+
+            fetch(endpoint, {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, json: j }; }); })
+            .then(function (res) {
+                if (res.json && res.json.ok) {
+                    setSave('Salvo!', 'ok');
+                    showToast('Cartão salvo com sucesso!', 'success');
+                    cardForm.reset();
+                    if (cardBrandHint) cardBrandHint.textContent = '';
+                    var modal = cardForm.closest('.account-modal');
+                    setTimeout(function () { closeModal(modal); }, 600);
+                } else {
+                    setSave((res.json && res.json.message) || 'Não foi possível salvar.', 'error');
+                    showToast(res.json && res.json.message || 'Erro ao salvar', 'error');
+                    if (res.json && res.json.errors) {
+                        markErrors(res.json.errors);
+                    }
+                }
+            })
+            .catch(function () {
+                setSave('Sem conexão com o servidor agora. Tente de novo.', 'error');
+                showToast('Erro de conexão. Tente novamente.', 'error');
+            })
+            .then(function () { setButtonLoading(button, false); });
+        });
+    }
 
     // --- Endereços salvos -----------------------------------------------
     var ADDRESSES = <?php echo $addressesJson ?: '[]'; ?>;

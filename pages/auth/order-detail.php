@@ -76,8 +76,16 @@ if ($order === null) {
     exit;
 }
 
+// Expiração preguiçosa de Pix pendente (reutiliza a mesma lógica do worker)
+require_once __DIR__ . '/../../includes/order_state.php';
+$expireResult = order_expire_pending_pix_lazy($pdo, $order);
+if ($expireResult['expired']) {
+    $order = $expireResult['order'];
+    $paymentRow = $expireResult['payment'];
+}
+
 $items       = order_repo_items($pdo, $orderId);
-$paymentRow  = order_repo_payment($pdo, $orderId);
+$paymentRow  = $paymentRow ?? order_repo_payment($pdo, $orderId);
 $progress    = order_progress($pdo, $order);
 $orderActions = order_actions_available($order);
 

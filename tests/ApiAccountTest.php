@@ -526,7 +526,7 @@ class ApiAccountTest extends TestCase
     public function testCardsListAndDelete(): void
     {
         $setup = tempnam(sys_get_temp_dir(), 'tcc_cards_');
-        file_put_contents($setup, "INSERT INTO e5_saved_cards (id, user_id, card_brand, holder_name, last_four, exp_month, exp_year) VALUES (9104, 16, 'visa', 'KAUA CAETANO', '4242', 12, 2028);");
+        file_put_contents($setup, "INSERT INTO e5_saved_cards (id, user_id, card_brand, holder_name, last_four, exp_month, exp_year, max_installments, is_default, is_active) VALUES (9104, 16, 'visa', 'KAUA CAETANO', '4242', 12, 2028, 12, 0, 1);");
 
         try {
             [$status, $json] = $this->call('cards.php', 'GET', [], 16, $setup);

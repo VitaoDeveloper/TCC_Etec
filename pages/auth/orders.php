@@ -26,11 +26,32 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../includes/account_layout.php';
 require_once __DIR__ . '/../../includes/status_labels.php';
+require_once __DIR__ . '/../../includes/payment_functions.php';
+require_once __DIR__ . '/../../includes/order_repo.php';
+require_once __DIR__ . '/../../includes/order_state.php';
 require_once __DIR__ . '/../../database/connection.php';
 
 $user = account_require_login($pdo);
 
 $userId = (int) $user['id'];
+
+// Expiração preguiçosa de Pix pendente (reutiliza a mesma lógica do worker)
+$stmtExpired = $pdo->prepare(
+    "SELECT id FROM e5_orders
+     WHERE user_id = :uid
+       AND payment_expires_at IS NOT NULL
+       AND payment_expires_at < NOW()
+       AND payment_status IN ('pending', 'processing')
+     ORDER BY payment_expires_at ASC
+     LIMIT 50"
+);
+$stmtExpired->execute([':uid' => $userId]);
+foreach ($stmtExpired->fetchAll(PDO::FETCH_COLUMN) as $orderId) {
+    $order = order_repo_find($pdo, (int) $orderId);
+    if ($order !== null) {
+        order_expire_pending_pix_lazy($pdo, $order);
+    }
+}
 
 // ---------------------------------------------------------------------
 //  Filtro de status (?status=pending|paid|preparing|shipped|delivered|canceled)

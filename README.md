@@ -154,6 +154,74 @@ Projeto educacional — TCC ETEC.
 
 ---
 
+## Worker CLI (fila de e-mail + expiração Pix)
+
+O script `worker.php` processa duas tarefas em background:
+
+1. **Fila de e-mail** (`e5_notifications`): envia e-mails pendentes via PHPMailer (SMTP ou transporte de arquivo `MAIL_TRANSPORT=file`).
+2. **Expiração de Pix**: cancela pedidos com `payment_expires_at` vencido, devolve estoque, registra histórico e limpa etiquetas SuperFrete.
+
+### Uso
+
+```bash
+# Executa as duas tarefas (padrão)
+/opt/lampp/bin/php worker.php
+
+# Apenas e-mails (limite 20 por rodada)
+/opt/lampp/bin/php worker.php --emails=20 --only=emails
+
+# Apenas expiração de Pix
+/opt/lampp/bin/php worker.php --only=pix
+```
+
+### Trava contra execução dupla
+
+O worker usa `flock()` no arquivo `storage/worker.lock`. Se outra instância já estiver rodando, a nova sai em silêncio (código 0). Isso permite agendar no cron a cada minuto sem risco de duplicação.
+
+### Logs
+
+Todas as execuções escrevem em `STDOUT` (pode redirecionar para arquivo):
+
+```bash
+/opt/lampp/bin/php worker.php >> storage/logs/worker.log 2>&1
+```
+
+Exemplo de saída:
+```
+worker: iniciado 2026-10-01 20:30:00
+worker: e-mails -> enviados=3 falhas=0 restam=0 rodadas=1
+worker: expiração de Pix -> expirados=2
+worker: concluído 2026-10-01 20:30:00
+```
+
+### Agendamento no cron (Linux) / Agendador de Tarefas (Windows)
+
+**Linux (crontab -e):**
+```bash
+# A cada minuto
+* * * * * /opt/lampp/bin/php /caminho/para/TCC_Etec/worker.php >> /caminho/para/TCC_Etec/storage/logs/worker.log 2>&1
+```
+
+**Windows (Agendador de Tarefas):**
+1. Criar tarefa → Trigger: "Diariamente, repetir a cada 1 minuto"
+2. Action: `php.exe` (ex.: `C:\xampp\php\php.exe`)
+3. Arguments: `C:\xampp\htdocs\TCC_Etec\worker.php`
+4. Start in: `C:\xampp\htdocs\TCC_Etec`
+
+### Variáveis de ambiente relevantes
+
+| Variável | Descrição |
+|----------|-----------|
+| `MAIL_TRANSPORT=file` | Salva .eml em `storage/mail` em vez de conectar ao SMTP (dev) |
+| `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_ENCRYPTION` | Configuração SMTP para produção |
+| `MAIL_FROM` | Remetente padrão (fallback: `store_email` da config da loja) |
+
+### Rate limit de reenvio de comprovante
+
+No detalhe do pedido (`order-detail.php`), o botão "Reenviar comprovante" tem limite de **1 envio a cada 2 minutos** por pedido. A mensagem de espera aparece na tela automaticamente.
+
+---
+
 # Integração SuperFrete (API v0)
 
 Integração completa com a API [SuperFrete](https://superfrete.readme.io/) em PHP vanilla, cobrindo cotação, criação de frete, checkout, consulta, impressão de etiqueta, listagem, cancelamento e CRUD de webhooks + receptor seguro com validação HMAC e idempotência.

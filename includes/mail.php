@@ -11,6 +11,9 @@ function mailer(): \PHPMailer\PHPMailer\PHPMailer
         return $GLOBALS['mailer'];
     }
 
+    // Modo de arquivo para desenvolvimento local (salva .eml em storage/mail)
+    $useFileTransport = (strtolower(trim($_ENV['MAIL_TRANSPORT'] ?? '')) === 'file');
+
     // Degrada com falha capturável em vez de fatal error se o composer não
     // foi executado no ambiente de destino.
     if (!file_exists(__DIR__ . '/../vendor/autoload.php')) {
@@ -19,14 +22,23 @@ function mailer(): \PHPMailer\PHPMailer\PHPMailer
     require_once __DIR__ . '/../vendor/autoload.php';
 
     $mail = new \PHPMailer\PHPMailer\PHPMailer(false);
-    $mail->isSMTP();
-    $mail->Host = $_ENV['MAIL_HOST'] ?? 'localhost';
-    $mail->Port = (int) ($_ENV['MAIL_PORT'] ?? 1025);
 
-    if (($_ENV['MAIL_USERNAME'] ?? '') !== '') {
-        $mail->SMTPAuth = true;
-        $mail->Username = $_ENV['MAIL_USERNAME'];
-        $mail->Password = $_ENV['MAIL_PASSWORD'] ?? '';
+    if ($useFileTransport) {
+        // Não conecta ao SMTP; apenas monta a mensagem para gravar em disco
+        $mail->isSMTP();
+        $mail->Host = 'localhost';
+        $mail->Port = 25;
+        $mail->SMTPAutoTLS = false;
+    } else {
+        $mail->isSMTP();
+        $mail->Host = $_ENV['MAIL_HOST'] ?? 'localhost';
+        $mail->Port = (int) ($_ENV['MAIL_PORT'] ?? 1025);
+
+        if (($_ENV['MAIL_USERNAME'] ?? '') !== '') {
+            $mail->SMTPAuth = true;
+            $mail->Username = $_ENV['MAIL_USERNAME'];
+            $mail->Password = $_ENV['MAIL_PASSWORD'] ?? '';
+        }
     }
 
     // Timeout de conexão/OI razoável (default do PHPMailer é 300s: um host SMTP
@@ -35,36 +47,39 @@ function mailer(): \PHPMailer\PHPMailer\PHPMailer
 
     // Alvo SMTP efetivo (host:porta) exposto para setMailError()/logs/debug —
     // sem credenciais. Ajuda a identificar "para onde" o PHPMailer tentou falar.
-    $GLOBALS['mail_smtp_target'] = $mail->Host . ':' . $mail->Port;
+    $GLOBALS['mail_smtp_target'] = $useFileTransport ? 'file://storage/mail' : ($mail->Host . ':' . $mail->Port);
 
-    switch (strtolower(trim($_ENV['MAIL_ENCRYPTION'] ?? ''))) {
-        case 'tls':
-            $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
-            break;
-        case 'ssl':
-            $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
-            break;
-        case 'none':
-            // Escolha explícita por conexão sem criptografia (ex.: Mailpit local).
-            $mail->SMTPAutoTLS = false;
-            break;
-        default:
-            // MAIL_ENCRYPTION vazio: o PHPMailer negocia STARTTLS automaticamente
-            // (SMTPAutoTLS padrão = true) quando o servidor anuncia suporte. Isso é
-            // obrigatório para provedores reais com autenticação (Gmail/Outlook/SES,
-            // porta 587); desligar o auto-TLS aqui era a causa de "FALHA NO ENVIO".
-            break;
+    if (!$useFileTransport) {
+        switch (strtolower(trim($_ENV['MAIL_ENCRYPTION'] ?? ''))) {
+            case 'tls':
+                $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+                break;
+            case 'ssl':
+                $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
+                break;
+            case 'none':
+                // Escolha explícita por conexão sem criptografia (ex.: Mailpit local).
+                $mail->SMTPAutoTLS = false;
+                break;
+            default:
+                // MAIL_ENCRYPTION vazio: o PHPMailer negocia STARTTLS automaticamente
+                // (SMTPAutoTLS padrão = true) quando o servidor anuncia suporte. Isso é
+                // obrigatório para provedores reais com autenticação (Gmail/Outlook/SES,
+                // porta 587); desligar o auto-TLS aqui era a causa de "FALHA NO ENVIO".
+                break;
+        }
     }
 
     $mail->CharSet = 'UTF-8';
     $mail->isHTML(true);
-    $mail->SMTPKeepAlive = true;
+    $mail->SMTPKeepAlive = !$useFileTransport;
     $mail->setFrom(
         $_ENV['MAIL_FROM'] ?? store_config('store_email'),
         store_config('store_name')
     );
 
     $GLOBALS['mailer'] = $mail;
+    $GLOBALS['mail_use_file_transport'] = $useFileTransport;
     return $mail;
 }
 
@@ -113,6 +128,7 @@ function setMailError(string $message): void
 }
 
 // Envia um e-mail HTML reaproveitando o cliente persistente.
+// Suporta transporte de arquivo (MAIL_TRANSPORT=file) para desenvolvimento.
 function sendMail(string $to, string $subject, string $body): bool
 {
     $mail = null;
@@ -127,6 +143,30 @@ function sendMail(string $to, string $subject, string $body): bool
         $mail->Body = $body;
         $alt = trim(strip_tags(preg_replace('/<br\s*\/?>/i', "\n", $body)));
         $mail->AltBody = html_entity_decode($alt, ENT_QUOTES, 'UTF-8');
+
+        $useFileTransport = $GLOBALS['mail_use_file_transport'] ?? false;
+
+        if ($useFileTransport) {
+            // Salva como .eml em storage/mail
+            $mailDir = __DIR__ . '/../storage/mail';
+            if (!is_dir($mailDir)) {
+                @mkdir($mailDir, 0775, true);
+            }
+            $filename = 'mail_' . date('Ymd_His') . '_' . bin2hex(random_bytes(4)) . '.eml';
+            $filepath = $mailDir . '/' . $filename;
+
+            // Gera o conteúdo MIME completo
+            $mime = '';
+            $mail->preSend();
+            $mime = $mail->getSentMIMEMessage();
+            if ($mime === false) {
+                throw new RuntimeException('Falha ao gerar mensagem MIME');
+            }
+            file_put_contents($filepath, $mime);
+            error_log('Email saved to file: ' . $filepath);
+            return true;
+        }
+
         $ok = $mail->send();
 
         // PHPMailer também pode retornar false sem lançar exceção.

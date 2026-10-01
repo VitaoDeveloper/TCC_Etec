@@ -34,6 +34,17 @@ if ($order['user_id'] !== (int) $_SESSION['user_id']) {
     exit;
 }
 
+// Rate limit: 1 reenvio a cada 2 minutos por pedido
+$lastResendKey = 'comprovante_resend_' . $orderId;
+$lastResend = $_SESSION[$lastResendKey] ?? 0;
+$now = time();
+if ($now - $lastResend < 120) {
+    $wait = 120 - ($now - $lastResend);
+    $_SESSION['error'] = 'Aguarde ' . $wait . 's antes de reenviar novamente.';
+    header('Location: order-detail.php?id=' . $orderId);
+    exit;
+}
+
 $compResult = gerarComprovante($orderId);
 
 if ($compResult['success']) {
@@ -47,6 +58,11 @@ if ($compResult['success']) {
 }
 
 salvarStatusEmail($orderId, $emailStatus, $errorMsg);
+
+// Atualiza timestamp do último reenvio
+if ($emailSent) {
+    $_SESSION[$lastResendKey] = $now;
+}
 
 $_SESSION['success'] = $emailSent ? 'Comprovante reenviado com sucesso!' : 'Falha ao reenviar comprovante: ' . ($errorMsg ?? 'Erro desconhecido');
 header('Location: order-detail.php?id=' . $orderId);
