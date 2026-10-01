@@ -435,8 +435,10 @@ function account_layout_foot(): void
         var avatarForm  = document.getElementById('avatarForm');
         if (avatarEditBtn && avatarInput && avatarForm) {
             avatarEditBtn.addEventListener('click', function () { avatarInput.click(); });
+            // Legacy avatar upload (form submit) — pages that need custom handling
+            // (e.g., profile.php with Cropper.js) should override this behavior.
             avatarInput.addEventListener('change', function () {
-                if (avatarInput.files.length > 0) {
+                if (avatarInput.files.length > 0 && !avatarInput.dataset.cropper) {
                     avatarForm.submit();
                 }
             });

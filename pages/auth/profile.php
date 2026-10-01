@@ -23,7 +23,7 @@ require_once __DIR__ . '/../../database/connection.php';
 
 // Incluir Cropper.js para o editor de avatar
 $GLOBALS['extra_head_css'] = [
-    asset_url('assets/vendor/cropperjs/cropper.min.css'),
+    asset_url('assets/lib/cropperjs/cropper.min.css'),
 ];
 
 $user = account_require_login($pdo);
@@ -1074,7 +1074,7 @@ account_layout_head($user, 'perfil');
 </div>
 
 <!-- Cropper.js (local) -->
-<script src="<?php echo asset_url('assets/vendor/cropperjs/cropper.min.js'); ?>"></script>
+<script src="<?php echo asset_url('assets/lib/cropperjs/cropper.min.js'); ?>"></script>
 
 <script>
 (function () {
@@ -1275,7 +1275,8 @@ account_layout_head($user, 'perfil');
     var avatarInput = document.getElementById('avatarInput');
     var avatarForm = document.getElementById('avatarForm');
     if (avatarInput && avatarForm && avatarCropperModal) {
-        avatarInput.addEventListener('change', function () {
+        avatarInput.dataset.cropper = "true";
+            avatarInput.addEventListener('change', function () {
             var file = avatarInput.files[0];
             if (!file) return;
 
@@ -1915,6 +1916,14 @@ account_layout_head($user, 'perfil');
             });
         });
     }
+
+    // Expose functions to global scope for inline event handlers
+    window.saveAvatarCrop = saveAvatarCrop;
+    window.removeAvatar = removeAvatar;
+    window.avatarCropper = avatarCropper;
+    window.closeAvatarModal = closeAvatarModal;
+    window.openAvatarModal = openAvatarModal;
+    window.updateAvatarPreview = updateAvatarPreview;
 })();
 </script>
 
