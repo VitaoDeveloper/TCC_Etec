@@ -334,18 +334,6 @@ function order_repo_address_with_fallback(PDO $pdo, array $order): array
     ];
 }
 
-function only_digits(?string $s): string {
-    return preg_replace('/\D/', '', (string) $s) ?? '';
-}
-
-function format_cep(string $cep): string {
-    $d = only_digits($cep);
-    if (strlen($d) === 8) {
-        return substr($d, 0, 5) . '-' . substr($d, 5);
-    }
-    return $cep;
-}
-
 function shipping_method_label(array $order): string
 {
     $method = (string) ($order['shipping_method'] ?? '');

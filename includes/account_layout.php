@@ -309,11 +309,31 @@ function account_layout_head(array $user, string $active, ?string $breadcrumb = 
     </nav>
 
     <div class="account-shell" data-account-active="<?php echo e($active); ?>">
-        <aside class="account-sidebar" id="accountSidebar">
-            <div class="account-identity">
-                <?php echo render_avatar($user); ?>
-                <!-- Upload de avatar: clique no avatar abre o seletor de arquivo.
-                     O form POSTa para profile.php action=avatar (handler já existe). -->
+        <aside class="account-side" id="accountSidebar">
+            <!-- Card de perfil vertical centralizado -->
+            <section class="card profile-card">
+                <div class="avatar-ring">
+                    <?php
+                    $name     = (string) ($user['name'] ?? '');
+                    $initials = avatar_initials($name);
+                    $url      = avatar_url($user['avatar_path'] ?? null);
+                    
+                    if ($url === ''):
+                    ?>
+                        <span class="avatar avatar-initials"><?php echo e($initials); ?></span>
+                    <?php else: ?>
+                        <img class="avatar" src="<?php echo e($url); ?>" alt="" 
+                             onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'avatar avatar-initials',textContent:'<?php echo e($initials); ?>'}))">
+                    <?php endif; ?>
+                    
+                    <?php if ($active === 'perfil'): ?>
+                        <button type="button" class="avatar-edit" aria-label="Trocar foto" id="avatarEditBtn">
+                            <i class="fa-solid fa-camera"></i>
+                        </button>
+                    <?php endif; ?>
+                </div>
+                
+                <!-- Upload de avatar: clique no botão abre o seletor de arquivo -->
                 <form method="post" enctype="multipart/form-data"
                       action="<?php echo e(base_url('pages/auth/profile.php')); ?>"
                       class="account-avatar-form" id="avatarForm" hidden>
@@ -321,27 +341,25 @@ function account_layout_head(array $user, string $active, ?string $breadcrumb = 
                     <?php echo csrf_field(); ?>
                     <input type="file" name="avatar" id="avatarInput" accept="image/jpeg,image/png,image/webp">
                 </form>
-                <div class="account-identity-text">
-                    <span class="account-identity-name"><?php echo e($user['name'] ?? ''); ?></span>
-                    <span class="account-identity-mail"><?php echo e($user['email'] ?? ''); ?></span>
-                    <?php if (($user['role'] ?? '') === 'admin'): ?>
-                        <span class="account-identity-pill" data-account-pill="admin">
-                            <i class="fas fa-crown" aria-hidden="true"></i> ADMINISTRADOR
-                        </span>
-                    <?php endif; ?>
-                </div>
-            </div>
+                
+                <h2 class="profile-name"><?php echo e($user['name'] ?? ''); ?></h2>
+                <p class="profile-email"><?php echo e($user['email'] ?? ''); ?></p>
+                
+                <?php if (($user['role'] ?? '') === 'admin'): ?>
+                    <span class="pill-gold">Administrador</span>
+                <?php endif; ?>
+            </section>
 
-            <nav class="account-nav" aria-label="Navegação da conta">
+            <!-- Card de menu -->
+            <nav class="card side-menu" aria-label="Navegação da conta">
                 <?php foreach ($navItems as $item):
                     $isCurrent = $item['script'] === $currentFile
                         || in_array($currentFile, $item['also'] ?? [], true);
                 ?>
                     <a href="<?php echo e(base_url('pages/auth/' . $item['script'])); ?>"
-                       class="account-nav-link<?php echo $isCurrent ? ' is-current' : ''; ?>"
+                       class="<?php echo $isCurrent ? 'active' : ''; ?>"
                        <?php echo $isCurrent ? 'aria-current="page"' : ''; ?>>
-                        <i class="fas <?php echo e($item['icon']); ?>" aria-hidden="true"></i>
-                        <span><?php echo e($item['label']); ?></span>
+                        <i class="fa-solid <?php echo e($item['icon']); ?>"></i> <?php echo e($item['label']); ?>
                     </a>
                 <?php endforeach; ?>
             </nav>
@@ -405,15 +423,12 @@ function account_layout_foot(): void
             if (event.key === 'Escape') setOpen(false);
         });
 
-        // Avatar upload: clique no avatar abre o seletor de arquivo.
-        var avatarWrap = document.querySelector('.account-identity .account-avatar');
+        // Avatar upload: clique no botão de câmera abre o seletor de arquivo.
+        var avatarEditBtn = document.getElementById('avatarEditBtn');
         var avatarInput = document.getElementById('avatarInput');
         var avatarForm  = document.getElementById('avatarForm');
-        if (avatarWrap && avatarInput && avatarForm) {
-            avatarWrap.style.cursor = 'pointer';
-            avatarWrap.setAttribute('role', 'button');
-            avatarWrap.setAttribute('aria-label', 'Alterar foto do perfil');
-            avatarWrap.addEventListener('click', function () { avatarInput.click(); });
+        if (avatarEditBtn && avatarInput && avatarForm) {
+            avatarEditBtn.addEventListener('click', function () { avatarInput.click(); });
             avatarInput.addEventListener('change', function () {
                 if (avatarInput.files.length > 0) {
                     avatarForm.submit();
