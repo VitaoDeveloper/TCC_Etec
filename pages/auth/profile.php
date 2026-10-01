@@ -356,6 +356,11 @@ account_layout_head($user, 'perfil');
 
 <main class="account-content">
 
+<header class="account-page-header">
+    <h1 class="account-page-title">Meu Perfil</h1>
+    <p class="account-page-subtitle">Gerencie seus dados pessoais e preferências atualizadas</p>
+</header>
+
 <?php if ($flash['message'] !== ''): ?>
     <div class="account-alert account-alert--<?php echo e($flash['type']); ?>" role="status">
         <i class="fas <?php echo $flash['type'] === 'ok' ? 'fa-circle-check' : 'fa-circle-exclamation'; ?>" aria-hidden="true"></i>
