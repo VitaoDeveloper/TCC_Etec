@@ -179,7 +179,7 @@ class AccountLayoutRenderTest extends TestCase
         $pill = $this->dom(self::$adminHtml)->query('//span[@data-account-pill="admin"]')->item(0);
 
         $this->assertNotNull($pill, 'a pilula de admin nao apareceu para role=admin');
-        $this->assertSame('Admin', trim(preg_replace('/\s+/', ' ', $pill->textContent) ?? ''));
+        $this->assertSame('ADMINISTRADOR', trim(preg_replace('/\s+/', ' ', $pill->textContent) ?? ''));
     }
 
     // =================================================================

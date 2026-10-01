@@ -77,33 +77,31 @@ function account_require_login(PDO $pdo): array
  * Cada item declara o script que o marca como ativo. A comparação é
  * pelo basename do script, e não pelo rótulo, para o item continuar
  * certo mesmo depois de reorganizar os arquivos.
+ *
+ * SEM seções ("Conta", "Compras") — especificação visual exige
+ * lista plana: [Meu Perfil] [Meus Pedidos] [Sair].
  */
 function account_nav_items(): array
 {
     return [
         [
-            'key'     => 'perfil',
-            'label'   => 'Meu Perfil',
-            'icon'    => 'fa-user',
-            'script'  => 'profile.php',
-            'section' => 'Conta',
+            'key'    => 'perfil',
+            'label'  => 'Meu Perfil',
+            'icon'   => 'fa-user',
+            'script' => 'profile.php',
         ],
         [
             'key'     => 'pedidos',
             'label'   => 'Meus Pedidos',
             'icon'    => 'fa-box-open',
             'script'  => 'orders.php',
-            // O detalhe do pedido é a mesma entrada: sem isto a
-            // sidebar não marca nada e a tela "perde" o lugar na conta.
             'also'    => ['order-detail.php'],
-            'section' => 'Compras',
         ],
         [
-            'key'     => 'compras-sair',
-            'label'   => 'Sair da Conta',
-            'icon'    => 'fa-right-from-bracket',
-            'script'  => 'logout.php',
-            'section' => 'Conta',
+            'key'    => 'sair',
+            'label'  => 'Sair',
+            'icon'   => 'fa-right-from-bracket',
+            'script' => 'logout.php',
         ],
     ];
 }
@@ -285,12 +283,6 @@ function account_layout_head(array $user, string $active): void
     $navItems    = account_nav_items();
     $currentFile = basename((string) ($_SERVER['SCRIPT_NAME'] ?? ''));
 
-    // Agrupa por seção preservando a ordem do array.
-    $sections = [];
-    foreach ($navItems as $item) {
-        $sections[$item['section']][] = $item;
-    }
-
     // O header.php lê este array; sem ele a folha da conta acabaria
     // emitida no <body>, onde o navegador ainda a aplica, mas o HTML
     // fica inválido e o devtools mostra o aviso.
@@ -308,28 +300,23 @@ function account_layout_head(array $user, string $active): void
                     <span class="account-identity-mail"><?php echo e($user['email'] ?? ''); ?></span>
                     <?php if (($user['role'] ?? '') === 'admin'): ?>
                         <span class="account-identity-pill" data-account-pill="admin">
-                            <i class="fas fa-crown" aria-hidden="true"></i> Admin
+                            <i class="fas fa-crown" aria-hidden="true"></i> ADMINISTRADOR
                         </span>
                     <?php endif; ?>
                 </div>
             </div>
 
             <nav class="account-nav" aria-label="Navegação da conta">
-                <?php foreach ($sections as $sectionLabel => $items): ?>
-                    <div class="account-nav-group">
-                        <span class="account-nav-heading"><?php echo e($sectionLabel); ?></span>
-                        <?php foreach ($items as $item):
-                            $isCurrent = $item['script'] === $currentFile
-                                || in_array($currentFile, $item['also'] ?? [], true);
-                        ?>
-                            <a href="<?php echo e(base_url('pages/auth/' . $item['script'])); ?>"
-                               class="account-nav-link<?php echo $isCurrent ? ' is-current' : ''; ?>"
-                               <?php echo $isCurrent ? 'aria-current="page"' : ''; ?>>
-                                <i class="fas <?php echo e($item['icon']); ?>" aria-hidden="true"></i>
-                                <span><?php echo e($item['label']); ?></span>
-                            </a>
-                        <?php endforeach; ?>
-                    </div>
+                <?php foreach ($navItems as $item):
+                    $isCurrent = $item['script'] === $currentFile
+                        || in_array($currentFile, $item['also'] ?? [], true);
+                ?>
+                    <a href="<?php echo e(base_url('pages/auth/' . $item['script'])); ?>"
+                       class="account-nav-link<?php echo $isCurrent ? ' is-current' : ''; ?>"
+                       <?php echo $isCurrent ? 'aria-current="page"' : ''; ?>>
+                        <i class="fas <?php echo e($item['icon']); ?>" aria-hidden="true"></i>
+                        <span><?php echo e($item['label']); ?></span>
+                    </a>
                 <?php endforeach; ?>
             </nav>
         </aside>
@@ -342,6 +329,14 @@ function account_layout_head(array $user, string $active): void
                 <i class="fas fa-bars" aria-hidden="true"></i>
                 <span>Menu da conta</span>
             </button>
+
+            <!-- Breadcrumb (especificação: fundo #2d2d2d, largura total) -->
+            <nav class="account-breadcrumb" aria-label="Navegação estrutural">
+                <ol>
+                    <li><a href="<?php echo e(base_url('/')); ?>">Início</a></li>
+                    <li aria-current="page"><?php echo e($active === 'perfil' ? 'Meu Perfil' : ($active === 'pedidos' ? 'Meus Pedidos' : 'Detalhes do Pedido')); ?></li>
+                </ol>
+            </nav>
     <?php
 }
 
