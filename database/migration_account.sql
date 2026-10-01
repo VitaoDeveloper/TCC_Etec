@@ -218,11 +218,18 @@ ALTER TABLE e5_payments
 --    estornado) nem "failed" (nao houve erro) -- o worker grava
 --    'canceled' e a tela mostra "Cancelado".
 -- ---------------------------------------------------------------------
+--    O COLUMN_NAME e obrigatorio no segundo COUNT: sem ele a busca
+--    "%preparing%"/%"canceled%" varre as colunas da tabela inteira e
+--    acha o valor dentro de `status`, que ja foi migrado no bloco
+--    acima. A guarda passava a ser sempre falsa e o ALTER de
+--    payment_status nunca rodava — num banco novo o seed do pedido
+--    #0012 truncava 'canceled' em 'pending' sem erro visivel.
 SET @sql = IF(
   (SELECT COUNT(*) FROM information_schema.COLUMNS
     WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'e5_orders' AND COLUMN_NAME = 'status') = 1
   AND (SELECT COUNT(*) FROM information_schema.COLUMNS
-    WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'e5_orders' AND COLUMN_TYPE LIKE '%preparing%') = 0,
+    WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'e5_orders'
+      AND COLUMN_NAME = 'status' AND COLUMN_TYPE LIKE '%preparing%') = 0,
   "ALTER TABLE e5_orders
      MODIFY COLUMN status ENUM('pending','paid','preparing','shipped','delivered','canceled')
      NOT NULL DEFAULT 'pending'",
@@ -234,7 +241,8 @@ SET @sql = IF(
   (SELECT COUNT(*) FROM information_schema.COLUMNS
     WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'e5_orders' AND COLUMN_NAME = 'payment_status') = 1
   AND (SELECT COUNT(*) FROM information_schema.COLUMNS
-    WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'e5_orders' AND COLUMN_TYPE LIKE '%canceled%') = 0,
+    WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'e5_orders'
+      AND COLUMN_NAME = 'payment_status' AND COLUMN_TYPE LIKE '%canceled%') = 0,
   "ALTER TABLE e5_orders
      MODIFY COLUMN payment_status ENUM('pending','processing','paid','canceled','refunded','failed','expired')
      NOT NULL DEFAULT 'pending'",
