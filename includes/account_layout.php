@@ -152,9 +152,15 @@ function avatar_url(?string $storedPath): string
         return '';
     }
 
+    // Caminho já é relativo à raiz web (ex.: assets/uploads/avatars/file.png)
     $relative = str_starts_with($storedPath, '/')
         ? ltrim($storedPath, '/')
-        : 'assets/' . ltrim($storedPath, 'uploads/');
+        : $storedPath;
+
+    // Se o caminho não começa com assets/, prepend (compatibilidade com dados antigos)
+    if (!str_starts_with($relative, 'assets/')) {
+        $relative = 'assets/' . ltrim($relative, 'uploads/');
+    }
 
     $absolute = dirname(__DIR__) . '/' . $relative;
 

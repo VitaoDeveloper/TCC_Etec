@@ -53,9 +53,12 @@ function api_address_validate(array $in): array
         $errors['street'] = 'A rua deve ter no máximo 120 caracteres.';
     }
 
-    if (clean_text($in['number'] ?? '') === '') {
+    $number = clean_text($in['number'] ?? '');
+    if ($number === '') {
         $errors['number'] = 'Informe o número.';
-    } elseif (mb_strlen((string) $in['number']) > 10) {
+    } elseif (!ctype_digit($number)) {
+        $errors['number'] = 'Número inválido: use apenas dígitos.';
+    } elseif (mb_strlen($number) > 10) {
         $errors['number'] = 'O número deve ter no máximo 10 caracteres.';
     }
 

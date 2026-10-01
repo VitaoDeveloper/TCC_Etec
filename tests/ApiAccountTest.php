@@ -318,8 +318,9 @@ class ApiAccountTest extends TestCase
 
     public function testProfileAddressUpdatePersistsChanges(): void
     {
-        [$status, $json] = $this->call('profile.php', 'POST', [
-            'action'      => 'address',
+        [$status, $json] = $this->call('address.php', 'POST', [
+            'action'      => 'create',
+            'label'       => 'Teste',
             'postal_code' => '12053831',
             'street'      => 'Rua Nova',
             'number'      => '456',
@@ -329,18 +330,19 @@ class ApiAccountTest extends TestCase
             'state'       => 'SP',
         ]);
 
-        $this->assertSame(200, $status);
+        $this->assertSame(201, $status);
         $this->assertTrue($json['ok']);
-        $this->assertSame('Rua Nova', $json['data']['street']);
-        $this->assertSame(456, (int) $json['data']['number']);
-        $this->assertSame('12053-831', $json['data']['postal_code']);
-        $this->assertSame('SP', $json['data']['state']);
+        $this->assertSame('Rua Nova', $json['data']['addresses'][0]['street']);
+        $this->assertSame('456', $json['data']['addresses'][0]['number']);
+        $this->assertSame('12053-831', $json['data']['addresses'][0]['postal_code']);
+        $this->assertSame('SP', $json['data']['addresses'][0]['state']);
     }
 
     public function testProfileAddressRejectsInvalidData(): void
     {
-        [$status, $json] = $this->call('profile.php', 'POST', [
-            'action'      => 'address',
+        [$status, $json] = $this->call('address.php', 'POST', [
+            'action'      => 'create',
+            'label'       => 'Teste',
             'postal_code' => '123',
             'street'      => '',
             'number'      => '',
@@ -360,13 +362,14 @@ class ApiAccountTest extends TestCase
 
     public function testProfileAddressRejectsNonNumericNumber(): void
     {
-        [$status, $json] = $this->call('profile.php', 'POST', [
-            'action'      => 'address',
+        [$status, $json] = $this->call('address.php', 'POST', [
+            'action'      => 'create',
             'postal_code' => '12053831',
             'street'      => 'Rua Teste',
             'number'      => 'abc',
             'city'        => 'São Paulo',
             'state'       => 'SP',
+            'label'       => 'Teste',
         ]);
 
         $this->assertSame(400, $status);

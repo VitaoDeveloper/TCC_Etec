@@ -134,13 +134,13 @@ class AccountLayoutRenderTest extends TestCase
     public function testGridHasSidebarMainAndOverlay(): void
     {
         $this->assertSame(1, $this->dom()->query('//div[contains(@class,"account-shell")]')->length);
-        $this->assertSame(1, $this->dom()->query('//aside[contains(@class,"account-sidebar")]')->length);
+        $this->assertSame(1, $this->dom()->query('//aside[contains(@class,"account-side")]')->length);
         $this->assertSame(1, $this->dom()->query('//div[@id="accountOverlay"]')->length);
     }
 
     public function testEverySidebarLinkIsAbsolute(): void
     {
-        foreach ($this->dom()->query('//nav[@class="account-nav"]//a') as $link) {
+        foreach ($this->dom()->query('//nav[contains(@class,"side-menu")]//a') as $link) {
             $href = $link->getAttribute('href');
 
             $this->assertStringStartsWith(
@@ -153,7 +153,7 @@ class AccountLayoutRenderTest extends TestCase
 
     public function testCurrentPageIsMarkedInTheSidebar(): void
     {
-        $current = $this->dom()->query('//nav[@class="account-nav"]//a[contains(@class,"is-current")]');
+        $current = $this->dom()->query('//nav[contains(@class,"side-menu")]//a[contains(@class,"active")]');
 
         $this->assertSame(1, $current->length, 'a sidebar precisa marcar exatamente um item');
         $this->assertSame('Meu Perfil', trim($current->item(0)->textContent));
@@ -162,7 +162,7 @@ class AccountLayoutRenderTest extends TestCase
 
     public function testIdentityShowsTheLoggedUser(): void
     {
-        $name = $this->dom()->query('//span[contains(@class,"account-identity-name")]')->item(0);
+        $name = $this->dom()->query('//h2[contains(@class,"profile-name")]')->item(0);
 
         $this->assertNotNull($name, 'a sidebar nao mostrou o nome do usuario');
         $this->assertNotSame('', trim($name->textContent));
@@ -172,14 +172,14 @@ class AccountLayoutRenderTest extends TestCase
     {
         $this->assertSame(
             0,
-            $this->dom()->query('//span[@data-account-pill="admin"]')->length,
+            $this->dom()->query('//span[contains(@class,"pill-gold")]')->length,
             'cliente comum nao pode ver a pilula de admin'
         );
 
-        $pill = $this->dom(self::$adminHtml)->query('//span[@data-account-pill="admin"]')->item(0);
+        $pill = $this->dom(self::$adminHtml)->query('//span[contains(@class,"pill-gold")]')->item(0);
 
         $this->assertNotNull($pill, 'a pilula de admin nao apareceu para role=admin');
-        $this->assertSame('ADMINISTRADOR', trim(preg_replace('/\s+/', ' ', $pill->textContent) ?? ''));
+        $this->assertSame('Administrador', trim(preg_replace('/\s+/', ' ', $pill->textContent) ?? ''));
     }
 
     // =================================================================
@@ -190,7 +190,7 @@ class AccountLayoutRenderTest extends TestCase
     {
         // O usuario 16 e o do seed, sem avatar: e o caso que todo
         // cliente novo cai.
-        $avatar = $this->dom()->query('//span[contains(@class,"account-avatar--initials")]')->item(0);
+        $avatar = $this->dom()->query('//span[contains(@class,"avatar-initials")]')->item(0);
 
         $this->assertNotNull($avatar, 'sem avatar, o fallback para iniciais nao apareceu');
         $this->assertSame(

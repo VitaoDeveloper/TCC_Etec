@@ -96,7 +96,7 @@ class AccountOrdersRenderTest extends TestCase
 
         $this->assertSame(1, $dom->query('/html')->length);
         $this->assertSame(1, $dom->query('//div[contains(@class,"account-shell")]')->length);
-        $this->assertSame(1, $dom->query('//aside[contains(@class,"account-sidebar")]')->length);
+        $this->assertSame(1, $dom->query('//aside[contains(@class,"account-side")]')->length);
         $this->assertSame(1, $dom->query('//main[contains(@class,"account-main")]')->length);
         $this->assertSame('Meus Pedidos - Royal Tech', trim((string) $dom->query('//title')->item(0)?->textContent));
     }
@@ -104,7 +104,7 @@ class AccountOrdersRenderTest extends TestCase
     public function testOrdersIsTheCurrentSidebarItem(): void
     {
         $current = $this->dom(self::$listHtml)
-            ->query('//nav[contains(@class,"account-nav")]//a[contains(@class,"is-current")]');
+            ->query('//nav[contains(@class,"side-menu")]//a[contains(@class,"active")]');
 
         $this->assertSame(1, $current->length, 'a sidebar precisa marcar exatamente um item');
         $this->assertSame('Meus Pedidos', trim($current->item(0)->textContent));
@@ -436,7 +436,7 @@ class AccountOrdersRenderTest extends TestCase
     public function testDetailMarksOrdersAsCurrentSidebarItem(): void
     {
         $current = $this->dom(self::$detailHtml)
-            ->query('//nav[contains(@class,"account-nav")]//a[contains(@class,"is-current")]');
+            ->query('//nav[contains(@class,"side-menu")]//a[contains(@class,"active")]');
 
         $this->assertSame(1, $current->length);
         $this->assertSame('Meus Pedidos', trim($current->item(0)->textContent));

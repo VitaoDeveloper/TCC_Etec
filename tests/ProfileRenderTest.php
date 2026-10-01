@@ -123,7 +123,6 @@ class ProfileRenderTest extends TestCase
     {
         $expected = [
             'secao-dados',
-            'secao-endereco',
             'secao-enderecos-salvos',
             'secao-senha',
             'secao-avisos',
@@ -188,9 +187,10 @@ class ProfileRenderTest extends TestCase
 
     public function testAddressFieldsPresent(): void
     {
-        // Escopado ao form principal: o modal de endereço salvos repete
-        // os mesmos nomes de campo e não deve entrar nesta contagem.
-        $form = '//form[@data-profile-form]';
+        // Os campos de endereço agora estão no modal "Endereços Salvos"
+        // (form com data-address-form). O form principal (data-profile-form)
+        // só tem Dados Pessoais.
+        $form = "//*[@id='modal-address']//form[@data-address-form]";
 
         foreach (['postal_code', 'number', 'street', 'complement', 'neighborhood', 'city'] as $field) {
             $this->assertSame(

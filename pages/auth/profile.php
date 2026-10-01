@@ -55,35 +55,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'avata
     $size     = (int) $file['size'];
     $ext      = strtolower((string) pathinfo((string) $file['name'], PATHINFO_EXTENSION));
     $extMap   = ['jpg' => 'jpg', 'jpeg' => 'jpg', 'png' => 'png', 'webp' => 'webp'];
+    $mimeMap  = ['jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'webp' => 'image/webp'];
 
     if ($size > 2 * 1024 * 1024) {
         $_SESSION['error'] = 'A imagem excede o tamanho máximo de 2 MB.';
     } elseif (!isset($extMap[$ext])) {
         $_SESSION['error'] = 'Formato não aceito. Use JPG, PNG ou WebP.';
     } else {
-        $dir = dirname(__DIR__, 2) . '/assets/uploads/avatars';
-        if (!is_dir($dir)) {
-            @mkdir($dir, 0755, true);
-        }
-
-        $filename = 'user_' . (int) $_SESSION['user_id'] . '_' . bin2hex(random_bytes(6)) . '.' . $extMap[$ext];
-        if (move_uploaded_file($tmpName, $dir . '/' . $filename)) {
-            $oldPath = (string) ($user['avatar_path'] ?? '');
-            if ($oldPath !== '' && str_contains($oldPath, 'uploads/avatars/')) {
-                $oldAbs = dirname(__DIR__, 2) . '/' . ltrim($oldPath, '/');
-                if (is_file($oldAbs)) {
-                    @unlink($oldAbs);
-                }
+        // Validar MIME type real do arquivo (não confiar na extensão)
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+        $mime  = $finfo->file($tmpName);
+        if ($mime !== $mimeMap[$ext]) {
+            $_SESSION['error'] = 'O arquivo não é uma imagem válida.';
+        } else {
+            $dir = dirname(__DIR__, 2) . '/assets/uploads/avatars';
+            if (!is_dir($dir)) {
+                @mkdir($dir, 0755, true);
             }
 
-            $relative = 'uploads/avatars/' . $filename;
-            $pdo->prepare('UPDATE e5_users SET avatar_path = :path WHERE id = :id')
-                ->execute([':path' => $relative, ':id' => $_SESSION['user_id']]);
-            $user['avatar_path'] = $relative;
+            $filename = 'user_' . (int) $_SESSION['user_id'] . '_' . bin2hex(random_bytes(6)) . '.' . $extMap[$ext];
+            if (move_uploaded_file($tmpName, $dir . '/' . $filename)) {
+                $oldPath = (string) ($user['avatar_path'] ?? '');
+                if ($oldPath !== '' && (str_contains($oldPath, 'uploads/avatars/') || str_contains($oldPath, 'assets/uploads/avatars/'))) {
+                    $oldAbs = dirname(__DIR__, 2) . '/' . ltrim($oldPath, '/');
+                    if (is_file($oldAbs)) {
+                        @unlink($oldAbs);
+                    }
+                }
 
-            $_SESSION['success'] = 'Foto de perfil atualizada!';
-        } else {
-            $_SESSION['error'] = 'Não foi possível salvar a imagem.';
+                $relative = 'assets/uploads/avatars/' . $filename;
+                $pdo->prepare('UPDATE e5_users SET avatar_path = :path WHERE id = :id')
+                    ->execute([':path' => $relative, ':id' => $_SESSION['user_id']]);
+                $user['avatar_path'] = $relative;
+
+                $_SESSION['success'] = 'Foto de perfil atualizada!';
+            } else {
+                $_SESSION['error'] = 'Não foi possível salvar a imagem.';
+            }
         }
     }
 
@@ -94,37 +102,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'avata
 // ---------------------------------------------------------------------
 //  Salvar Alterações (Dados Pessoais + Endereço, num POST só)
 //
-//  O action=personal já cobre os dois blocos de coluna em e5_users, então
-//  a validação de dado pessoal (nome/e-mail/username/cpf) continua
-//  estrita e a de endereço continua opcional — igual à API.
+//  Salvar Alterações (Dados Pessoais apenas — Endereço é gerenciado
+//  separadamente em "Endereços Salvos" via API).
 // ---------------------------------------------------------------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'personal') {
     csrf_require_valid();
 
     $input = [
-        'name'         => clean_text($_POST['name'] ?? ''),
-        'email'        => strtolower(trim((string) ($_POST['email'] ?? ''))),
-        'username'     => clean_text($_POST['username'] ?? ''),
-        'cpf'          => only_digits($_POST['cpf'] ?? ''),
-        'phone'        => only_digits($_POST['phone'] ?? ''),
-        'postal_code'  => format_cep(only_digits($_POST['postal_code'] ?? '')),
-        'street'       => clean_text($_POST['street'] ?? ''),
-        'number'       => clean_text($_POST['number'] ?? ''),
-        'complement'   => clean_text($_POST['complement'] ?? ''),
-        'neighborhood' => clean_text($_POST['neighborhood'] ?? ''),
-        'city'         => clean_text($_POST['city'] ?? ''),
-        'state'        => strtoupper(clean_text($_POST['state'] ?? '')),
+        'name'     => clean_text($_POST['name'] ?? ''),
+        'email'    => strtolower(trim((string) ($_POST['email'] ?? ''))),
+        'username' => clean_text($_POST['username'] ?? ''),
+        'cpf'      => only_digits($_POST['cpf'] ?? ''),
+        'phone'    => only_digits($_POST['phone'] ?? ''),
     ];
 
     $errors = [];
 
     // Username só é validado quando muda (contas legadas podem ter um
     // valor fora do formato novo enquanto não for alterado).
-    $stmt = $pdo->prepare('SELECT username, number FROM e5_users WHERE id = :id LIMIT 1');
+    $stmt = $pdo->prepare('SELECT username FROM e5_users WHERE id = :id LIMIT 1');
     $stmt->execute([':id' => (int) $_SESSION['user_id']]);
     $currentRow      = $stmt->fetch() ?: [];
     $currentUsername = (string) ($currentRow['username'] ?? '');
-    $currentNumber   = (string) ($currentRow['number'] ?? '');
     $usernameChanged = $input['username'] !== $currentUsername;
 
     if ($input['name'] === '') {
@@ -159,20 +158,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'perso
         $errors['cpf'] = 'CPF inválido.';
     }
 
-    if ($input['postal_code'] !== '' && !is_valid_cep(only_digits($input['postal_code']))) {
-        $errors['postal_code'] = 'CEP inválido.';
-    }
-
-    if ($input['state'] !== '' && !is_valid_uf($input['state'])) {
-        $errors['state'] = 'UF inválida.';
-    }
-
-    // e5_users.number é INT NOT NULL com STRICT_TRANS_TABLES: string
-    // vazia ou não numérica estoura o UPDATE. Vazio mantém o atual.
-    if ($input['number'] !== '' && !ctype_digit($input['number'])) {
-        $errors['number'] = 'Número inválido: use apenas dígitos.';
-    }
-
     if ($errors !== []) {
         $_SESSION['error'] = reset($errors);
         header('Location: ' . base_url('pages/auth/profile.php'));
@@ -182,28 +167,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'perso
     $pdo->prepare(
         'UPDATE e5_users SET
             name = :name, email = :email, username = :username, cpf = :cpf,
-            phone = :phone, postal_code = :postal_code, street = :street,
-            number = :number, complement = :complement,
-            neighborhood = :neighborhood, city = :city, state = :state,
-            updated_at = NOW()
+            phone = :phone, updated_at = NOW()
          WHERE id = :id'
     )->execute([
-        ':name'         => $input['name'],
-        ':email'        => $input['email'],
-        ':username'     => $input['username'],
-        ':cpf'          => $input['cpf'],
-        ':phone'        => $input['phone'] !== '' ? $input['phone'] : null,
-        ':postal_code'  => $input['postal_code'],
-        ':street'       => $input['street'],
-        ':number'       => $input['number'] !== '' ? $input['number'] : $currentNumber,
-        ':complement'   => $input['complement'] !== '' ? $input['complement'] : null,
-        ':neighborhood' => $input['neighborhood'] !== '' ? $input['neighborhood'] : null,
-        ':city'         => $input['city'] !== '' ? $input['city'] : null,
-        ':state'        => $input['state'] !== '' ? $input['state'] : null,
-        ':id'           => (int) $_SESSION['user_id'],
+        ':name'     => $input['name'],
+        ':email'    => $input['email'],
+        ':username' => $input['username'],
+        ':cpf'      => $input['cpf'],
+        ':phone'    => $input['phone'] !== '' ? $input['phone'] : null,
+        ':id'       => (int) $_SESSION['user_id'],
     ]);
 
-    $_SESSION['success'] = 'Dados e endereço atualizados.';
+    $_SESSION['success'] = 'Dados pessoais atualizados.';
     header('Location: ' . base_url('pages/auth/profile.php'));
     exit;
 }
@@ -267,79 +242,179 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'passw
 // ---------------------------------------------------------------------
 //  Endereços salvos — fallback sem JS (espelha api/account/address.php)
 // ---------------------------------------------------------------------
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'create') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array(($_POST['action'] ?? ''), ['create', 'address', 'set_default', 'update', 'delete'], true)) {
     csrf_require_valid();
 
-    $cep    = only_digits($_POST['postal_code'] ?? '');
-    $label  = clean_text($_POST['label'] ?? '');
-    $street = clean_text($_POST['street'] ?? '');
-    $number = clean_text($_POST['number'] ?? '');
-    $city   = clean_text($_POST['city'] ?? '');
-    $state  = strtoupper(clean_text($_POST['state'] ?? ''));
+    $action = $_POST['action'];
 
-    $errors = [];
+    if ($action === 'create' || $action === 'address') {
+        $cep    = only_digits($_POST['postal_code'] ?? '');
+        $label  = clean_text($_POST['label'] ?? '');
+        $street = clean_text($_POST['street'] ?? '');
+        $number = clean_text($_POST['number'] ?? '');
+        $city   = clean_text($_POST['city'] ?? '');
+        $state  = strtoupper(clean_text($_POST['state'] ?? ''));
 
-    if ($label === '') {
-        $errors['label'] = 'Informe um apelido para o endereço.';
-    }
-    if (!is_valid_cep($cep)) {
-        $errors['postal_code'] = 'CEP inválido.';
-    }
-    if ($street === '') {
-        $errors['street'] = 'Informe a rua.';
-    }
-    if ($number === '') {
-        $errors['number'] = 'Informe o número.';
-    }
-    if ($city === '') {
-        $errors['city'] = 'Informe a cidade.';
-    }
-    if (!is_valid_uf($state)) {
-        $errors['state'] = 'UF inválida.';
-    }
+        $errors = [];
 
-    // Teto de endereços por cliente (a API também aplica).
-    $stmtCount = $pdo->prepare('SELECT COUNT(*) FROM e5_addresses WHERE user_id = :uid AND is_active = 1');
-    $stmtCount->execute([':uid' => (int) $_SESSION['user_id']]);
-    $count = (int) $stmtCount->fetchColumn();
+        if ($label === '') {
+            $errors['label'] = 'Informe um apelido para o endereço.';
+        }
+        if (!is_valid_cep($cep)) {
+            $errors['postal_code'] = 'CEP inválido.';
+        }
+        if ($street === '') {
+            $errors['street'] = 'Informe a rua.';
+        }
+        if ($number === '') {
+            $errors['number'] = 'Informe o número.';
+        }
+        if ($city === '') {
+            $errors['city'] = 'Informe a cidade.';
+        }
+        if (!is_valid_uf($state)) {
+            $errors['state'] = 'UF inválida.';
+        }
 
-    if ($count >= 10) {
-        $errors['label'] = 'Você já atingiu o limite de 10 endereços salvos.';
-    }
+        // Teto de endereços por cliente (a API também aplica).
+        $stmtCount = $pdo->prepare('SELECT COUNT(*) FROM e5_addresses WHERE user_id = :uid');
+        $stmtCount->execute([':uid' => (int) $_SESSION['user_id']]);
+        $count = (int) $stmtCount->fetchColumn();
 
-    if ($errors !== []) {
-        $_SESSION['error'] = reset($errors);
+        if ($count >= 10) {
+            $errors['label'] = 'Você já atingiu o limite de 10 endereços salvos.';
+        }
+
+        if ($errors !== []) {
+            $_SESSION['error'] = reset($errors);
+            header('Location: ' . base_url('pages/auth/profile.php'));
+            exit;
+        }
+
+        // Sem endereço padrão ainda: este vira o padrão.
+        $stmtDefault = $pdo->prepare('SELECT COUNT(*) FROM e5_addresses WHERE user_id = :uid');
+        $stmtDefault->execute([':uid' => (int) $_SESSION['user_id']]);
+        $isDefault = (int) $stmtDefault->fetchColumn() === 0 ? 1 : 0;
+
+        $pdo->prepare(
+            'INSERT INTO e5_addresses
+                (user_id, label, postal_code, street, number, complement,
+                 neighborhood, city, state, is_default, created_at)
+             VALUES (:uid, :label, :cep, :street, :number, :complement,
+                     :neighborhood, :city, :state, :is_default, NOW())'
+        )->execute([
+            ':uid'          => (int) $_SESSION['user_id'],
+            ':label'        => $label,
+            ':cep'          => format_cep($cep),
+            ':street'       => $street,
+            ':number'       => $number,
+            ':complement'   => clean_text($_POST['complement'] ?? '') ?: null,
+            ':neighborhood' => clean_text($_POST['neighborhood'] ?? '') ?: null,
+            ':city'         => $city,
+            ':state'        => $state,
+            ':is_default'   => $isDefault,
+        ]);
+
+        $_SESSION['success'] = 'Endereço salvo.';
         header('Location: ' . base_url('pages/auth/profile.php'));
         exit;
     }
 
-    // Sem endereço padrão ainda: este vira o padrão.
-    $stmtDefault = $pdo->prepare('SELECT COUNT(*) FROM e5_addresses WHERE user_id = :uid AND is_active = 1');
-    $stmtDefault->execute([':uid' => (int) $_SESSION['user_id']]);
-    $isDefault = (int) $stmtDefault->fetchColumn() === 0 ? 1 : 0;
+    if ($action === 'set_default') {
+        $id = (int) ($_POST['id'] ?? 0);
+        if ($id > 0) {
+            // Verifica se o endereço pertence ao usuário
+            $stmt = $pdo->prepare('SELECT id FROM e5_addresses WHERE id = :id AND user_id = :uid');
+            $stmt->execute([':id' => $id, ':uid' => (int) $_SESSION['user_id']]);
+            if ($stmt->fetch()) {
+                $pdo->prepare('UPDATE e5_addresses SET is_default = 0 WHERE user_id = :uid')
+                    ->execute([':uid' => (int) $_SESSION['user_id']]);
+                $pdo->prepare('UPDATE e5_addresses SET is_default = 1 WHERE id = :id')
+                    ->execute([':id' => $id]);
+                $_SESSION['success'] = 'Endereço padrão atualizado.';
+            } else {
+                $_SESSION['error'] = 'Endereço não encontrado.';
+            }
+        }
+        header('Location: ' . base_url('pages/auth/profile.php'));
+        exit;
+    }
 
-    $pdo->prepare(
-        'INSERT INTO e5_addresses
-            (user_id, label, postal_code, street, number, complement,
-             neighborhood, city, state, is_default, is_active, created_at)
-         VALUES (:uid, :label, :cep, :street, :number, :complement,
-                 :neighborhood, :city, :state, :is_default, 1, NOW())'
-    )->execute([
-        ':uid'          => (int) $_SESSION['user_id'],
-        ':label'        => $label,
-        ':cep'          => format_cep($cep),
-        ':street'       => $street,
-        ':number'       => $number,
-        ':complement'   => clean_text($_POST['complement'] ?? '') ?: null,
-        ':neighborhood' => clean_text($_POST['neighborhood'] ?? '') ?: null,
-        ':city'         => $city,
-        ':state'        => $state,
-        ':is_default'   => $isDefault,
-    ]);
+    if ($action === 'update') {
+        $id      = (int) ($_POST['id'] ?? 0);
+        $cep     = only_digits($_POST['postal_code'] ?? '');
+        $label   = clean_text($_POST['label'] ?? '');
+        $street  = clean_text($_POST['street'] ?? '');
+        $number  = clean_text($_POST['number'] ?? '');
+        $city    = clean_text($_POST['city'] ?? '');
+        $state   = strtoupper(clean_text($_POST['state'] ?? ''));
 
-    $_SESSION['success'] = 'Endereço salvo.';
-    header('Location: ' . base_url('pages/auth/profile.php'));
-    exit;
+        if ($id > 0) {
+            $stmt = $pdo->prepare('SELECT id FROM e5_addresses WHERE id = :id AND user_id = :uid');
+            $stmt->execute([':id' => $id, ':uid' => (int) $_SESSION['user_id']]);
+            if ($stmt->fetch()) {
+                $errors = [];
+                if ($label === '') { $errors['label'] = 'Informe um apelido para o endereço.'; }
+                if (!is_valid_cep($cep)) { $errors['postal_code'] = 'CEP inválido.'; }
+                if ($street === '') { $errors['street'] = 'Informe a rua.'; }
+                if ($number === '') { $errors['number'] = 'Informe o número.'; }
+                if ($city === '') { $errors['city'] = 'Informe a cidade.'; }
+                if (!is_valid_uf($state)) { $errors['state'] = 'UF inválida.'; }
+
+                if ($errors === []) {
+                    $pdo->prepare(
+                        'UPDATE e5_addresses SET
+                            label = :label, postal_code = :cep, street = :street,
+                            number = :number, complement = :complement,
+                            neighborhood = :neighborhood, city = :city, state = :state,
+                            updated_at = NOW()
+                         WHERE id = :id'
+                    )->execute([
+                        ':label'        => $label,
+                        ':cep'          => format_cep($cep),
+                        ':street'       => $street,
+                        ':number'       => $number,
+                        ':complement'   => clean_text($_POST['complement'] ?? '') ?: null,
+                        ':neighborhood' => clean_text($_POST['neighborhood'] ?? '') ?: null,
+                        ':city'         => $city,
+                        ':state'        => $state,
+                        ':id'           => $id,
+                    ]);
+                    $_SESSION['success'] = 'Endereço atualizado.';
+                } else {
+                    $_SESSION['error'] = reset($errors);
+                }
+            } else {
+                $_SESSION['error'] = 'Endereço não encontrado.';
+            }
+        }
+        header('Location: ' . base_url('pages/auth/profile.php'));
+        exit;
+    }
+
+    if ($action === 'delete') {
+        $id = (int) ($_POST['id'] ?? 0);
+        if ($id > 0) {
+            $stmt = $pdo->prepare('SELECT is_default FROM e5_addresses WHERE id = :id AND user_id = :uid');
+            $stmt->execute([':id' => $id, ':uid' => (int) $_SESSION['user_id']]);
+            $row = $stmt->fetch();
+            if ($row) {
+                $wasDefault = (int) $row['is_default'] === 1;
+                $pdo->prepare('DELETE FROM e5_addresses WHERE id = :id')
+                    ->execute([':id' => $id]);
+                if ($wasDefault) {
+                    // Define outro como padrão
+                    $pdo->prepare('UPDATE e5_addresses SET is_default = 1 WHERE user_id = :uid ORDER BY id ASC LIMIT 1')
+                        ->execute([':uid' => (int) $_SESSION['user_id']]);
+                }
+                $_SESSION['success'] = 'Endereço removido.';
+            } else {
+                $_SESSION['error'] = 'Endereço não encontrado.';
+            }
+        }
+        header('Location: ' . base_url('pages/auth/profile.php'));
+        exit;
+    }
 }
 
 // ---------------------------------------------------------------------
@@ -464,74 +539,6 @@ account_layout_head($user, 'perfil');
         </div>
     </section>
 
-    <!-- ============================ Endereço ============================ -->
-    <section class="account-card" id="secao-endereco">
-        <div class="account-card-head">
-            <span class="account-card-icon" aria-hidden="true"><i class="fas fa-map-marker-alt"></i></span>
-            <div>
-                <h2 class="account-card-title">Endereço</h2>
-                <p class="account-card-hint">Onde você recebe as suas compras</p>
-            </div>
-        </div>
-
-        <div class="account-grid">
-            <div class="account-field">
-                <label class="account-label" for="postal_code">CEP</label>
-                <div class="account-input-group">
-                    <input class="account-input" type="text" id="postal_code" name="postal_code"
-                           maxlength="9" value="<?php echo e($user['postal_code'] ?? ''); ?>"
-                           placeholder="00000-000" inputmode="numeric" autocomplete="postal-code">
-                    <button type="button" class="account-btn account-btn--sm" id="cepLookup">
-                        <i class="fas fa-location-arrow" aria-hidden="true"></i> Buscar
-                    </button>
-                </div>
-                <span class="account-hint" id="cepStatus" role="status" aria-live="polite"></span>
-            </div>
-
-            <div class="account-field">
-                <label class="account-label" for="number">Número</label>
-                <input class="account-input" type="text" id="number" name="number" maxlength="10"
-                       value="<?php echo e($user['number'] ?? ''); ?>" inputmode="numeric">
-            </div>
-
-            <div class="account-field account-field--full">
-                <label class="account-label" for="street">Rua</label>
-                <input class="account-input" type="text" id="street" name="street" maxlength="120"
-                       value="<?php echo e($user['street'] ?? ''); ?>" autocomplete="address-line1">
-            </div>
-
-            <div class="account-field account-field--full">
-                <label class="account-label" for="complement">Complemento</label>
-                <input class="account-input" type="text" id="complement" name="complement" maxlength="80"
-                       value="<?php echo e($user['complement'] ?? ''); ?>">
-            </div>
-
-            <div class="account-field">
-                <label class="account-label" for="neighborhood">Bairro</label>
-                <input class="account-input" type="text" id="neighborhood" name="neighborhood" maxlength="80"
-                       value="<?php echo e($user['neighborhood'] ?? ''); ?>">
-            </div>
-
-            <div class="account-field">
-                <label class="account-label" for="city">Cidade</label>
-                <input class="account-input" type="text" id="city" name="city" maxlength="80"
-                       value="<?php echo e($user['city'] ?? ''); ?>" autocomplete="address-level2">
-            </div>
-
-            <div class="account-field">
-                <label class="account-label" for="state">UF</label>
-                <select class="account-select" id="state" name="state" autocomplete="address-level1">
-                    <option value="">—</option>
-                    <?php foreach ($ufs as $uf): ?>
-                        <option value="<?php echo e($uf); ?>" <?php echo ($user['state'] ?? '') === $uf ? 'selected' : ''; ?>>
-                            <?php echo e($uf); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-        </div>
-    </section>
-
 <!-- ============================ Endereços Salvos ============================ -->
 <section class="account-card" id="secao-enderecos-salvos">
     <div class="account-card-head">
@@ -540,6 +547,9 @@ account_layout_head($user, 'perfil');
             <h2 class="account-card-title">Endereços Salvos</h2>
             <p class="account-card-hint">Gerencie múltiplos endereços de entrega</p>
         </div>
+        <button type="button" class="account-btn account-btn--outline" data-modal-open="modal-address" data-address-reset>
+            <i class="fas fa-plus" aria-hidden="true"></i> Adicionar endereço
+        </button>
     </div>
 
         <?php if ($addresses === []): ?>
@@ -662,7 +672,7 @@ account_layout_head($user, 'perfil');
             </div>
         </form>
     </section>
-</form><!-- fim do form de perfil (Dados Pessoais + Endereço) -->
+</form><!-- fim do form de perfil (Dados Pessoais) -->
 
 <!-- ============================ Preferências de Notificação ============================ -->
 <section class="account-card" id="secao-avisos">
