@@ -21,6 +21,7 @@ use DOMXPath;
 class ProfileRenderTest extends TestCase
 {
     private static string $html = '';
+    private static string $htmlWithAddresses = '';
 
     public static function setUpBeforeClass(): void
     {
@@ -47,14 +48,43 @@ class ProfileRenderTest extends TestCase
         }
 
         self::$html = $rendered;
+
+        // Segunda renderização, agora com endereços semeados, para cobrir
+        // o estado preenchido da lista de "Endereços Salvos".
+        $out2 = tempnam(sys_get_temp_dir(), 'account-profile-addr-');
+        $command2 = sprintf(
+            '%s %s %s %s 2>&1',
+            escapeshellarg(PHP_BINARY),
+            escapeshellarg(__DIR__ . '/fixtures/render_profile.php'),
+            escapeshellarg('addresses'),
+            escapeshellarg($out2)
+        );
+
+        exec($command2, $lines2, $code2);
+        self::$htmlWithAddresses = is_file($out2) ? (string) file_get_contents($out2) : '';
+        @unlink($out2);
+
+        if ($code2 !== 0 || self::$htmlWithAddresses === '') {
+            self::markTestSkipped('nao foi possivel renderizar o perfil com enderecos');
+        }
     }
 
     private function dom(): DOMXPath
     {
+        return $this->domOf(self::$html);
+    }
+
+    private function domWithAddresses(): DOMXPath
+    {
+        return $this->domOf(self::$htmlWithAddresses);
+    }
+
+    private function domOf(string $html): DOMXPath
+    {
         $doc = new DOMDocument();
         $previous = libxml_use_internal_errors(true);
 
-        $doc->loadHTML(self::$html);
+        $doc->loadHTML($html);
 
         libxml_clear_errors();
         libxml_use_internal_errors($previous);
@@ -306,10 +336,18 @@ class ProfileRenderTest extends TestCase
             $this->assertTrue($modal->hasAttribute('hidden'), "o modal {$id} deve começar oculto");
         }
 
+        // Um "Adicionar endereço" no cabeçalho do card (com reset do form)
+        // mais o do empty-state quando não há endereço salvo.
+        $addrButtons = $dom->query("//*[@data-modal-open='modal-address']");
+        $this->assertGreaterThanOrEqual(
+            1,
+            $addrButtons->length,
+            'faltou o botão "+ Adicionar endereço"'
+        );
         $this->assertSame(
             1,
-            $dom->query("//*[@data-modal-open='modal-address']")->length,
-            'faltou o botão "+ Adicionar endereço"'
+            $dom->query("//*[@data-modal-open='modal-address'][@data-address-reset]")->length,
+            'o botão de adicionar do cabeçalho precisa resetar o form de endereço'
         );
         $this->assertSame(
             1,
@@ -331,6 +369,115 @@ class ProfileRenderTest extends TestCase
             'create',
             $this->firstHiddenAction($form),
             'o action deve ser create, o contrato real da API de endereços'
+        );
+    }
+
+    // =================================================================
+    //  Lista de Endereços Salvos (estado preenchido)
+    // =================================================================
+
+    public function testEmptyStateIsShownWhenThereIsNoSavedAddress(): void
+    {
+        // O usuário 16 do seed não tem endereço salvo, então o estado
+        // vazio da especificação é o que aparece.
+        $this->assertStringContainsString(
+            'Nenhum endereço salvo.',
+            self::$html,
+            'sem endereços a seção precisa mostrar o empty-state da spec'
+        );
+    }
+
+    public function testSavedAddressesAreListedWithActions(): void
+    {
+        $dom  = $this->domWithAddresses();
+        // article.account-address exato: o contains() pegaria também a
+        // lista e os elementos internos.
+        $list = $dom->query(
+            "//*[@id='secao-enderecos-salvos']//article"
+            . "[contains(concat(' ', normalize-space(@class), ' '), ' account-address ')]"
+        );
+
+        $this->assertSame(2, $list->length, 'os dois endereços semeados precisam aparecer');
+
+        $html = self::$htmlWithAddresses;
+        $this->assertStringContainsString('Casa', $html);
+        $this->assertStringContainsString('Trabalho', $html);
+        $this->assertStringContainsString('Av. Banks', $html);
+        $this->assertStringContainsString('Taubaté', $html);
+
+        // O endereço marcado como padrão não pode oferecer "Tornar padrão".
+        $defaultCard = $dom->query(
+            "//article[contains(concat(' ', normalize-space(@class), ' '), ' is-default ')]"
+        )->item(0);
+        $this->assertNotNull($defaultCard, 'o endereço padrão precisa ser destacado');
+        $this->assertSame(
+            0,
+            $dom->query('.//*[@data-address-action="set_default"]', $defaultCard)->length,
+            'o endereço padrão não pode oferecer "Tornar padrão"'
+        );
+    }
+
+    public function testAddressActionsCoverEditAndDelete(): void
+    {
+        $dom = $this->domWithAddresses();
+
+        foreach (['edit', 'delete', 'set_default'] as $action) {
+            $this->assertGreaterThanOrEqual(
+                1,
+                $dom->query("//*[@data-address-action='{$action}']")->length,
+                "faltou a ação {$action} na lista de endereços"
+            );
+        }
+
+        // Todo botão de ação precisa carregar o id do endereço.
+        foreach ($dom->query('//*[@data-address-action]') as $btn) {
+            $this->assertNotSame('', $btn->getAttribute('data-address-id'));
+        }
+    }
+
+    public function testAddressModalCarriesTheFieldsTheApiValidates(): void
+    {
+        $dom  = $this->dom();
+        $form = $dom->query("//*[@id='modal-address']//form")->item(0);
+        $this->assertNotNull($form);
+
+        // Contrato de api/account/address.php (create/update).
+        foreach (['action', 'id', 'label', 'postal_code', 'street', 'number', 'complement', 'neighborhood', 'city', 'state'] as $field) {
+            $this->assertSame(
+                1,
+                $dom->query(".//input[@name='{$field}'] | .//select[@name='{$field}']", $form)->length,
+                "o modal de endereço precisa do campo {$field}"
+            );
+        }
+    }
+
+    public function testAddressModalStartsInCreateMode(): void
+    {
+        $form = $this->dom()->query("//*[@id='modal-address']//form")->item(0);
+
+        $this->assertSame('create', $this->firstHiddenAction($form));
+
+        $id = $form->getElementsByTagName('input');
+        foreach ($id as $input) {
+            if ($input->getAttribute('name') === 'id') {
+                $this->assertSame(
+                    '',
+                    $input->getAttribute('value'),
+                    'o id precisa começar vazio: "Editar" preenche via JS'
+                );
+            }
+        }
+    }
+
+    public function testAddressesJsonIsExposedForTheEditButton(): void
+    {
+        // O botão "Editar" preenche o modal a partir deste mapa, sem
+        // request extra.
+        // A API ordena padrão primeiro, então "Trabalho" vem antes de "Casa".
+        $this->assertMatchesRegularExpression(
+            '/var ADDRESSES = \[.*"label":"Trabalho".*"is_default":true.*"label":"Casa".*"is_default":false/s',
+            self::$htmlWithAddresses,
+            'o JSON de endereços precisa estar no script para o botão Editar'
         );
     }
 

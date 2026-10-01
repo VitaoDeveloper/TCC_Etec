@@ -351,6 +351,39 @@ $current_page = 'perfil';
 $maskedPassword = str_repeat('•', 8);
 $ufs = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
 
+// Endereços salvos: mesma ordenação da API (padrão primeiro, depois
+// mais recentes). O empty-state da especificação só aparece quando a
+// lista fica realmente vazia.
+$addrSt = $pdo->prepare(
+    'SELECT id, label, postal_code, street, number, complement,
+            neighborhood, city, state, is_default
+       FROM e5_addresses
+      WHERE user_id = :uid
+      ORDER BY is_default DESC, id DESC'
+);
+$addrSt->execute([':uid' => (int) $user['id']]);
+$addresses = $addrSt->fetchAll();
+
+// A lista é impressa também como JSON para o botão "Editar" preencher o
+// modal sem um request extra.
+$addressesJson = json_encode(
+    array_map(static function (array $a): array {
+        return [
+            'id'           => (int) $a['id'],
+            'label'        => (string) $a['label'],
+            'postal_code'  => (string) $a['postal_code'],
+            'street'       => (string) $a['street'],
+            'number'       => (string) $a['number'],
+            'complement'   => (string) ($a['complement'] ?? ''),
+            'neighborhood' => (string) ($a['neighborhood'] ?? ''),
+            'city'         => (string) $a['city'],
+            'state'        => (string) $a['state'],
+            'is_default'   => (int) $a['is_default'] === 1,
+        ];
+    }, $addresses),
+    JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
+);
+
 account_layout_head($user, 'perfil');
 ?>
 
@@ -507,15 +540,78 @@ account_layout_head($user, 'perfil');
                 <h2 class="account-card-title">Endereços Salvos</h2>
                 <p class="account-card-hint">Gerencie múltiplos endereços de entrega</p>
             </div>
-        </div>
-
-        <div class="account-empty account-empty--dashed">
-            <i class="fas fa-map-location-dot" aria-hidden="true"></i>
-            <p>Nenhum endereço salvo.</p>
-            <button type="button" class="account-btn account-btn--outline" data-modal-open="modal-address">
-                <i class="fas fa-plus" aria-hidden="true"></i> Adicionar endereço
+            <button type="button" class="account-btn account-btn--sm account-btn--outline"
+                    data-modal-open="modal-address" data-address-reset>
+                <i class="fas fa-plus" aria-hidden="true"></i> Adicionar
             </button>
         </div>
+
+        <?php if ($addresses === []): ?>
+            <div class="account-empty account-empty--dashed">
+                <i class="fas fa-map-location-dot" aria-hidden="true"></i>
+                <p>Nenhum endereço salvo.</p>
+                <button type="button" class="account-btn account-btn--outline" data-modal-open="modal-address">
+                    <i class="fas fa-plus" aria-hidden="true"></i> Adicionar endereço
+                </button>
+            </div>
+        <?php else: ?>
+            <div class="account-address-list">
+                <?php foreach ($addresses as $address): ?>
+                    <?php $isDefault = (int) $address['is_default'] === 1; ?>
+                    <article class="account-address<?= $isDefault ? ' is-default' : '' ?>"
+                             data-address-id="<?= e((string) $address['id']) ?>">
+                        <header class="account-address-head">
+                            <span class="account-address-icon" aria-hidden="true">
+                                <i class="fas <?= $isDefault ? 'fa-house-chimney' : 'fa-location-dot' ?>"></i>
+                            </span>
+                            <h3 class="account-address-title"><?= e((string) $address['label']) ?></h3>
+                            <?php if ($isDefault): ?>
+                                <span class="account-badge account-badge--active">Padrão</span>
+                            <?php endif; ?>
+                        </header>
+
+                        <p class="account-address-text">
+                            <?= e((string) $address['street']) ?>, <?= e((string) $address['number']) ?>
+                            <?php if (($address['complement'] ?? '') !== ''): ?>
+                                &mdash; <?= e((string) $address['complement']) ?>
+                            <?php endif; ?>
+                        </p>
+                        <p class="account-address-text">
+                            <?= e((string) $address['neighborhood'] ?? '') ?><?php
+                                echo ($address['neighborhood'] ?? '') !== '' ? ' &middot; ' : '';
+                            ?><?= e((string) $address['city']) ?>/<?= e((string) $address['state']) ?>
+                            &middot; CEP <?= e((string) $address['postal_code']) ?>
+                        </p>
+
+                        <div class="account-actions">
+                            <?php if (!$isDefault): ?>
+                                <button type="button" class="account-btn account-btn--sm"
+                                        data-address-action="set_default"
+                                        data-address-id="<?= e((string) $address['id']) ?>">
+                                    <i class="fas fa-star" aria-hidden="true"></i> Tornar padrão
+                                </button>
+                            <?php endif; ?>
+
+                            <button type="button" class="account-btn account-btn--sm"
+                                    data-address-action="edit"
+                                    data-address-id="<?= e((string) $address['id']) ?>">
+                                <i class="fas fa-pen" aria-hidden="true"></i> Editar
+                            </button>
+
+                            <button type="button" class="account-btn account-btn--sm account-btn--danger"
+                                    data-address-action="delete"
+                                    data-address-id="<?= e((string) $address['id']) ?>">
+                                <i class="fas fa-trash-can" aria-hidden="true"></i> Remover
+                            </button>
+
+                            <span class="account-save-status" data-address-status role="status" aria-live="polite"></span>
+                        </div>
+                    </article>
+                <?php endforeach; ?>
+            </div>
+
+            <p class="account-hint">Você pode salvar até 10 endereços.</p>
+        <?php endif; ?>
     </section>
 
     <!-- ============================ Alterar Senha ============================ -->
@@ -653,13 +749,14 @@ account_layout_head($user, 'perfil');
             </button>
         </header>
 
-        <!-- action=create é o contrato real de api/account/address.php
-             (create/update/delete/set_default). O fallback sem JS cai no
-             handler de mesmo nome no fim deste arquivo. -->
-        <form method="post" data-account-form data-modal-form
+        <!-- O mesmo form serve create e update: o botão "Editar" da lista
+             preenche os campos e troca o action para update (ver JS no fim
+             deste arquivo). O fallback sem JS cai no handler create no fim. -->
+        <form method="post" data-address-form
               data-endpoint="<?php echo e(base_url('api/account/address.php')); ?>"
               action="<?php echo e(base_url('pages/auth/profile.php')); ?>">
             <input type="hidden" name="action" value="create">
+            <input type="hidden" name="id" value="">
             <?php echo csrf_field(); ?>
 
             <div class="account-grid">
@@ -707,8 +804,8 @@ account_layout_head($user, 'perfil');
 
                 <div class="account-field">
                     <label class="account-label" for="addr_state">UF</label>
-                    <select class="account-select" id="addr_state" name="state" required>
-                        <option value="">—</option>
+        <select class="account-select" id="addr_state" name="state" required>
+                            <option value="">—</option>
                         <?php foreach ($ufs as $uf): ?>
                             <option value="<?php echo e($uf); ?>"><?php echo e($uf); ?></option>
                         <?php endforeach; ?>
@@ -863,7 +960,12 @@ account_layout_head($user, 'perfil');
     }
 
     document.querySelectorAll('[data-modal-open]').forEach(function (btn) {
-        btn.addEventListener('click', function () { openModal(btn.getAttribute('data-modal-open')); });
+        btn.addEventListener('click', function () {
+            // "Adicionar" precisa começar com o modal em branco; um
+            // "Editar" anterior poderia ter deixado campos preenchidos.
+            if (btn.hasAttribute('data-address-reset')) resetAddressForm();
+            openModal(btn.getAttribute('data-modal-open'));
+        });
     });
 
     document.querySelectorAll('[data-modal-close]').forEach(function (el) {
@@ -996,6 +1098,168 @@ account_layout_head($user, 'perfil');
     }
 
     document.querySelectorAll('form[data-account-form]').forEach(wireForm);
+
+    // --- Endereços salvos -----------------------------------------------
+    var ADDRESSES = <?php echo $addressesJson ?: '[]'; ?>;
+
+    // O JSON é uma lista na ordem da API, mas os botões trazem o id.
+    // indexedById permite preencher o modal sem request extra.
+    var ADDRESS_BY_ID = ADDRESSES.reduce(function (map, a) {
+        map[a.id] = a;
+        return map;
+    }, {});
+    var addrForm  = document.querySelector('form[data-address-form]');
+    var addrId    = addrForm ? addrForm.querySelector('[name="id"]') : null;
+    var addrTitle = document.getElementById('modal-address-title');
+    var addrUrl   = addrForm ? addrForm.getAttribute('data-endpoint') : '';
+    // csrf_field() gera o campo "_csrf_token"; api_require_csrf() aceita
+    // esse nome no corpo do POST ou o cabeçalho X-CSRF-Token.
+    function csrfToken() {
+        var f = document.querySelector('form[data-address-form] [name="_csrf_token"]')
+             || document.querySelector('input[name="_csrf_token"]')
+             || document.querySelector('meta[name="csrf-token"]');
+        if (!f) return '';
+        return f.tagName === 'META' ? (f.getAttribute('content') || '') : f.value;
+    }
+
+    function resetAddressForm() {
+        if (!addrForm) return;
+        addrForm.reset();
+        if (addrId) addrId.value = '';
+        var act = addrForm.querySelector('[name="action"]');
+        if (act) act.value = 'create';
+        if (addrTitle) addrTitle.textContent = 'Adicionar endereço';
+        addrForm.querySelectorAll('.account-field--error').forEach(function (f) {
+            f.classList.remove('account-field--error');
+        });
+        addrForm.querySelectorAll('.account-hint--error').forEach(function (n) { n.remove(); });
+        var status = addrForm.querySelector('[data-save-status]');
+        if (status) { status.textContent = ''; status.className = 'account-save-status'; }
+    }
+
+    function setAddrStatus(msg, type) {
+        var status = document.querySelector('[data-address-status]');
+        if (!status) return;
+        status.textContent = msg || '';
+        status.className = 'account-save-status' + (type ? ' account-save-status--' + type : '');
+    }
+
+    function callAddress(action, id, extra) {
+        var body = new FormData();
+        body.append('action', action);
+        body.append('csrf_token', csrfToken());
+        if (id) body.append('id', id);
+        if (extra) {
+            Object.keys(extra).forEach(function (k) { body.append(k, extra[k]); });
+        }
+        return fetch(addrUrl, {
+            method: 'POST', body: body,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-Token': csrfToken()
+            }
+        }).then(function (r) { return r.json(); });
+    }
+
+    // Depois de qualquer mutação a API devolve a lista atualizada; o
+    // PRG é o mesmo caminho do fallback sem JS, então recarregamos.
+    function afterAddressChange(json) {
+        if (!json || !json.ok) return false;
+        setAddrStatus('Salvo!', 'ok');
+        setTimeout(function () { window.location.reload(); }, 550);
+        return true;
+    }
+
+    function openAddressEditor(address) {
+        if (!addrForm) return;
+        if (addrId) addrId.value = address.id || '';
+        var act = addrForm.querySelector('[name="action"]');
+        if (act) act.value = 'update';
+        if (addrTitle) addrTitle.textContent = 'Editar endereço';
+
+        var set = {
+            label: address.label, postal_code: address.postal_code,
+            street: address.street, number: address.number,
+            complement: address.complement, neighborhood: address.neighborhood,
+            city: address.city, state: address.state
+        };
+        Object.keys(set).forEach(function (name) {
+            var field = addrForm.querySelector('[name="' + name + '"]');
+            if (field) field.value = set[name] == null ? '' : set[name];
+        });
+        openModal('modal-address');
+    }
+
+    // Botões da lista: editar (preenche o modal), tornar padrão, remover.
+    document.querySelectorAll('[data-address-action]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var action = btn.getAttribute('data-address-action');
+            var id = btn.getAttribute('data-address-id');
+            var data = ADDRESS_BY_ID[parseInt(id, 10)] || null;
+
+            if (action === 'edit') {
+                if (data) openAddressEditor(data);
+                return;
+            }
+
+            if (action === 'delete' && !window.confirm('Remover este endereço?')) return;
+
+            btn.disabled = true;
+            setAddrStatus('Salvando...', 'pending');
+            callAddress(action, id).then(function (json) {
+                if (!afterAddressChange(json)) {
+                    btn.disabled = false;
+                    setAddrStatus((json && json.message) || 'Não foi possível salvar.', 'error');
+                }
+            }).catch(function () {
+                btn.disabled = false;
+                setAddrStatus('Sem conexão com o servidor.', 'error');
+            });
+        });
+    });
+
+    if (addrForm) {
+        addrForm.addEventListener('submit', function (event) {
+            event.preventDefault();
+            var button = addrForm.querySelector('button[type="submit"]');
+            var status = addrForm.querySelector('[data-save-status]');
+
+            function setSave(msg, type) {
+                if (!status) return;
+                status.textContent = msg || '';
+                status.className = 'account-save-status' + (type ? ' account-save-status--' + type : '');
+            }
+
+            var action = (addrForm.querySelector('[name="action"]') || {}).value || 'create';
+            var payload = {
+                label: addrForm.querySelector('[name="label"]').value,
+                postal_code: addrForm.querySelector('[name="postal_code"]').value,
+                street: addrForm.querySelector('[name="street"]').value,
+                number: addrForm.querySelector('[name="number"]').value,
+                complement: addrForm.querySelector('[name="complement"]').value,
+                neighborhood: addrForm.querySelector('[name="neighborhood"]').value,
+                city: addrForm.querySelector('[name="city"]').value,
+                state: addrForm.querySelector('[name="state"]').value
+            };
+            var id = addrId ? addrId.value : '';
+
+            if (button) button.disabled = true;
+            setSave('Salvando...', 'pending');
+
+            callAddress(action, id, payload).then(function (json) {
+                if (json && json.ok) {
+                    setSave('Salvo!', 'ok');
+                    setTimeout(function () { window.location.reload(); }, 600);
+                } else {
+                    setSave((json && json.message) || 'Não foi possível salvar.', 'error');
+                    if (button) button.disabled = false;
+                }
+            }).catch(function () {
+                setSave('Sem conexão com o servidor agora. Tente de novo.', 'error');
+                if (button) button.disabled = false;
+            });
+        });
+    }
 })();
 </script>
 

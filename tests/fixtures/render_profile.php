@@ -98,8 +98,36 @@ if ($mode === 'personal') {
     $_SERVER['REQUEST_METHOD'] = 'GET';
 }
 
+// Modo "addresses": semeia endereços do usuário 16 para exercitar o
+// estado preenchido da lista (a API devolve o mesmo formato). Usa o
+// mesmo formato de linha que a página lê, e limpa tudo no fim para o
+// banco de dev voltar ao estado original.
+$seededAddressIds = [];
+
+if ($mode === 'addresses') {
+    $seededAddressIds = [900001, 900002];
+    $pdo->prepare('DELETE FROM e5_addresses WHERE id IN (900001, 900002)')->execute();
+
+    $seed = $pdo->prepare(
+        'INSERT INTO e5_addresses
+            (id, user_id, label, postal_code, street, number, complement,
+             neighborhood, city, state, is_default)
+         VALUES
+            (900001, 16, :l1, :c1, :s1, :n1, NULL, :b1, :city1, :st1, 0),
+            (900002, 16, :l2, :c2, :s2, :n2, :comp2, :b2, :city2, :st2, 1)'
+    );
+    $seed->execute([
+        ':l1' => 'Casa',   ':c1' => '12053-831', ':s1' => 'Av. Banks',        ':n1' => '1200', ':b1' => 'Centro',        ':city1' => 'Taubaté',   ':st1' => 'SP',
+        ':l2' => 'Trabalho', ':c2' => '01001-000', ':s2' => 'Av. Paulista',   ':n2' => '1000', ':comp2' => 'Sala 12', ':b2' => 'Bela Vista', ':city2' => 'São Paulo', ':st2' => 'SP',
+    ]);
+}
+
 ob_start();
 require_once __DIR__ . '/../../pages/auth/profile.php';
 $html = (string) ob_get_clean();
 
 file_put_contents($outFile, $html);
+
+foreach ($seededAddressIds as $seededId) {
+    $pdo->prepare('DELETE FROM e5_addresses WHERE id = :id')->execute([':id' => $seededId]);
+}
