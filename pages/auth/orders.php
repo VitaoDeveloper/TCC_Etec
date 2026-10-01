@@ -13,12 +13,15 @@ declare(strict_types=1);
  *     navegador volta para a aba certa. Um status fora do ENUM cai em
  *     "Todos" em vez de devolver erro.
  *
- *  2. Quatro cards de limite de cancelamento. A regra de negócio (quem
- *     pode cancelar) está em order_can_cancel(), em order_state.php;
- *     aqui fica só o texto que explica a regra ao cliente, separado em
- *     sua própria função para poder ser conferido por teste.
+ *  2. A busca por número do pedido (?q=), que compartilha a mesma
+ *     consulta da lista.
  *
- *  3. A lista, na mesma tabela de antes, agora restrita ao status escolhido.
+ *  3. A lista, na mesma tabela de antes, agora restrita ao status
+ *     escolhido, paginada em 10 por página (?page=).
+ *
+ * A regra de negócio de quem pode cancelar NÃO aparece nesta tela: o
+ * limite de cancelamento é explicado no detalhe do pedido, que é onde
+ * o cliente age.
  */
 
 require_once __DIR__ . '/../../includes/account_layout.php';
@@ -46,6 +49,13 @@ $search = preg_replace('/\D/', '', (string) ($_GET['q'] ?? '')) ?? '';
 
 $ordersUrl = base_url('pages/auth/orders.php');
 
+/**
+ * Monta a URL de uma aba preservando a busca atual.
+ *
+ * Ler de $GLOBALS e não de closure: a função é chamada dentro do HTML,
+ * fora do escopo do arquivo. Busca e aba andam juntas — trocar de status
+ * sem carregar o que o cliente digitou seria perder o filtro na mão.
+ */
 function orders_status_url(string $ordersUrl, string $status): string
 {
     $query = [];
@@ -54,6 +64,30 @@ function orders_status_url(string $ordersUrl, string $status): string
     }
     if (($GLOBALS['search'] ?? '') !== '') {
         $query['q'] = $GLOBALS['search'];
+    }
+
+    return $query === []
+        ? $ordersUrl
+        : $ordersUrl . '?' . http_build_query($query);
+}
+
+/**
+ * URL de uma página da lista, preservando status e busca.
+ *
+ * A paginação é server-side: o número da página vai na URL para o link
+ * ser compartilhável e o botão voltar do navegador funcionar.
+ */
+function orders_page_url(string $ordersUrl, int $page): string
+{
+    $query = [];
+    if (($GLOBALS['filter'] ?? '') !== '') {
+        $query['status'] = $GLOBALS['filter'];
+    }
+    if (($GLOBALS['search'] ?? '') !== '') {
+        $query['q'] = $GLOBALS['search'];
+    }
+    if ($page > 1) {
+        $query['page'] = $page;
     }
 
     return $query === []
@@ -75,21 +109,45 @@ $sql = '
     SELECT o.id, o.status, o.total, o.created_at,
         (SELECT COUNT(*) FROM e5_order_items oi WHERE oi.order_id = o.id) AS item_count
     FROM e5_orders o
-    WHERE o.user_id = :uid
 ';
+
+// A cláusula WHERE fica separada do SELECT de propósito: o total do
+// filtro sai de um COUNT que reaproveita o mesmo WHERE, então status e
+// busca nunca podem divergir entre a contagem e a página exibida.
+$where = ' WHERE o.user_id = :uid';
 $params = [':uid' => $userId];
 
 if ($filter !== '') {
-    $sql .= ' AND o.status = :status';
+    $where .= ' AND o.status = :status';
     $params[':status'] = $filter;
 }
 
 if ($search !== '') {
-    $sql .= ' AND o.id = :q';
+    $where .= ' AND o.id = :q';
     $params[':q'] = (int) $search;
 }
 
-$sql .= ' ORDER BY o.created_at DESC';
+$sql .= $where;
+
+// Total do filtro atual, para o número de páginas. Uma COUNT separada em
+// vez de contar as linhas da página: sem ela não há como saber se existe
+// página 2.
+$countStmt = $pdo->prepare('SELECT COUNT(*) FROM e5_orders o' . $where);
+$countStmt->execute($params);
+$totalFiltered = (int) $countStmt->fetchColumn();
+
+$perPage = 10;
+$totalPages = max(1, (int) ceil($totalFiltered / $perPage));
+
+// min() em vez de confiar na URL: ?page=999 não pode gerar um OFFSET
+// negativo nem uma página vazia com o total de páginas aparecendo como 0.
+$page   = max(1, (int) ($_GET['page'] ?? 1));
+$page   = min($page, $totalPages);
+$offset = ($page - 1) * $perPage;
+
+$sql .= ' ORDER BY o.created_at DESC LIMIT :limit OFFSET :offset';
+$params[':limit'] = $perPage;
+$params[':offset'] = $offset;
 
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
@@ -179,6 +237,37 @@ account_layout_head($user, 'pedidos');
                 </tbody>
             </table>
         </div>
+
+        <?php if ($totalPages > 1): ?>
+            <!-- Janela de 5 páginas em torno da atual, como em products.php.
+                 Só aparece quando há mais de uma página: numa lista de 3
+                 pedidos o controle seria ruído. -->
+            <?php $windowStart = max(1, $page - 2); ?>
+            <?php $windowEnd   = min($totalPages, $page + 2); ?>
+            <nav class="ml-pagination" aria-label="Paginação dos pedidos">
+                <?php if ($page > 1): ?>
+                    <a href="<?php echo e(orders_page_url($ordersUrl, $page - 1)); ?>"
+                       rel="prev" aria-label="Página anterior">
+                        <i class="fas fa-chevron-left" aria-hidden="true"></i>
+                    </a>
+                <?php endif; ?>
+
+                <?php for ($i = $windowStart; $i <= $windowEnd; $i++): ?>
+                    <a href="<?php echo e(orders_page_url($ordersUrl, $i)); ?>"
+                       class="<?php echo $i === $page ? 'active' : ''; ?>"
+                       <?php echo $i === $page ? 'aria-current="page"' : ''; ?>>
+                        <?php echo (int) $i; ?>
+                    </a>
+                <?php endfor; ?>
+
+                <?php if ($page < $totalPages): ?>
+                    <a href="<?php echo e(orders_page_url($ordersUrl, $page + 1)); ?>"
+                       rel="next" aria-label="Próxima página">
+                        <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                    </a>
+                <?php endif; ?>
+            </nav>
+        <?php endif; ?>
     <?php endif; ?>
 </section>
 

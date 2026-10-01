@@ -21,6 +21,10 @@ class AccountOrdersRenderTest extends TestCase
     private static string $listHtml = '';
     private static string $filteredHtml = '';
     private static string $detailHtml = '';
+    private static string $page1Html = '';
+    private static string $page2Html = '';
+    private static string $clampedHtml = '';
+    private static string $page2PaidHtml = '';
     private static array $meta = [];
 
     public static function setUpBeforeClass(): void
@@ -28,6 +32,10 @@ class AccountOrdersRenderTest extends TestCase
         self::$listHtml     = self::render('list');
         self::$filteredHtml = self::render('list-filtered');
         self::$detailHtml   = self::render('detail');
+        self::$page1Html    = self::render('list-page1');
+        self::$page2Html    = self::render('list-page2');
+        self::$clampedHtml  = self::render('list-page-clamped');
+        self::$page2PaidHtml = self::render('list-page2-paid');
     }
 
     private static function render(string $mode): string
@@ -112,6 +120,153 @@ class AccountOrdersRenderTest extends TestCase
             trim((string) $dom->query('//h1[contains(@class,"account-page-title")]')->item(0)?->textContent)
         );
         $this->assertSame(1, $dom->query("//*[@id='secao-pedidos']")->length);
+    }
+
+    // =================================================================
+    //  Paginação (10 por página)
+    // =================================================================
+
+    /**
+     * Ids dos pedidos da página, na ordem em que a tela os mostra.
+     */
+    private function orderIdsOf(string $html): array
+    {
+        preg_match_all('~order-detail\.php\?id=(\d+)~', $html, $matches);
+
+        return array_map('intval', $matches[1]);
+    }
+
+    /**
+     * Só os pedidos temporários da fixture, reconhecidos pelo total
+     * R$ 1.234,56. Isolar assim deixa a contagem estável mesmo que o
+     * banco de desenvolvimento já tenha pedidos do usuário 16.
+     */
+    private function tempOrderCount(string $html): int
+    {
+        return substr_count($html, 'R$ 1.234,56');
+    }
+
+    public function testFirstPageShowsTenOrdersAndNoMore(): void
+    {
+        $this->assertCount(
+            10,
+            $this->orderIdsOf(self::$page1Html),
+            'a primeira página precisa trazer 10 pedidos'
+        );
+    }
+
+    public function testEveryTempOrderAppearsExactlyOnceAcrossPages(): void
+    {
+        $page1 = $this->tempOrderCount(self::$page1Html);
+        $page2 = $this->tempOrderCount(self::$page2Html);
+
+        // A fixture cria 12 pedidos; some uma página inteira e parte da
+        // outra. A soma tem de fechar em 12, senão a paginação perdeu
+        // ou repetiu alguma linha.
+        $this->assertSame(12, $page1 + $page2, 'as duas páginas não cobriram os 12 pedidos');
+
+        $overlap = array_intersect($this->orderIdsOf(self::$page1Html), $this->orderIdsOf(self::$page2Html));
+        $this->assertSame([], array_values($overlap), 'um pedido apareceu nas duas páginas');
+    }
+
+    public function testPaginationOffersBothPagesAndTheArrows(): void
+    {
+        $dom = $this->dom(self::$page1Html);
+        $nav = $dom->query('//nav[contains(@class,"ml-pagination")]');
+
+        $this->assertSame(1, $nav->length, 'o controle de paginação não apareceu com 13 pedidos');
+
+        $numbers = [];
+        foreach ($dom->query('//nav[contains(@class,"ml-pagination")]//a') as $link) {
+            $text = trim($link->textContent);
+            if ($text !== '') {
+                $numbers[] = $text;
+            }
+        }
+
+        $this->assertSame(['1', '2'], $numbers, 'na primeira página aparecem os números 1 e 2 com 12 pedidos');
+
+        // Setas: anterior desabilitada na página 1, próxima habilitada.
+        $this->assertSame(1, $dom->query('//nav[contains(@class,"ml-pagination")]//a[@rel="next"]')->length);
+        $this->assertSame(0, $dom->query('//nav[contains(@class,"ml-pagination")]//a[@rel="prev"]')->length);
+    }
+
+    public function testSecondPageMarksItselfAsCurrentAndKeepsThePrevLink(): void
+    {
+        $dom = $this->dom(self::$page2Html);
+
+        $this->assertSame(1, $dom->query('//nav[contains(@class,"ml-pagination")]')->length);
+
+        $current = $dom->query('//nav[contains(@class,"ml-pagination")]//a[@aria-current="page"]');
+        $this->assertSame(1, $current->length);
+        $this->assertSame('2', trim($current->item(0)->textContent));
+
+        $prev = $dom->query('//nav[contains(@class,"ml-pagination")]//a[@rel="prev"]');
+        $this->assertSame(1, $prev->length);
+
+        // Voltar para a página 1 é a URL sem ?page — o mesmo link de
+        // "Meus Pedidos" da sidebar, que o teste de breadcrumb usa.
+        $this->assertStringEndsWith(
+            '/pages/auth/orders.php',
+            $prev->item(0)->getAttribute('href')
+        );
+    }
+
+    public function testPageBeyondTheLastFallsBackToTheLastOne(): void
+    {
+        // ?page=999 é o que aparece quando alguém edita a URL ou segue
+        // um link velho depois de cancelar pedidos. Cada modo da
+        // fixture cria os seus 12 pedidos, então a comparação é pelo
+        // comportamento — o resto da lista, como na última página — e
+        // não pelos ids, que mudam a cada execução.
+        $this->assertSame(
+            $this->tempOrderCount(self::$page2Html),
+            $this->tempOrderCount(self::$clampedHtml),
+            '?page=999 deveria mostrar o resto da lista, como a última página'
+        );
+
+        $this->assertGreaterThan(
+            0,
+            $this->tempOrderCount(self::$clampedHtml),
+            '?page=999 caiu numa página vazia'
+        );
+
+        // E a página marcada como atual é a última de verdade, não a
+        // 999 que veio na URL.
+        $current = $this->dom(self::$clampedHtml)
+            ->query('//nav[contains(@class,"ml-pagination")]//a[@aria-current="page"]');
+
+        $this->assertSame(1, $current->length);
+        $this->assertSame('2', trim($current->item(0)->textContent));
+    }
+
+    public function testPaginationStaysHiddenWhenEverythingFitsOnOnePage(): void
+    {
+        // O modo "list" cria 1 pedido temporário: junto do #0012 do seed
+        // são 2, bem menos que uma página.
+        $this->assertSame(
+            0,
+            $this->dom(self::$listHtml)->query('//nav[contains(@class,"ml-pagination")]')->length,
+            'não deveria haver paginação com 2 pedidos'
+        );
+    }
+
+    public function testPageLinksKeepTheStatusFilterAndTheSearch(): void
+    {
+        // Sem recarregar a query, trocar de aba ou buscar depois de
+        // paginar jogaria o filtro fora: o cliente cairia na lista toda
+        // sem saber por quê.
+        $nav = $this->dom(self::$page2PaidHtml)->query('//nav[contains(@class,"ml-pagination")]');
+
+        $this->assertSame(1, $nav->length, 'a aba filtrada deveria paginar também');
+
+        foreach ($this->dom(self::$page2PaidHtml)->query('//nav[contains(@class,"ml-pagination")]//a') as $link) {
+            $this->assertStringContainsString(
+                'status=paid',
+                $link->getAttribute('href'),
+                'o link de paginação perdeu o filtro de status'
+            );
+        }
     }
 
     // =================================================================

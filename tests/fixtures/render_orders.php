@@ -18,25 +18,47 @@
  */
 
 if ($argc < 3) {
-    fwrite(STDERR, "uso: render_orders.php <list|list-filtered|detail> <saida.html>\n");
+    fwrite(STDERR, "uso: render_orders.php <modo> <saida.html>\n");
     exit(2);
 }
 
 $mode    = $argv[1];
 $outFile = $argv[2];
 
-// list-filtered renderiza a lista com ?status=paid para conferir a aba
-// ativa e o filtro (o pedido temporário nasce 'paid').
+// Modos de paginação: criam 12 pedidos, um a mais que a página, e
+// renderizam a página pedida. Com 10 linhas ou menos o controle de
+// paginação nem aparece, e o teste passaria sem exercitar nada.
+//
+// 'list-page2-paid' soma o filtro de status: os 12 pedidos temporários
+// nascem 'paid', então a aba filtrada também pagina — e os links
+// precisam carregar o status junto, senão o cliente cai na lista toda.
+$listModes = [
+    'list-page1'        => ['page' => 1],
+    'list-page2'        => ['page' => 2],
+    'list-page-clamped' => ['page' => 999],
+    'list-page2-paid'   => ['page' => 2, 'filter' => 'paid'],
+];
+$listMode = $listModes[$mode] ?? null;
+
 $isDetail = $mode === 'detail';
-$filter   = $mode === 'list-filtered' ? 'paid' : '';
+$filter   = $listMode['filter'] ?? ($mode === 'list-filtered' ? 'paid' : '');
+$listPage = $listMode['page'] ?? null;
+
+$query = [];
+if ($filter !== '') {
+    $query['status'] = $filter;
+}
+if ($listPage !== null) {
+    $query['page'] = (string) $listPage;
+}
 
 $_SERVER['SCRIPT_NAME']   = '/TCC_Etec/pages/auth/' . ($isDetail ? 'order-detail.php' : 'orders.php');
-$_SERVER['REQUEST_URI']   = $_SERVER['SCRIPT_NAME'] . ($isDetail ? '?id=TMP' : ($filter !== '' ? '?status=' . $filter : ''));
+$_SERVER['REQUEST_URI']   = $_SERVER['SCRIPT_NAME'] . ($query === [] ? '' : '?' . http_build_query($query));
 $_SERVER['HTTP_HOST']     = 'localhost';
 $_SERVER['REQUEST_METHOD'] = 'GET';
 
-if ($filter !== '') {
-    $_GET['status'] = $filter;
+foreach ($query as $key => $value) {
+    $_GET[$key] = $value;
 }
 
 // NO CLI, atribuir $_SESSION antes de session_start() pode ser
@@ -58,18 +80,40 @@ if (!$product) {
     exit(3);
 }
 
-$pdo->prepare('
+// Quantos pedidos temporários criar. Os modos de paginação precisam de
+// mais de uma página cheia para o controle aparecer.
+$howMany = $listPage !== null ? 12 : 1;
+
+$insertOrder = $pdo->prepare('
     INSERT INTO e5_orders
         (user_id, status, total, shipping_method, shipping_cost, payment_method, payment_status, shipping_neighborhood, shipping_city, shipping_state, shipping_postal_code)
     VALUES
         (16, "paid", 1234.56, "correios", 29.90, "pix", "paid", "Centro", "São Paulo", "SP", "01310-100")
-')->execute();
-$orderId = (int) $pdo->lastInsertId();
-
-$pdo->prepare('
+');
+$insertItem = $pdo->prepare('
     INSERT INTO e5_order_items (order_id, product_id, quantity, unit_price)
     VALUES (:oid, :pid, 2, 617.28)
-')->execute([':oid' => $orderId, ':pid' => (int) $product['id']]);
+');
+
+// created_at distintos e crescentes para a ordenação ser determinística:
+// sem isso o MySQL pode devolver as 12 linhas em qualquer ordem entre
+// execuções e a comparação entre a página 1 e a página 2 não fecharia.
+$tempIds = [];
+for ($i = 0; $i < $howMany; $i++) {
+    $insertOrder->execute();
+    $orderId = (int) $pdo->lastInsertId();
+    $tempIds[] = $orderId;
+
+    $insertItem->execute([':oid' => $orderId, ':pid' => (int) $product['id']]);
+
+    // Placeholders separados: com EMULATE_PREPARES desligado o PDO
+    // nao aceita repetir o mesmo nome paramétrico numa statement.
+    $stamp = date('Y-m-d H:i:s', strtotime('2026-01-01 00:00:00') + $i * 3600);
+    $pdo->prepare('UPDATE e5_orders SET created_at = :c, updated_at = :u WHERE id = :id')
+        ->execute([':c' => $stamp, ':u' => $stamp, ':id' => $orderId]);
+}
+
+$orderId = $tempIds[0];
 
 $meta = [
     'order_id'      => $orderId,
@@ -78,6 +122,8 @@ $meta = [
     'order_status'  => 'paid',
     'order_total'   => 'R$ 1.234,56',
     'status_filter' => $filter,
+    'list_page'     => $listPage,
+    'temp_count'    => $howMany,
 ];
 
 if ($isDetail) {
@@ -88,8 +134,21 @@ ob_start();
 require_once __DIR__ . '/../../pages/auth/' . ($isDetail ? 'order-detail.php' : 'orders.php');
 $html = (string) ob_get_clean();
 
-// Limpeza do pedido temporário (os itens caem por ON DELETE CASCADE).
-$pdo->prepare('DELETE FROM e5_orders WHERE id = :id')->execute([':id' => $orderId]);
+// Limpeza dos pedidos temporários (os itens caem por ON DELETE CASCADE).
+// Registrada como shutdown, e não chamada no fim do script: uma exceção
+// no meio da renderização saltaria a linha de baixo e deixaria 12
+// pedidos órfãos no banco de desenvolvimento — foi o que aconteceu
+// enquanto a paginação estava sendo escrita.
+$delete = $pdo->prepare('DELETE FROM e5_orders WHERE id = :id');
+register_shutdown_function(static function () use ($delete, $tempIds): void {
+    foreach ($tempIds as $tempId) {
+        try {
+            $delete->execute([':id' => $tempId]);
+        } catch (Throwable $ignored) {
+            // Nada a fazer no shutdown: o teste já falhou de vez.
+        }
+    }
+});
 
 file_put_contents($outFile, $html);
 file_put_contents($outFile . '.meta.json', (string) json_encode($meta, JSON_UNESCAPED_UNICODE));
