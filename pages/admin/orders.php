@@ -14,17 +14,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
 
     if ($orderId > 0 && in_array($newStatus, $allowed, true)) {
         if ($newStatus === 'canceled') {
-            // Cancelar pelo admin devolve o estoque, igual ao cancelamento do
-            // cliente. Um UPDATE cru deixava o estoque baixado para sempre
-            // depois de um cancelamento feito no painel.
             $result = order_cancel($pdo, $orderId, 0, true);
             $_SESSION['admin_message'] = $result['ok']
                 ? 'Pedido cancelado e estoque devolvido.'
                 : $result['msg'];
         } else {
-            $stmt = $pdo->prepare('UPDATE e5_orders SET status = :status WHERE id = :id');
-            $stmt->execute([':status' => $newStatus, ':id' => $orderId]);
-            $_SESSION['admin_message'] = 'Status do pedido atualizado.';
+            // Usa order_apply_status para manter pagamento coerente,
+            // gravar histórico e enfileirar notificação.
+            if (!function_exists('order_apply_status')) {
+                require_once __DIR__ . '/../../includes/order_state.php';
+            }
+            $pdo->beginTransaction();
+            try {
+                $result = order_apply_status($pdo, $orderId, $newStatus, [
+                    'note' => 'Alterado pelo painel admin',
+                ]);
+                if ($result['ok']) {
+                    $pdo->commit();
+                    $_SESSION['admin_message'] = 'Status do pedido atualizado.';
+                } else {
+                    $pdo->rollBack();
+                    $_SESSION['admin_message'] = (string) $result['error'];
+                }
+            } catch (Throwable $e) {
+                if ($pdo->inTransaction()) $pdo->rollBack();
+                $_SESSION['admin_message'] = 'Não foi possível atualizar agora.';
+                error_log('admin update_status: ' . $e->getMessage());
+            }
         }
     }
     header('Location: orders.php');

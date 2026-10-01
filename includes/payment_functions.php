@@ -10,6 +10,12 @@ declare(strict_types=1);
  * "pago", "expirado" e "cancelado". Regra em um lugar só, ou o polling mente.
  */
 
+/* Carrega a fila de notificações se ainda não veio pelo autoload
+   "files" do composer.json. Guard para não redeclarar funções. */
+if (!function_exists('notification_enqueue_order_event')) {
+    require_once __DIR__ . '/notification_functions.php';
+}
+
 /**
  * CRC16-CCITT, polinômio 0x1021, init 0xFFFF.
  *
@@ -253,6 +259,23 @@ function order_cancel(PDO $pdo, int $orderId, int $userId, bool $isAdmin = false
         }
 
         $pdo->commit();
+
+        // Notificação de cancelamento (e-mail/WhatsApp), respeitando
+        // preferências. Igual a order_apply_status: se falhar, não
+        // derrubamos o cancelamento que já foi concluído.
+        try {
+            $fresh = $pdo->prepare('SELECT tracking_code, shipping_method FROM e5_orders WHERE id = :id');
+            $fresh->execute([':id' => $orderId]);
+            $fresh = $fresh->fetch(PDO::FETCH_ASSOC);
+            $ctx = [
+                'tracking' => (string) ($fresh['tracking_code'] ?? ''),
+                'service'  => ($fresh['shipping_method'] ?? '') === 'delivery'
+                    ? 'Entrega própria' : 'SuperFrete',
+            ];
+            notification_enqueue_order_event($pdo, $orderId, 'order_canceled', $ctx);
+        } catch (Throwable $e) {
+            error_log('order_cancel: falha ao enfileirar notificação: ' . $e->getMessage());
+        }
 
         return ['ok' => true, 'msg' => 'Pedido cancelado e estoque devolvido.', 'order_status' => 'canceled'];
     } catch (Throwable $e) {

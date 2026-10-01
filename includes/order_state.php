@@ -22,6 +22,15 @@ require_once __DIR__ . '/validators.php';
 
 require_once __DIR__ . '/order_repo.php';
 
+/* Carrega a fila de notificações se ainda não veio pelo autoload
+   "files" do composer.json: quem chama este arquivo por require direto
+   (testes, pages/auth/order-detail.php, api/account/orders.php) precisa
+   das funções de notificação, e include de novo o mesmo arquivo não
+   redeclara as funções graças ao guard function_exists. */
+if (!function_exists('notification_enqueue_order_event')) {
+    require_once __DIR__ . '/notification_functions.php';
+}
+
 /** Etapas do "Progresso do pedido", na ordem em que aparecem na tela. */
 function order_timeline_steps(): array
 {
@@ -286,6 +295,36 @@ function order_apply_status(PDO $pdo, int $orderId, string $to, array $opts = []
     $labelCanceled = false;
     if ($to === 'canceled') {
         $labelCanceled = order_repo_cancel_label($pdo, $orderId);
+    }
+
+    // --- notificações -------------------------------------------------
+    // Enfileira o e-mail/WhatsApp respeitando as preferências do cliente.
+    // O template usado vem do evento mapeado abaixo; se não houver evento
+    // para o status alvo (ex.: 'preparing'), não enviamos nada para
+    // evitar ruído — o histórico já registra a mudança.
+    $eventMap = [
+        'paid'      => 'payment_confirmed',
+        'shipped'   => 'order_shipped',
+        'delivered' => 'order_delivered',
+        'canceled'  => 'order_canceled',
+    ];
+    $event = $eventMap[$to] ?? null;
+    if ($event !== null) {
+        $freshOrder = order_repo_find($pdo, $orderId);
+        $ctx = [
+            'tracking' => (string) ($freshOrder['tracking_code'] ?? ''),
+            'service'  => ($freshOrder['shipping_method'] ?? '') === 'delivery'
+                ? 'Entrega própria' : 'SuperFrete',
+        ];
+        // A função guarda a intenção na fila; quem drena (worker.php, cron)
+        // é quem realmente envia. Se o INSERT falhar (ex.: tabela não
+        // existe no SQLite dos testes), ignoramos para não derrubar a
+        // mudança de status que é a operação principal.
+        try {
+            notification_enqueue_order_event($pdo, $orderId, $event, $ctx);
+        } catch (Throwable $e) {
+            error_log('order_apply_status: falha ao enfileirar notificação: ' . $e->getMessage());
+        }
     }
 
     return [

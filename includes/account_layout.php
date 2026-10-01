@@ -302,6 +302,15 @@ function account_layout_head(array $user, string $active, ?string $breadcrumb = 
         <aside class="account-sidebar" id="accountSidebar">
             <div class="account-identity">
                 <?php echo render_avatar($user); ?>
+                <!-- Upload de avatar: clique no avatar abre o seletor de arquivo.
+                     O form POSTa para profile.php action=avatar (handler já existe). -->
+                <form method="post" enctype="multipart/form-data"
+                      action="<?php echo e(base_url('pages/auth/profile.php')); ?>"
+                      class="account-avatar-form" id="avatarForm" hidden>
+                    <input type="hidden" name="action" value="avatar">
+                    <?php echo csrf_field(); ?>
+                    <input type="file" name="avatar" id="avatarInput" accept="image/jpeg,image/png,image/webp">
+                </form>
                 <div class="account-identity-text">
                     <span class="account-identity-name"><?php echo e($user['name'] ?? ''); ?></span>
                     <span class="account-identity-mail"><?php echo e($user['email'] ?? ''); ?></span>
@@ -394,6 +403,22 @@ function account_layout_foot(): void
         document.addEventListener('keydown', function (event) {
             if (event.key === 'Escape') setOpen(false);
         });
+
+        // Avatar upload: clique no avatar abre o seletor de arquivo.
+        var avatarWrap = document.querySelector('.account-identity .account-avatar');
+        var avatarInput = document.getElementById('avatarInput');
+        var avatarForm  = document.getElementById('avatarForm');
+        if (avatarWrap && avatarInput && avatarForm) {
+            avatarWrap.style.cursor = 'pointer';
+            avatarWrap.setAttribute('role', 'button');
+            avatarWrap.setAttribute('aria-label', 'Alterar foto do perfil');
+            avatarWrap.addEventListener('click', function () { avatarInput.click(); });
+            avatarInput.addEventListener('change', function () {
+                if (avatarInput.files.length > 0) {
+                    avatarForm.submit();
+                }
+            });
+        }
     })();
     </script>
     <?php
