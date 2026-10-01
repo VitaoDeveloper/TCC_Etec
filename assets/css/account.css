@@ -1392,6 +1392,36 @@
 .account-status-pill--purple  { background: rgba(124, 92, 214, 0.16); color: #9b7ce8; }
 .account-status-pill--danger  { background: var(--rt-danger-soft); color: var(--rt-danger); }
 
+/* ---------- Meus Pedidos: contador e busca ---------- */
+
+.account-order-count {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 13px;
+    border-radius: 999px;
+    background: var(--rt-accent-soft);
+    border: 1px solid var(--rt-accent-line);
+    color: var(--rt-accent);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.84rem;
+    font-weight: 700;
+    white-space: nowrap;
+    flex: 0 0 auto;
+}
+
+.account-search {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+
+.account-search .account-input {
+    flex: 1 1 220px;
+    max-width: 320px;
+}
+
 /* ========================================
    Responsivo
    ======================================== */

@@ -115,59 +115,46 @@ class AccountOrdersRenderTest extends TestCase
     }
 
     // =================================================================
-    //  Cards de limite de cancelamento
+    //  Sem card de política de cancelamento (Etapa 3 da spec)
     // =================================================================
 
-    public function testFourCancelLimitCardsRender(): void
+    public function testListHasNoCancelPolicyCards(): void
     {
-        $cards = $this->dom(self::$listHtml)->query('//section[@id="secao-cancelamento"]/article[@data-cancel-card]');
-
-        $this->assertSame(4, $cards->length, 'a spec pede quatro cards de limite de cancelamento');
-    }
-
-    public function testCancelCardsExplainTheRuleAndTheDeadline(): void
-    {
-        $dom = $this->dom(self::$listHtml);
-
-        foreach ($dom->query('//article[@data-cancel-card]') as $card) {
-            $key = $card->getAttribute('data-cancel-card');
-
-            $title = $card->getElementsByTagName('h2')->item(0);
-            $text  = $dom->query('//article[@data-cancel-card="' . $key . '"]/p[contains(@class,"account-cancel-text")]')->item(0);
-            $limit = $dom->query('//article[@data-cancel-card="' . $key . '"]/p[contains(@class,"account-cancel-limit")]')->item(0);
-
-            $this->assertNotNull($title, "o card {$key} nao tem titulo");
-            $this->assertNotSame('', trim($title->textContent));
-            $this->assertNotNull($text, "o card {$key} nao explica a regra");
-            $this->assertGreaterThan(30, strlen(trim($text->textContent)), "o card {$key} ficou sem explicacao");
-            $this->assertNotNull($limit, "o card {$key} nao mostra o limite/prazo");
-            $this->assertStringContainsString('Limite:', trim($limit->textContent));
-        }
-    }
-
-    public function testOnlyTheShippedCardIsMarkedAsBlocked(): void
-    {
-        $dom = $this->dom(self::$listHtml);
-
-        $blocked = $dom->query('//article[contains(@class,"account-cancel-card--blocked")]');
-
-        $this->assertSame(1, $blocked->length, 'so a etapa pos-postagem nao aceita cancelamento');
+        // A spec proíbe os quatro cards de política nesta tela: a regra
+        // vive só como frase discreta em order-detail.php.
         $this->assertSame(
-            'shipped',
-            $blocked->item(0)->getAttribute('data-cancel-card')
+            0,
+            $this->dom(self::$listHtml)->query("//*[contains(@class,'account-cancel-card')]")->length,
+            'a lista de pedidos nao pode ter card de política de cancelamento'
+        );
+        $this->assertSame(
+            0,
+            $this->dom(self::$listHtml)->query("//*[@id='secao-cancelamento']")->length,
+            'a secao de politica de cancelamento deve ter sido removida'
         );
     }
 
-    public function testCancelableCardsSayTheyCanBeCanceled(): void
+    public function testListHasOrderCounterNextToTitle(): void
+    {
+        $counter = $this->dom(self::$listHtml)->query("//*[contains(@class,'account-order-count')]")->item(0);
+
+        $this->assertNotNull($counter, 'faltou o contador de pedidos ao lado do titulo');
+        $this->assertMatchesRegularExpression(
+            '/\d+\s+pedido\(s\)/',
+            trim($counter->textContent),
+            'o contador deve seguir o padrao "N pedido(s)"'
+        );
+    }
+
+    public function testListHasSearchFieldForOrderNumber(): void
     {
         $dom = $this->dom(self::$listHtml);
 
-        foreach (['pending', 'paid', 'preparing'] as $key) {
-            $badge = $dom->query('//article[@data-cancel-card="' . $key . '"]//span[contains(@class,"account-cancel-badge")]')->item(0);
-
-            $this->assertNotNull($badge, "o card {$key} nao mostrou a etiqueta");
-            $this->assertSame('Pode cancelar', trim($badge->textContent));
-        }
+        $this->assertSame(
+            1,
+            $dom->query("//form[contains(@class,'account-search')]//input[@name='q']")->length,
+            'faltou o campo de busca por numero do pedido'
+        );
     }
 
     // =================================================================

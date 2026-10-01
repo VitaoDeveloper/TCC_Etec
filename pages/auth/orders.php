@@ -39,65 +39,26 @@ if (!array_key_exists($filter, $statusTable)) {
     $filter = '';
 }
 
+// Busca por número do pedido (?q=12). Só dígitos: o campo é numérico
+// e aceitar texto livre não tem onde buscar (nome de produto não é
+// índice desta consulta).
+$search = preg_replace('/\D/', '', (string) ($_GET['q'] ?? '')) ?? '';
+
 $ordersUrl = base_url('pages/auth/orders.php');
 
 function orders_status_url(string $ordersUrl, string $status): string
 {
-    return $status === '' ? $ordersUrl : $ordersUrl . '?status=' . rawurlencode($status);
-}
+    $query = [];
+    if ($status !== '') {
+        $query['status'] = $status;
+    }
+    if (($GLOBALS['search'] ?? '') !== '') {
+        $query['q'] = $GLOBALS['search'];
+    }
 
-/**
- * Os quatro cards de limite de cancelamento.
- *
- * A regra que decide quem pode cancelar é order_can_cancel() (pending,
- * paid e preparing) e mora em order_state.php. Este array é só a
- * explicação em português que o cliente lê antes de clicar, mais o
- * prazo que vale para cada etapa. Texto de política comercial fica
- * aqui, e não no meio da regra, para uma troca de letra não virar
- * mudança de comportamento.
- *
- * @return array<int, array{key:string,icon:string,title:string,badge:string,text:string,limit:string,can_cancel:bool}>
- */
-function account_cancel_rules(): array
-{
-    return [
-        [
-            'key'        => 'pending',
-            'icon'       => 'fa-clock',
-            'title'      => 'Aguardando pagamento',
-            'badge'      => 'Pode cancelar',
-            'text'       => 'Nada foi pago e nada foi enviado. Cancelar agora não gera custo de devolução nem espera de estorno.',
-            'limit'      => 'Limite: até a aprovação do pagamento',
-            'can_cancel' => true,
-        ],
-        [
-            'key'        => 'paid',
-            'icon'       => 'fa-circle-check',
-            'title'      => 'Pagamento aprovado',
-            'badge'      => 'Pode cancelar',
-            'text'       => 'O valor já entrou, mas o pacote não foi postado. O cancelamento devolve os itens ao estoque e dispara o reembolso integral.',
-            'limit'      => 'Limite: até a postagem',
-            'can_cancel' => true,
-        ],
-        [
-            'key'        => 'preparing',
-            'icon'       => 'fa-box-open',
-            'title'      => 'Em preparação',
-            'badge'      => 'Pode cancelar',
-            'text'       => 'O pedido já está sendo separado e embalado. Ainda dá para cancelar, mas o reembolso passa a seguir o prazo do meio de pagamento usado.',
-            'limit'      => 'Limite: até a etiqueta de envio ser gerada',
-            'can_cancel' => true,
-        ],
-        [
-            'key'        => 'shipped',
-            'icon'       => 'fa-truck',
-            'title'      => 'Enviado ou entregue',
-            'badge'      => 'Sem cancelamento online',
-            'text'       => 'Depois da postagem o cancelamento pela tela não existe mais. A devolução segue o direito de arrependimento, em até 7 dias corridos após o recebimento.',
-            'limit'      => 'Limite: pós-venda em até 7 dias',
-            'can_cancel' => false,
-        ],
-    ];
+    return $query === []
+        ? $ordersUrl
+        : $ordersUrl . '?' . http_build_query($query);
 }
 
 // Contagem por status para as abas. Uma consulta só, para não fazer
@@ -123,6 +84,11 @@ if ($filter !== '') {
     $params[':status'] = $filter;
 }
 
+if ($search !== '') {
+    $sql .= ' AND o.id = :q';
+    $params[':q'] = (int) $search;
+}
+
 $sql .= ' ORDER BY o.created_at DESC';
 
 $stmt = $pdo->prepare($sql);
@@ -135,31 +101,25 @@ account_layout_head($user, 'pedidos');
 ?>
 
 <div class="account-page-header">
-    <h1 class="account-page-title">Meus Pedidos</h1>
-    <p class="account-page-subtitle">Acompanhe o andamento e o histórico das suas compras.</p>
+    <div class="account-page-header-row">
+        <div>
+            <h1 class="account-page-title">Meus Pedidos</h1>
+            <p class="account-page-subtitle">Acompanhe o andamento e o histórico das suas compras.</p>
+        </div>
+        <span class="account-order-count"><?php echo (int) $totalOrders; ?> pedido(s)</span>
+    </div>
 </div>
 
-<!-- ============================ Cards: limite de cancelamento ============================ -->
-<section class="account-cancel-grid" id="secao-cancelamento"
-         aria-label="Regras de cancelamento por etapa do pedido">
-    <?php foreach (account_cancel_rules() as $rule): ?>
-        <article class="account-cancel-card<?php echo $rule['can_cancel'] ? '' : ' account-cancel-card--blocked'; ?>"
-                 data-cancel-card="<?php echo e($rule['key']); ?>">
-            <header class="account-cancel-head">
-                <span class="account-cancel-icon" aria-hidden="true"><i class="fas <?php echo e($rule['icon']); ?>"></i></span>
-                <div>
-                    <h2 class="account-cancel-title"><?php echo e($rule['title']); ?></h2>
-                    <span class="account-cancel-badge"><?php echo e($rule['badge']); ?></span>
-                </div>
-            </header>
-            <p class="account-cancel-text"><?php echo e($rule['text']); ?></p>
-            <p class="account-cancel-limit">
-                <i class="fas fa-hourglass-half" aria-hidden="true"></i>
-                <span><?php echo e($rule['limit']); ?></span>
-            </p>
-        </article>
-    <?php endforeach; ?>
-</section>
+<!-- Busca por número do pedido -->
+<form class="account-search" method="get" action="<?php echo e($ordersUrl); ?>" role="search">
+    <label class="sr-only" for="orderSearch">Buscar por número do pedido</label>
+    <input class="account-input" type="search" id="orderSearch" name="q"
+           value="<?php echo e($search); ?>"
+           placeholder="Buscar por nº do pedido..." inputmode="numeric">
+    <button type="submit" class="account-btn account-btn--sm">
+        <i class="fas fa-magnifying-glass" aria-hidden="true"></i> Buscar
+    </button>
+</form>
 
 <!-- ============================ Abas de status ============================ -->
 <nav class="account-tabs" id="secao-abas" aria-label="Filtrar pedidos por status">
