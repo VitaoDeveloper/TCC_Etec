@@ -21,6 +21,11 @@ require_once __DIR__ . '/../../includes/account_layout.php';
 require_once __DIR__ . '/../../includes/validators.php';
 require_once __DIR__ . '/../../database/connection.php';
 
+// Incluir Cropper.js para o editor de avatar
+$GLOBALS['extra_head_css'] = [
+    asset_url('assets/vendor/cropperjs/cropper.min.css'),
+];
+
 $user = account_require_login($pdo);
 
 // ---------------------------------------------------------------------
@@ -96,6 +101,158 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'avata
     }
 
     header('Location: ' . base_url('pages/auth/profile.php'));
+    exit;
+}
+
+// ---------------------------------------------------------------------
+//  Avatar Crop (recorte via Cropper.js — recebe Blob via AJAX)
+// ---------------------------------------------------------------------
+$input = null;
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+    if (str_starts_with($contentType, 'application/json')) {
+        $rawInput = file_get_contents('php://input');
+        $input = json_decode($rawInput, true);
+    }
+}
+
+$action = $_POST['action'] ?? ($input['action'] ?? '');
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'avatar_crop') {
+    csrf_require_valid();
+    if (!$input || empty($input['image'])) {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'message' => 'Imagem não fornecida.']);
+        exit;
+    }
+
+    // Decodifica base64 (formato: data:image/jpeg;base64,....)
+    $base64 = $input['image'];
+    if (str_starts_with($base64, 'data:image/')) {
+        $base64 = preg_replace('#^data:image/[^;]+;base64,#', '', $base64);
+    }
+    $binary = base64_decode($base64);
+    if ($binary === false) {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'message' => 'Imagem inválida (base64).']);
+        exit;
+    }
+
+    // Valida tamanho do recorte (máx 2 MB)
+    if (strlen($binary) > 2 * 1024 * 1024) {
+        http_response_code(413);
+        echo json_encode(['ok' => false, 'message' => 'O recorte excede 2 MB.']);
+        exit;
+    }
+
+    // Salva temporariamente para validar com finfo/getimagesize
+    $tmpName = sys_get_temp_dir() . '/avatar_crop_' . bin2hex(random_bytes(8)) . '.jpg';
+    file_put_contents($tmpName, $binary);
+
+    $finfo = new finfo(FILEINFO_MIME_TYPE);
+    $mime = $finfo->file($tmpName);
+    $allowedMime = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!in_array($mime, $allowedMime, true)) {
+        @unlink($tmpName);
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'message' => 'Formato não suportado. Use JPG, PNG ou WebP.']);
+        exit;
+    }
+
+    $imgInfo = getimagesize($tmpName);
+    if (!$imgInfo) {
+        @unlink($tmpName);
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'message' => 'Arquivo não é uma imagem válida.']);
+        exit;
+    }
+
+    // Reprocessa a imagem no servidor (remove EXIF, redimensiona para 512x512, converte para JPEG)
+    $src = null;
+    switch ($mime) {
+        case 'image/jpeg': $src = imagecreatefromjpeg($tmpName); break;
+        case 'image/png':  $src = imagecreatefrompng($tmpName); break;
+        case 'image/webp': $src = imagecreatefromwebp($tmpName); break;
+    }
+    if (!$src) {
+        @unlink($tmpName);
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'message' => 'Não foi possível processar a imagem.']);
+        exit;
+    }
+
+    // Cria canvas 512x512 com fundo branco
+    $dst = imagecreatetruecolor(512, 512);
+    $white = imagecolorallocate($dst, 255, 255, 255);
+    imagefill($dst, 0, 0, $white);
+
+    // Copia redimensionando mantendo proporção (crop centralizado já feito no front)
+    imagecopyresampled($dst, $src, 0, 0, 0, 0, 512, 512, $imgInfo[0], $imgInfo[1]);
+
+    // Remove arquivo temporário
+    @unlink($tmpName);
+    imagedestroy($src);
+
+    // Salva em assets/uploads/avatars/
+    $dir = dirname(__DIR__, 2) . '/assets/uploads/avatars';
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0755, true);
+    }
+
+    // Remove avatar antigo
+    $oldPath = (string) ($user['avatar_path'] ?? '');
+    if ($oldPath !== '' && (str_contains($oldPath, 'uploads/avatars/') || str_contains($oldPath, 'assets/uploads/avatars/'))) {
+        $oldAbs = dirname(__DIR__, 2) . '/' . ltrim($oldPath, '/');
+        if (is_file($oldAbs)) {
+            @unlink($oldAbs);
+        }
+    }
+
+    // Gera nome aleatório e salva como JPEG qualidade 90
+    $filename = 'user_' . (int) $_SESSION['user_id'] . '_' . bin2hex(random_bytes(6)) . '.jpg';
+    $savePath = $dir . '/' . $filename;
+    $saved = imagejpeg($dst, $savePath, 90);
+    imagedestroy($dst);
+
+    if (!$saved) {
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'message' => 'Não foi possível salvar a imagem.']);
+        exit;
+    }
+
+    // Atualiza banco
+    $relative = 'assets/uploads/avatars/' . $filename;
+    $pdo->prepare('UPDATE e5_users SET avatar_path = :path WHERE id = :id')
+        ->execute([':path' => $relative, ':id' => $_SESSION['user_id']]);
+
+    // Retorna URL com cache-busting
+    $avatarUrl = base_url($relative) . '?v=' . time();
+    echo json_encode([
+        'ok' => true,
+        'message' => 'Foto de perfil atualizada!',
+        'avatar_url' => $avatarUrl,
+    ]);
+    exit;
+}
+
+// ---------------------------------------------------------------------
+//  Avatar Remove (volta às iniciais)
+// ---------------------------------------------------------------------
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'avatar_remove') {
+    csrf_require_valid();
+
+    $oldPath = (string) ($user['avatar_path'] ?? '');
+    if ($oldPath !== '' && (str_contains($oldPath, 'uploads/avatars/') || str_contains($oldPath, 'assets/uploads/avatars/'))) {
+        $oldAbs = dirname(__DIR__, 2) . '/' . ltrim($oldPath, '/');
+        if (is_file($oldAbs)) {
+            @unlink($oldAbs);
+        }
+    }
+
+    $pdo->prepare('UPDATE e5_users SET avatar_path = NULL WHERE id = :id')
+        ->execute([':id' => $_SESSION['user_id']]);
+
+    echo json_encode(['ok' => true, 'message' => 'Foto removida.']);
     exit;
 }
 
@@ -867,6 +1024,57 @@ account_layout_head($user, 'perfil');
 
 </main>
 
+<!-- Modal: Editor de Avatar (Cropper.js) -->
+<div class="account-modal" id="modal-avatar" role="dialog" aria-modal="true"
+     aria-labelledby="modal-avatar-title" hidden>
+    <div class="account-modal-backdrop" data-avatar-close></div>
+    <div class="account-modal-panel account-modal-panel--full">
+        <header class="account-modal-head">
+            <h3 id="modal-avatar-title">Ajustar foto</h3>
+            <button type="button" class="account-btn account-btn--sm" data-avatar-close aria-label="Fechar">
+                <i class="fas fa-xmark" aria-hidden="true"></i>
+            </button>
+        </header>
+        <div class="account-modal-body">
+            <div class="avatar-editor">
+                <!-- Área de corte principal -->
+                <div class="avatar-editor-preview">
+                    <div class="avatar-editor-frame">
+                        <img id="avatarCropperImage" src="" alt="Foto para recortar">
+                    </div>
+                    <div class="avatar-editor-preview-mini" aria-hidden="true">
+                        <div class="avatar-editor-preview-circle"></div>
+                    </div>
+                </div>
+                <!-- Controles -->
+                <div class="avatar-editor-controls">
+                    <div class="avatar-editor-zoom">
+                        <button type="button" class="avatar-editor-btn" id="zoomOut" aria-label="Diminuir zoom"><i class="fas fa-minus"></i></button>
+                        <input type="range" id="zoomSlider" min="0.1" max="3" step="0.05" value="1" aria-label="Zoom">
+                        <button type="button" class="avatar-editor-btn" id="zoomIn" aria-label="Aumentar zoom"><i class="fas fa-plus"></i></button>
+                    </div>
+                    <div class="avatar-editor-rotate">
+                        <button type="button" class="avatar-editor-btn" id="rotateLeft" aria-label="Girar 90° à esquerda"><i class="fas fa-rotate-left"></i></button>
+                        <button type="button" class="avatar-editor-btn" id="rotateRight" aria-label="Girar 90° à direita"><i class="fas fa-rotate-right"></i></button>
+                    </div>
+                </div>
+                <!-- Ações -->
+                <div class="avatar-editor-actions">
+                    <button type="button" class="account-btn account-btn--outline" id="avatarReset">Redefinir</button>
+                    <button type="button" class="account-btn account-btn--danger" id="avatarRemove" style="display:none;">Remover foto</button>
+                    <button type="button" class="account-btn account-btn--secondary" id="avatarCancel">Cancelar</button>
+                    <button type="button" class="account-btn account-btn--primary" id="avatarSave">
+                        <i class="fas fa-save" aria-hidden="true"></i> Salvar foto
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cropper.js (local) -->
+<script src="<?php echo asset_url('assets/vendor/cropperjs/cropper.min.js'); ?>"></script>
+
 <script>
 (function () {
     'use strict';
@@ -1055,7 +1263,263 @@ account_layout_head($user, 'perfil');
         }
     });
 
-    // --- Olho da nova senha --------------------------------------------
+    // --- Avatar Editor (Cropper.js) ---------------------------------------
+    var avatarCropper = null;
+    var avatarCropperModal = document.getElementById('modal-avatar');
+    var avatarCropperImage = document.getElementById('avatarCropperImage');
+    var avatarPreviewCircle = avatarCropperModal ? avatarCropperModal.querySelector('.avatar-editor-preview-circle') : null;
+
+    // Abrir editor ao selecionar arquivo
+    var avatarInput = document.getElementById('avatarInput');
+    var avatarForm = document.getElementById('avatarForm');
+    if (avatarInput && avatarForm && avatarCropperModal) {
+        avatarInput.addEventListener('change', function () {
+            var file = avatarInput.files[0];
+            if (!file) return;
+
+            // Valida tipo e tamanho (origem até 15 MB)
+            var allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+            if (!allowedTypes.includes(file.type)) {
+                showToast('Formato não suportado. Use JPEG, PNG ou WebP.', 'error');
+                avatarInput.value = '';
+                return;
+            }
+            if (file.size > 15 * 1024 * 1024) {
+                showToast('A imagem original excede 15 MB.', 'error');
+                avatarInput.value = '';
+                return;
+            }
+
+            // Cria URL temporária e abre modal
+            var objectUrl = URL.createObjectURL(file);
+            avatarCropperImage.src = objectUrl;
+            avatarCropperImage.onload = function () {
+                URL.revokeObjectURL(objectUrl);
+            };
+
+            // Inicializa Cropper.js
+            if (avatarCropper) {
+                avatarCropper.destroy();
+            }
+            avatarCropper = new Cropper(avatarCropperImage, {
+                aspectRatio: 1,
+                viewMode: 1,
+                dragMode: 'move',
+                autoCropArea: 0.9,
+                cropBoxMovable: false,
+                cropBoxResizable: false,
+                guides: false,
+                center: false,
+                highlight: false,
+                background: false,
+                toggleDragModeOnDblclick: false,
+                checkOrientation: true,
+                ready: function () {
+                    // Atualiza prévia mini
+                    updateAvatarPreview();
+                },
+                cropmove: function () {
+                    updateAvatarPreview();
+                },
+                zoom: function () {
+                    updateAvatarPreview();
+                },
+            });
+
+            // Atualiza botões de rotação
+            document.getElementById('rotateLeft').onclick = function () { if (avatarCropper) avatarCropper.rotate(-90); };
+            document.getElementById('rotateRight').onclick = function () { if (avatarCropper) avatarCropper.rotate(90); };
+            document.getElementById('zoomIn').onclick = function () { if (avatarCropper) avatarCropper.zoom(0.1); };
+            document.getElementById('zoomOut').onclick = function () { if (avatarCropper) avatarCropper.zoom(-0.1); };
+            document.getElementById('zoomSlider').oninput = function () { if (avatarCropper) avatarCropper.zoomTo(parseFloat(this.value)); };
+            document.getElementById('avatarReset').onclick = function () { if (avatarCropper) { avatarCropper.reset(); updateAvatarPreview(); } };
+            document.getElementById('avatarRemove').onclick = function () { removeAvatar(); };
+            document.getElementById('avatarCancel').onclick = function () { closeAvatarModal(); };
+            document.getElementById('avatarSave').onclick = function () { saveAvatarCrop(); };
+
+            // Slider de zoom
+            var zoomSlider = document.getElementById('zoomSlider');
+            zoomSlider.oninput = function () {
+                if (avatarCropper) avatarCropper.zoomTo(parseFloat(this.value));
+            };
+
+            // Abre modal
+            openAvatarModal();
+        });
+    }
+
+    function updateAvatarPreview() {
+        if (!avatarCropper || !avatarPreviewCircle) return;
+        try {
+            var canvas = avatarCropper.getCroppedCanvas({
+                width: 80,
+                height: 80,
+                imageSmoothingQuality: 'high',
+            });
+            avatarPreviewCircle.style.backgroundImage = 'url(' + canvas.toDataURL('image/jpeg', 0.9) + ')';
+        } catch (e) {
+            // Ignora erros de canvas
+        }
+    }
+
+    function openAvatarModal() {
+        if (!avatarCropperModal) return;
+        var lastFocused = document.activeElement;
+        avatarCropperModal.hidden = false;
+        document.body.classList.add('account-modal-open');
+        var first = avatarCropperModal.querySelector('button, input, select');
+        if (first) first.focus();
+        // Focus trap
+        avatarCropperModal._focusTrapHandler = function (e) {
+            if (e.key === 'Tab') {
+                var focusable = avatarCropperModal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+                focusable = Array.from(focusable).filter(function (el) { return el.offsetWidth > 0 || el.offsetHeight > 0; });
+                if (focusable.length === 0) return;
+                var first = focusable[0];
+                var last = focusable[focusable.length - 1];
+                if (e.shiftKey && document.activeElement === first) {
+                    e.preventDefault();
+                    last.focus();
+                } else if (!e.shiftKey && document.activeElement === last) {
+                    e.preventDefault();
+                    first.focus();
+                }
+            } else if (e.key === 'Escape') {
+                closeAvatarModal();
+            }
+        };
+        avatarCropperModal.addEventListener('keydown', avatarCropperModal._focusTrapHandler);
+    }
+
+    function closeAvatarModal() {
+        if (!avatarCropperModal) return;
+        if (avatarCropperModal._focusTrapHandler) {
+            avatarCropperModal.removeEventListener('keydown', avatarCropperModal._focusTrapHandler);
+        }
+        if (avatarCropper) {
+            avatarCropper.destroy();
+            avatarCropper = null;
+        }
+        if (avatarCropperImage.src) {
+            URL.revokeObjectURL(avatarCropperImage.src);
+            avatarCropperImage.src = '';
+        }
+        avatarCropperModal.hidden = true;
+        document.body.classList.remove('account-modal-open');
+        var avatarInput = document.getElementById('avatarInput');
+        if (avatarInput) avatarInput.value = '';
+    }
+
+    // Fechar ao clicar no backdrop ou botão fechar
+    if (avatarCropperModal) {
+        var backdrop = avatarCropperModal.querySelector('.account-modal-backdrop');
+        var closeBtn = avatarCropperModal.querySelector('[data-avatar-close]');
+        if (backdrop) backdrop.addEventListener('click', closeAvatarModal);
+        if (closeBtn) closeBtn.addEventListener('click', closeAvatarModal);
+    }
+
+    // Salvar recorte
+    function saveAvatarCrop() {
+        if (!avatarCropper) return;
+        var saveBtn = document.getElementById('avatarSave');
+        setButtonLoading(saveBtn, true);
+
+        try {
+            var canvas = avatarCropper.getCroppedCanvas({
+                width: 512,
+                height: 512,
+                imageSmoothingQuality: 'high',
+            });
+            canvas.toBlob(function (blob) {
+                if (!blob) {
+                    setButtonLoading(saveBtn, false);
+                    showToast('Não foi possível gerar o recorte.', 'error');
+                    return;
+                }
+                // Envia como base64
+                var reader = new FileReader();
+                reader.onload = function () {
+                    var base64 = reader.result;
+                    fetch(window.location.href, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                        },
+                        body: JSON.stringify({ action: 'avatar_crop', image: base64 })
+                    }).then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        setButtonLoading(saveBtn, false);
+                        if (data.ok) {
+                            showToast(data.message || 'Foto atualizada!', 'success');
+                            // Atualiza todos os avatares na página com cache-busting
+                            var newUrl = data.avatar_url;
+                            document.querySelectorAll('.avatar, .account-avatar-img').forEach(function (img) {
+                                if (img.tagName === 'IMG') {
+                                    img.src = newUrl;
+                                } else if (img.classList.contains('avatar-initials')) {
+                                    // Substitui iniciais por imagem
+                                    var parent = img.parentElement;
+                                    var newImg = document.createElement('img');
+                                    newImg.src = newUrl;
+                                    newImg.alt = img.alt || 'Avatar';
+                                    newImg.className = img.className.replace('avatar-initials', '');
+                                    newImg.onerror = img.onerror;
+                                    parent.replaceChild(newImg, img);
+                                }
+                            });
+                            closeAvatarModal();
+                        } else {
+                            showToast(data.message || 'Erro ao salvar.', 'error');
+                        }
+                    }).catch(function () {
+                        setButtonLoading(saveBtn, false);
+                        showToast('Erro de conexão.', 'error');
+                    });
+                };
+                reader.readAsDataURL(blob);
+            }, 'image/jpeg', 0.9);
+        } catch (e) {
+            setButtonLoading(saveBtn, false);
+            showToast('Erro ao gerar recorte.', 'error');
+        }
+    }
+
+    function removeAvatar() {
+        if (!confirm('Remover a foto de perfil?')) return;
+        fetch(window.location.href, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            },
+            body: JSON.stringify({ action: 'avatar_remove' })
+        }).then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.ok) {
+                showToast(data.message, 'success');
+                // Volta às iniciais
+                document.querySelectorAll('.avatar, .account-avatar-img').forEach(function (img) {
+                    if (img.tagName === 'IMG') {
+                        var parent = img.parentElement;
+                        var initials = img.dataset.initials || '??';
+                        var newSpan = document.createElement('span');
+                        newSpan.className = img.className.replace('account-avatar-img', 'account-avatar--initials');
+                        newSpan.textContent = initials;
+                        newSpan.dataset.initials = initials;
+                        newSpan.setAttribute('role', 'img');
+                        newSpan.setAttribute('aria-label', img.alt || 'Avatar');
+                        parent.replaceChild(newSpan, img);
+                    }
+                });
+                closeAvatarModal();
+            } else {
+                showToast(data.message || 'Erro ao remover.', 'error');
+            }
+        }).catch(function () { showToast('Erro de conexão.', 'error'); });
+    }
     document.querySelectorAll('.js-toggle-password').forEach(function (btn) {
         btn.addEventListener('click', function () {
             var input = btn.parentElement.querySelector('input');
