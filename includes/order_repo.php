@@ -266,3 +266,103 @@ function order_repo_address_line(array $order): string
 
     return $street;
 }
+
+/**
+ * Endereço de entrega com fallback:
+ * (a) shipping_* do pedido se existir
+ * (b) endereço do usuário SE o CEP coincidir com o CEP do pedido
+ * (c) "Endereço não registrado — CEP XXXXXXX"
+ *
+ * Retorna array com: line (string formatada), cep, method (serviço + valor)
+ */
+function order_repo_address_with_fallback(PDO $pdo, array $order): array
+{
+    // (a) Tem endereço no pedido?
+    $hasShippingAddr = trim((string) ($order['shipping_street'] ?? '')) !== '';
+    $orderCep = only_digits((string) ($order['shipping_postal_code'] ?? ''));
+    
+    if ($hasShippingAddr && $orderCep !== '') {
+        return [
+            'line'   => order_repo_address_line($order),
+            'cep'    => format_cep($orderCep),
+            'method' => shipping_method_label($order),
+        ];
+    }
+
+    // (b) Fallback: endereço do usuário se CEP coincidir
+    if ($orderCep !== '') {
+        $stmt = $pdo->prepare('
+            SELECT postal_code, street, number, complement, neighborhood, city, state
+            FROM e5_users WHERE id = :uid LIMIT 1
+        ');
+        $stmt->execute([':uid' => (int) $order['user_id']]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($user) {
+            $userCep = only_digits((string) ($user['postal_code'] ?? ''));
+            if ($userCep === $orderCep && trim((string) ($user['street'] ?? '')) !== '') {
+                $line = trim((string) $user['street']);
+                $num = trim((string) ($user['number'] ?? ''));
+                if ($num !== '' && !in_array(mb_strtoupper($num), ['S/N', 'SN', '-'], true)) {
+                    $line .= ', ' . $num;
+                }
+                $comp = trim((string) ($user['complement'] ?? ''));
+                if ($comp !== '') {
+                    $line .= ' — ' . $comp;
+                }
+                $neigh = trim((string) ($user['neighborhood'] ?? ''));
+                $city = trim((string) ($user['city'] ?? ''));
+                $state = trim((string) ($user['state'] ?? ''));
+                if ($neigh !== '' || $city !== '') {
+                    $line .= ' — ' . $neigh . ($neigh !== '' && $city !== '' ? ', ' : '') . $city . ($state !== '' ? '/' . $state : '');
+                }
+                
+                return [
+                    'line'   => $line,
+                    'cep'    => format_cep($orderCep),
+                    'method' => shipping_method_label($order),
+                ];
+            }
+        }
+    }
+
+    // (c) Sem endereço registrado
+    return [
+        'line'   => 'Endereço não registrado — CEP ' . format_cep($orderCep),
+        'cep'    => format_cep($orderCep),
+        'method' => shipping_method_label($order),
+    ];
+}
+
+function only_digits(?string $s): string {
+    return preg_replace('/\D/', '', (string) $s) ?? '';
+}
+
+function format_cep(string $cep): string {
+    $d = only_digits($cep);
+    if (strlen($d) === 8) {
+        return substr($d, 0, 5) . '-' . substr($d, 5);
+    }
+    return $cep;
+}
+
+function shipping_method_label(array $order): string
+{
+    $method = (string) ($order['shipping_method'] ?? '');
+    $cost = (float) ($order['shipping_cost'] ?? 0);
+    
+    $label = match ($method) {
+        'pac' => 'PAC',
+        'sedex' => 'Sedex',
+        'delivery' => 'Entrega própria',
+        default => ucfirst($method),
+    };
+    
+    if ($cost > 0) {
+        $label .= ' · R$ ' . number_format($cost, 2, ',', '.');
+    } else {
+        $label .= ' · Grátis';
+    }
+    
+    return $label;
+}

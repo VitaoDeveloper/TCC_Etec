@@ -35,12 +35,18 @@ CREATE TABLE IF NOT EXISTS e5_users (
   street VARCHAR(120) NOT NULL,
   number INT NOT NULL,
   complement VARCHAR(80) DEFAULT NULL,
+  neighborhood VARCHAR(80) NULL,
+  city VARCHAR(80) NULL,
+  state CHAR(2) NULL,
   -- Telefone com DDD, só dígitos, guardado no formato internacional
   -- (código do país + 11 dígitos). A SuperFrete exige telefone do
   -- destinatário na etiqueta e a notificação de WhatsApp depende dele:
   -- sem a coluna, os dois caminhos eram um beco sem saída para quem não
   -- tem telefone fixo.
   phone VARCHAR(20) NULL,
+  -- E-mail verificado (link enviado no cadastro). Usado para fluxos
+  -- que exigem confirmação de propriedade do endereço.
+  email_verified TINYINT(1) NOT NULL DEFAULT 0,
   -- Avatar e preferências de contato. As flags vinham no banco de
   -- desenvolvimento (os 16 usuários deram consentimento para ambos os
   -- canais) e entravam no schema sem o código ler; agora são lidas por
@@ -114,7 +120,7 @@ CREATE TABLE IF NOT EXISTS e5_product_images (
 CREATE TABLE IF NOT EXISTS e5_orders (
   id INT PRIMARY KEY AUTO_INCREMENT,
   user_id INT NOT NULL,
-  status ENUM('pending','paid','shipped','delivered','canceled') NOT NULL DEFAULT 'pending',
+  status ENUM('pending','paid','preparing','shipped','delivered','canceled') NOT NULL DEFAULT 'pending',
   total DECIMAL(10,2) NOT NULL,
   shipping_method VARCHAR(50) NULL,
   shipping_cost DECIMAL(10,2) NOT NULL DEFAULT 0.00,
@@ -124,7 +130,9 @@ CREATE TABLE IF NOT EXISTS e5_orders (
   -- processing/failed/expired são os estados do simulador de pagamento
   -- (aprovado/erro/expirado). O enum antigo aqui tinha só 3 valores e
   -- rejeitaria essas gravações numa instalação nova.
-  payment_status ENUM('pending','processing','paid','refunded','failed','expired') NOT NULL DEFAULT 'pending',
+  -- 'canceled' adicionado pela migração de conta: pedido cancelado vira
+  -- payment_status 'canceled' (ou 'refunded' se já pago).
+  payment_status ENUM('pending','processing','paid','canceled','refunded','failed','expired') NOT NULL DEFAULT 'pending',
   -- Dados do pagamento que não são número de cartão: não guardar PAN, guardar
   -- só o que o provedor devolve (autorização, expiração).
   payment_details TEXT NULL,
@@ -133,6 +141,12 @@ CREATE TABLE IF NOT EXISTS e5_orders (
   shipping_city VARCHAR(80) NULL,
   shipping_state VARCHAR(40) NULL,
   shipping_postal_code VARCHAR(10) NULL,
+  -- Snapshot do endereço de entrega: rua/número/complemento gravados
+  -- na criação do pedido e nunca mais alterados. Garante que o histórico
+  -- do pedido sobreviva a mudanças de endereço do usuário.
+  shipping_street VARCHAR(120) NULL,
+  shipping_number VARCHAR(10) NULL,
+  shipping_complement VARCHAR(80) NULL,
   tracking_code VARCHAR(100) NULL,
   comprovante_filename VARCHAR(60) NULL,
   email_status ENUM('sent','failed','skipped') NULL,
@@ -160,6 +174,11 @@ CREATE TABLE IF NOT EXISTS e5_order_items (
   product_id INT NOT NULL,
   quantity INT NOT NULL,
   unit_price DECIMAL(10,2) NOT NULL,
+  -- Snapshot do nome e imagem do produto no momento da compra.
+  -- Garante que o pedido histórico mostre o que foi vendido, não o
+  -- que o catálogo diz hoje.
+  product_name VARCHAR(150) NULL,
+  product_image VARCHAR(255) NULL,
   CONSTRAINT fk_order_items_order FOREIGN KEY (order_id) REFERENCES e5_orders(id) ON DELETE CASCADE,
   CONSTRAINT fk_order_items_product FOREIGN KEY (product_id) REFERENCES e5_products(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

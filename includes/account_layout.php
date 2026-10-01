@@ -298,6 +298,16 @@ function account_layout_head(array $user, string $active, ?string $breadcrumb = 
     require_once dirname(__DIR__) . '/components/header.php';
     ?>
 
+    <!-- Breadcrumb full-width (fundo #2d2d2d, altura ~36px) FORA da grade -->
+    <nav class="account-breadcrumb-bar" aria-label="Navegação estrutural">
+        <div class="container">
+            <ol class="account-breadcrumb">
+                <li><a href="<?php echo e(base_url('/')); ?>">Início</a></li>
+                <li aria-current="page"><?php echo e($breadcrumb); ?></li>
+            </ol>
+        </div>
+    </nav>
+
     <div class="account-shell" data-account-active="<?php echo e($active); ?>">
         <aside class="account-sidebar" id="accountSidebar">
             <div class="account-identity">
@@ -345,14 +355,6 @@ function account_layout_head(array $user, string $active, ?string $breadcrumb = 
                 <i class="fas fa-bars" aria-hidden="true"></i>
                 <span>Menu da conta</span>
             </button>
-
-            <!-- Breadcrumb (especificação: fundo #2d2d2d, largura total) -->
-            <nav class="account-breadcrumb" aria-label="Navegação estrutural">
-                <ol>
-                    <li><a href="<?php echo e(base_url('/')); ?>">Início</a></li>
-                    <li aria-current="page"><?php echo e($breadcrumb); ?></li>
-                </ol>
-            </nav>
     <?php
 }
 
@@ -375,7 +377,6 @@ function account_layout_foot(): void
            rel="noopener noreferrer"
            aria-label="Falar com a Royal Tech no WhatsApp">
             <i class="fab fa-whatsapp" aria-hidden="true"></i>
-            <span class="account-whatsapp-label">Fale conosco</span>
         </a>
     <?php endif; ?>
 

@@ -190,8 +190,81 @@ function payment_status_required_for_order(string $orderStatus): ?string
 }
 
 // =====================================================================
-// Aplicacao da transicao
+// Expiração preguiçosa (lazy): aplica ao ler order-detail / orders
 // =====================================================================
+
+/**
+ * Expira pagamentos Pix pendentes cujo prazo venceu, e cancela o pedido
+ * se necessário (invariante: payment_status=expired => order_status=canceled).
+ *
+ * Idempotente: só escreve se o pagamento ainda estiver pendente/processing
+ * e o prazo tiver passado. Usa a mesma lógica do worker.php.
+ *
+ * @return array{order:array, payment:array|null, expired:bool}
+ */
+function order_expire_pending_pix_lazy(PDO $pdo, array $order): array
+{
+    $payStatus = (string) ($order['payment_status'] ?? '');
+    $expiresAt = $order['payment_expires_at'] ?? null;
+    $orderStatus = (string) $order['status'];
+
+    // Só age se: pagamento pendente/processing, tem prazo, prazo passou
+    if ($expiresAt === null
+        || !in_array($payStatus, ['pending', 'processing'], true)
+        || strtotime((string) $expiresAt) > time()) {
+        return ['order' => $order, 'payment' => null, 'expired' => false];
+    }
+
+    // Já cancelado: garantir payment_status = canceled (invariante)
+    if ($orderStatus === 'canceled') {
+        $pdo->prepare("UPDATE e5_orders SET payment_status = 'canceled' WHERE id = :id AND payment_status IN ('pending','processing')")
+            ->execute([':id' => (int) $order['id']]);
+        $order['payment_status'] = 'canceled';
+        return ['order' => $order, 'payment' => null, 'expired' => true];
+    }
+
+    // Transação: cancelar pedido + pagamento expirado + histórico + estoque
+    try {
+        $pdo->beginTransaction();
+
+        // 1. Atualiza pedido para canceled
+        $pdo->prepare("UPDATE e5_orders SET status = 'canceled', payment_status = 'expired', updated_at = NOW() WHERE id = :id")
+            ->execute([':id' => (int) $order['id']]);
+
+        // 2. Atualiza pagamento para expired (se existir)
+        $payment = order_repo_payment($pdo, (int) $order['id']);
+        if ($payment !== null) {
+            $pdo->prepare("UPDATE e5_payments SET status = 'expired', canceled_at = NOW(), expires_at = NULL WHERE id = :id")
+                ->execute([':id' => (int) $payment['id']]);
+        }
+
+        // 3. Histórico
+        order_repo_add_history(
+            $pdo,
+            (int) $order['id'],
+            'canceled',
+            'Pix expirado em ' . date('d/m/Y H:i', strtotime((string) $expiresAt)) . ' (estoque liberado)'
+        );
+
+        // 4. Estoque
+        order_repo_restock($pdo, (int) $order['id']);
+
+        // 5. Etiqueta SuperFrete se houver
+        order_repo_cancel_label($pdo, (int) $order['id']);
+
+        $pdo->commit();
+
+        // Recarrega
+        $freshOrder = order_repo_find($pdo, (int) $order['id']);
+        $freshPayment = order_repo_payment($pdo, (int) $order['id']);
+
+        return ['order' => $freshOrder, 'payment' => $freshPayment, 'expired' => true];
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        error_log('order_expire_pending_pix_lazy: ' . $e->getMessage());
+        return ['order' => $order, 'payment' => null, 'expired' => false];
+    }
+}
 
 /**
  * Aplica uma transicao de status do pedido dentro de uma transacao ja

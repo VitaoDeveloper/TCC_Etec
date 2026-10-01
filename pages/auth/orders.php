@@ -164,7 +164,7 @@ account_layout_head($user, 'pedidos');
             <h1 class="account-page-title">Meus Pedidos</h1>
             <p class="account-page-subtitle">Acompanhe o andamento e o histórico das suas compras.</p>
         </div>
-        <span class="account-order-count"><?php echo (int) $totalOrders; ?> pedido(s)</span>
+        <span class="account-order-count-muted"><?php echo (int) $totalOrders; ?> pedido(s)</span>
     </div>
 </div>
 

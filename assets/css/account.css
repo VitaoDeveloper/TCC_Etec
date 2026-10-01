@@ -8,6 +8,19 @@
    classes .ml-* que já existem.
    ======================================== */
 
+/* Container compartilhado (header, breadcrumb, conteúdo, footer) */
+.container {
+    width: 100%;
+    max-width: 1030px;
+    margin-inline: auto;
+    padding-inline: 16px;
+}
+
+/* Footer pode usar modificador mais largo, mas sempre centralizado */
+.container--wide {
+    max-width: 1400px;
+}
+
 .account-shell {
     --account-sidebar-w: 220px;
     --account-gap: 18px;
@@ -18,7 +31,7 @@
     grid-template-columns: var(--account-sidebar-w) minmax(0, 1fr);
     gap: var(--account-gap);
     width: 100%;
-    max-width: 1240px;
+    max-width: 1030px;
     margin: 0 auto;
     padding: 22px 16px 40px;
     align-items: start;
@@ -62,10 +75,11 @@
     font-size: 0.98rem;
     color: var(--rt-text-strong);
     line-height: 1.25;
-    /* Nome longo não pode empurrar a sidebar para fora da grade. */
+    /* Nome quebra em até 2 linhas (sem ellipsis) */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
 .account-identity-mail {
@@ -342,6 +356,21 @@
     color: var(--rt-text-faint);
 }
 
+/* ========================================
+   Form grid (2 colunas no desktop, 1 coluna ≤640px)
+   ======================================== */
+
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px 16px;
+}
+
+.form-grid .full { grid-column: 1 / -1; }
+
+.form-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+
+/* Legacy account-grid compat */
 .account-grid {
     display: grid;
     gap: 0 15px;
@@ -349,6 +378,15 @@
 
 .account-grid--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .account-grid--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+@media (max-width: 640px) {
+    .form-grid,
+    .form-grid.cols-3,
+    .account-grid--2,
+    .account-grid--3 {
+        grid-template-columns: 1fr;
+    }
+}
 
 .account-actions {
     display: flex;
@@ -587,7 +625,7 @@
 }
 
 /* ========================================
-   WhatsApp flutuante
+   WhatsApp flutuante: apenas círculo 44x44px
    ======================================== */
 
 .account-whatsapp {
@@ -597,14 +635,12 @@
     z-index: 90;
     display: inline-flex;
     align-items: center;
-    gap: 9px;
-    padding: 12px 18px;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
     background: #25d366;
-    border-radius: 999px;
+    border-radius: 50%;
     color: #fff;
-    font-family: 'Rajdhani', sans-serif;
-    font-size: 0.86rem;
-    font-weight: 700;
     text-decoration: none;
     box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4);
     transition: transform 0.15s ease, box-shadow 0.15s ease;
@@ -617,7 +653,12 @@
 }
 
 .account-whatsapp i {
-    font-size: 1.2rem;
+    font-size: 1.3rem;
+}
+
+/* Esconder o label de texto que existia antes */
+.account-whatsapp-label {
+    display: none;
 }
 
 /* ========================================
@@ -1126,24 +1167,17 @@
 }
 
 /* ========================================
-   Breadcrumb (especificação: fundo #2d2d2d, largura total)
+   Breadcrumb full-width (fundo #2d2d2d, altura ~36px) FORA da grade
    ======================================== */
 
-.account-breadcrumb {
-    display: flex;
-    align-items: center;
-    /* Sangria negativa casada com o padding lateral do .account-shell
-       para o fundo #2d2d2d ir de ponta a ponta (especificação: largura
-       total). Em telas estreitas a margem precisa acompanhar o padding
-       do shell, senão a barra estoura a janela e cria scroll horizontal. */
-    margin: 0 -16px 16px;
-    padding: 10px 16px;
+.account-breadcrumb-bar {
     background: #2d2d2d;
-    border-radius: 0 0 var(--account-radius) var(--account-radius);
     border-bottom: 1px solid var(--rt-border);
+    padding: 8px 0;
+    margin-bottom: 28px; /* gap de ~28px antes da grade sidebar+conteúdo */
 }
 
-.account-breadcrumb ol {
+.account-breadcrumb {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
@@ -1177,8 +1211,13 @@
 }
 
 .account-breadcrumb li[aria-current="page"] {
-    color: var(--rt-text-strong);
+    color: var(--rt-accent); /* último item dourado */
     font-weight: 600;
+}
+
+/* Remover estilos antigos do breadcrumb dentro do shell */
+.account-shell .account-breadcrumb {
+    display: none;
 }
 
 /* ========================================
@@ -1227,14 +1266,16 @@
 .account-avatar-editor .account-avatar-btn { display: none; }
 
 /* ========================================
-   Fix card-header: ícone à esquerda, título Playfair à esquerda
+   Card header: ícone à esquerda, título Playfair + subtítulo muted à esquerda
    ======================================== */
 
 .account-card-head {
     display: flex;
     align-items: flex-start;
+    justify-content: flex-start;
     gap: 12px;
     margin-bottom: 16px;
+    text-align: left;
 }
 
 .account-card-icon {
@@ -1243,10 +1284,11 @@
     justify-content: center;
     width: 34px;
     height: 34px;
-    flex: 0 0 auto;
-    border-radius: 10px;
-    background: var(--rt-accent-soft);
-    color: var(--rt-accent);
+    flex: 0 0 34px;
+    border-radius: 9px;
+    background: rgba(212, 175, 55, 0.12);
+    border: 1px solid rgba(212, 175, 55, 0.35);
+    color: #d4af37;
     font-size: 0.9rem;
 }
 
@@ -1258,6 +1300,13 @@
     color: var(--rt-text-strong);
     line-height: 1.3;
     text-align: left;
+}
+
+/* Bloco de títulos (título + subtítulo) alinhado à esquerda */
+.account-card-head > div:last-child {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
 }
 
 /* Subtítulo muted abaixo do título */
@@ -1477,8 +1526,22 @@
 .account-status-pill--purple  { background: rgba(124, 92, 214, 0.16); color: #9b7ce8; }
 .account-status-pill--danger  { background: var(--rt-danger-soft); color: var(--rt-danger); }
 
-/* ---------- Meus Pedidos: contador e busca ---------- */
+/* ---------- Meus Pedidos: contador muted e busca ---------- */
 
+.account-order-count-muted {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 13px;
+    border-radius: 999px;
+    color: var(--rt-text-soft);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.84rem;
+    font-weight: 700;
+    white-space: nowrap;
+    flex: 0 0 auto;
+}
+
+/* Versão antiga (com fundo dourado) - mantida para compat mas não usada */
 .account-order-count {
     display: inline-flex;
     align-items: center;

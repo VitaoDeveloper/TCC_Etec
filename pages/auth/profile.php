@@ -532,19 +532,15 @@ account_layout_head($user, 'perfil');
         </div>
     </section>
 
-    <!-- ============================ Endereços Salvos ============================ -->
-    <section class="account-card" id="secao-enderecos-salvos">
-        <div class="account-card-head">
-            <span class="account-card-icon" aria-hidden="true"><i class="fas fa-map-marked-alt"></i></span>
-            <div>
-                <h2 class="account-card-title">Endereços Salvos</h2>
-                <p class="account-card-hint">Gerencie múltiplos endereços de entrega</p>
-            </div>
-            <button type="button" class="account-btn account-btn--sm account-btn--outline"
-                    data-modal-open="modal-address" data-address-reset>
-                <i class="fas fa-plus" aria-hidden="true"></i> Adicionar
-            </button>
+<!-- ============================ Endereços Salvos ============================ -->
+<section class="account-card" id="secao-enderecos-salvos">
+    <div class="account-card-head">
+        <span class="account-card-icon" aria-hidden="true"><i class="fas fa-map-marked-alt"></i></span>
+        <div>
+            <h2 class="account-card-title">Endereços Salvos</h2>
+            <p class="account-card-hint">Gerencie múltiplos endereços de entrega</p>
         </div>
+    </div>
 
         <?php if ($addresses === []): ?>
             <div class="account-empty account-empty--dashed">
@@ -673,8 +669,8 @@ account_layout_head($user, 'perfil');
     <div class="account-card-head">
         <span class="account-card-icon" aria-hidden="true"><i class="fas fa-bell"></i></span>
         <div>
-            <h2 class="account-card-title">Notificações</h2>
-            <p class="account-card-hint">Como você quer ser avisado</p>
+            <h2 class="account-card-title">Preferências de Notificação</h2>
+            <p class="account-card-hint">Escolha por onde quer receber mensagens e atualizações</p>
         </div>
     </div>
 
