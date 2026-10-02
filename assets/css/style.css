@@ -54,6 +54,34 @@ img {
 }
 
 /* ========================================
+   Acessibilidade — foco visível global
+   ========================================
+   A regra :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible
+   em components.css tem especificidade 0 e perde para qualquer `outline: none`
+   declarado depois (ex.: .account-btn:focus-visible em account.css).
+   Aqui damos especificidade real (0,1,1) aos controles principais, de modo
+   que o anel dourado apareça mesmo em páginas que não importam account.css.
+
+   O border-radius NÃO é declarado no mesmo bloco — se fosse, ele
+   quadraria componentes com raio próprio (chips 999px, botões 30px, etc.).
+   Em vez disso, usamos :where() apenas para o radius: como :where()
+   tem especificidade 0, qualquer raio declarado no componente vence,
+   e apenas controles "sem estilo" ganham 6px. */
+a:focus-visible,
+button:focus-visible,
+[tabindex]:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+/* Radius baixo só para controles "nus" sem raio próprio. */
+a:where(:focus-visible),
+button:where(:focus-visible),
+[tabindex]:where(:focus-visible) {
+    border-radius: 6px;
+}
+
+/* ========================================
    Tipografia
    ======================================== */
 h1, h2, h3, h4, h5, h6 {

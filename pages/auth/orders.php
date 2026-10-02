@@ -442,6 +442,16 @@ account_layout_head($user, 'pedidos');
         </div>
     </div>
 
+    <?php
+        // "0 pagos" / "1 pedido pago" / "N pedidos pagos": o texto tem que
+        // caber em UMA linha no card de 4 colunas, então nada de "(s)".
+        $paidOrders = (int) ($stats['paid_orders'] ?? 0);
+        $paidHint   = match (true) {
+            $paidOrders === 0 => '0 pagos',
+            $paidOrders === 1 => '1 pedido pago',
+            default           => $paidOrders . ' pedidos pagos',
+        };
+        ?>
     <div class="stat-card">
         <span class="stat-card__icon stat-card__icon--spent" aria-hidden="true">
             <i class="fas fa-wallet"></i>
@@ -449,7 +459,7 @@ account_layout_head($user, 'pedidos');
         <div class="stat-card__body">
             <span class="stat-card__value">R$ <?php echo e(number_format((float) ($stats['paid_total'] ?? 0), 2, ',', '.')); ?></span>
             <span class="stat-card__label">Total comprado</span>
-            <span class="stat-card__hint"><?php echo (int) ($stats['paid_orders'] ?? 0); ?> pedido(s) pago(s)</span>
+            <span class="stat-card__hint"><?php echo e($paidHint); ?></span>
         </div>
     </div>
 </section>
@@ -561,6 +571,10 @@ account_layout_head($user, 'pedidos');
             // Tracker só some quando o pedido foi cancelado. Reembolsado
             // também é status cancelado, então cai nesta mesma regra.
             $showTrack  = $status !== 'canceled';
+            // Total cancelado/reembolsado em cinza (S1b): status === 'canceled'
+            // cobre os dois casos — cancelado simples e cancelado com
+            // payment_status='refunded'.
+            $totalMuted = $status === 'canceled';
             $monthLabel = $groupByMonth ? orders_month_label((string) $order['created_at'], $monthsPtBr) : '';
         ?>
             <?php if ($groupByMonth && $monthLabel !== $currentGroup): ?>
@@ -626,7 +640,7 @@ account_layout_head($user, 'pedidos');
                         <?php endif; ?>
                     </div>
 
-                    <div class="order-total">
+                    <div class="order-total<?php echo $totalMuted ? ' order-total--muted' : ''; ?>">
                         <span class="order-total__label">Total</span>
                         <span class="order-total__value">
                             R$ <?php echo e(number_format((float) $order['total'], 2, ',', '.')); ?>
@@ -705,20 +719,24 @@ account_layout_head($user, 'pedidos');
                     // botão de rastrear sem etiqueta seria mentira, e
                     // comprovante de pedido cancelado não existe.
                     ?>
+                    <?php /* Hierarquia: exatamente UMA ação dourada por card, a
+                           que resolve o estado (pagar / rastrear / comprar de
+                           novo). "Ver detalhes" e "Comprovante" são sempre
+                           outline para não competir com ela. */ ?>
                     <a href="<?php echo e(base_url('pages/auth/order-detail.php?id=' . $orderId)); ?>"
-                       class="account-btn account-btn--sm">
+                       class="account-btn account-btn--outline account-btn--sm">
                         <i class="fas fa-eye" aria-hidden="true"></i> Ver detalhes
                     </a>
 
                     <?php if ($pixDeadlineTs !== null): ?>
                         <a href="<?php echo e(base_url('pages/cart/payment.php?order=' . $orderId)); ?>"
-                           class="account-btn account-btn--primary account-btn--sm">
+                           class="account-btn account-btn--sm btn-gold">
                             <i class="fas fa-qrcode" aria-hidden="true"></i> Pagar agora
                         </a>
                     <?php endif; ?>
 
                     <?php if ($status === 'shipped' && $trackUrl !== ''): ?>
-                        <a href="<?php echo e($trackUrl); ?>" class="account-btn account-btn--sm"
+                        <a href="<?php echo e($trackUrl); ?>" class="account-btn account-btn--sm btn-gold"
                            target="_blank" rel="noopener noreferrer">
                             <i class="fas fa-truck-fast" aria-hidden="true"></i> Rastrear
                         </a>
@@ -726,7 +744,7 @@ account_layout_head($user, 'pedidos');
 
                     <?php if (in_array($status, ['paid', 'preparing', 'shipped', 'delivered'], true)): ?>
                         <a href="<?php echo e(base_url('pages/download-comprovante.php?id=' . $orderId)); ?>"
-                           class="account-btn account-btn--sm">
+                           class="account-btn account-btn--outline account-btn--sm">
                             <i class="fas fa-file-pdf" aria-hidden="true"></i> Comprovante
                         </a>
                     <?php endif; ?>
@@ -742,7 +760,7 @@ account_layout_head($user, 'pedidos');
                                 <input type="hidden" name="product_id[]" value="<?php echo (int) $rebuyItem['product_id']; ?>">
                                 <input type="hidden" name="quantity[]" value="<?php echo (int) $rebuyItem['quantity']; ?>">
                             <?php endforeach; ?>
-                            <button type="submit" class="account-btn account-btn--sm">
+                            <button type="submit" class="account-btn account-btn--outline account-btn--sm btn-gold">
                                 <i class="fas fa-rotate-right" aria-hidden="true"></i> Comprar novamente
                             </button>
                         </form>

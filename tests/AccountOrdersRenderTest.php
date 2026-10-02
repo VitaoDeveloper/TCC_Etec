@@ -270,7 +270,7 @@ class AccountOrdersRenderTest extends TestCase
         $this->assertSame(['1', '1', '0', 'R$ 1.234,56'], $values);
 
         $hint = $dom->query('//section[contains(@class,"orders-stats")]//span[contains(@class,"stat-card__hint")]')->item(0);
-        $this->assertSame('1 pedido(s) pago(s)', trim((string) $hint?->textContent));
+        $this->assertSame('1 pedido pago', trim((string) $hint?->textContent));
     }
 
     public function testSummaryCountsOnlyPaidOrdersAsPurchased(): void
@@ -291,7 +291,7 @@ class AccountOrdersRenderTest extends TestCase
         );
 
         $hint = $dom->query('//section[contains(@class,"orders-stats")]//span[contains(@class,"stat-card__hint")]')->item(0);
-        $this->assertSame('2 pedido(s) pago(s)', trim((string) $hint?->textContent));
+        $this->assertSame('2 pedidos pagos', trim((string) $hint?->textContent));
     }
 
     public function testSummaryDoesNotMoveWithTheFilter(): void

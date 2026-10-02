@@ -2442,6 +2442,13 @@ body.modal-open {
 .stat-card__hint {
     font-size: 0.74rem;
     color: var(--rt-text-faint);
+    /* O texto "N pedidos pagos" tem que ficar em uma linha no card de
+       4 colunas (≈240px de largura útil). O grid já impede wrap do
+       flex-column, mas o próprio hint pode quebrar se for muito longo.
+       0.72rem + nowrap garante que "999 pedidos pagos" caiba. */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* ---------- Toolbar: busca + ordenação ---------- */
@@ -2529,6 +2536,11 @@ body.modal-open {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
+    /* Evita overflow horizontal do container quando um chip longo
+       não couber — o flex-wrap já quebra a linha, mas sem este max-width
+       o container poderia expandir além da viewport em telas muito
+       estreitas. */
+    max-width: 100%;
 }
 
 .chip {
@@ -2543,6 +2555,13 @@ body.modal-open {
     font-size: 0.82rem;
     font-weight: 600;
     transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+    /* Segurança: impede que um chip com texto muito longo force
+       overflow horizontal. O conteúdo pode quebrar linha dentro do
+       próprio chip (pouco provável, mas possível em PT-BR). */
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .chip:hover {
@@ -2783,6 +2802,13 @@ body.modal-open {
     white-space: nowrap;
 }
 
+/* Total de pedido cancelado/reembolsado em cinza — o dourado denota
+   "valor que entrou/entra"; cinza neutraliza quando o fluxo terminou
+   sem entrada efetiva. */
+.order-total--muted .order-total__value {
+    color: #8a8a8a;
+}
+
 /* ---------- Aviso do card ---------- */
 .order-notice {
     display: flex;
@@ -2908,6 +2934,10 @@ body.modal-open {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
+    /* Ações encostam na direita: o card é lido de cima para baixo e o total
+       já ocupa o canto oposto, então o rodapé pesando à esquerda denotava
+       "começo da lista" em vez de "fim do card". */
+    justify-content: flex-end;
     gap: 9px;
     margin-top: 15px;
     padding-top: 13px;
@@ -2928,6 +2958,27 @@ body.modal-open {
    recompra saía 4.5px mais baixo que "Ver detalhes" na mesma linha. */
 .order-actions .account-btn {
     line-height: 1.6;
+}
+
+/* A ação principal de cada estado é dourada (.btn-gold). A classe já existe
+   em style.css e components.css, mas ali ela só pinta o fundo — e como
+   account.css entra por último, o `background: #2d2d2d` do .account-btn
+   vencia e o botão saía cinza. Declarar a variante aqui, com especificidade
+   de verdade (0,2,0), resolve sem depender da ordem de carregamento. */
+.order-actions .btn-gold {
+    background: var(--rt-accent-gradient);
+    border-color: var(--rt-accent);
+    color: var(--rt-text-on-accent);
+}
+
+/* `transform: none` é obrigatório: o .btn-gold:hover de style.css faz
+   translateY(-3px) e levantaria SÓ o botão dourado, desalinhando a linha
+   de ações no hover. */
+.order-actions .btn-gold:hover:not(:disabled) {
+    border-color: var(--rt-accent-dark);
+    color: var(--rt-text-on-accent);
+    filter: brightness(1.06);
+    transform: none;
 }
 
 /* ---------- Estado vazio ---------- */
@@ -3015,5 +3066,9 @@ body.modal-open {
     .order-actions {
         flex-direction: column;
         align-items: stretch;
+        /* Em coluna o justify-content age no eixo vertical: manter o
+           flex-end empurraria os botões para o fim da coluna e abriria um
+           vão vazio no topo. */
+        justify-content: flex-start;
     }
 }
