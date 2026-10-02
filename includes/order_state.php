@@ -512,3 +512,19 @@ function order_actions_available(array $order): array
         'resend'      => true,
     ];
 }
+
+/**
+ * Formata o tempo restante até um timestamp (deadline) para exibição no
+ * countdown do Pix. Retorna "HH:MM:SS" se houver horas, ou "MM:SS" caso contrário.
+ */
+function orders_format_remaining(int $deadlineTs): string
+{
+    $total = max(0, $deadlineTs - time());
+    $h = intdiv($total, 3600);
+    $m = intdiv($total % 3600, 60);
+    $s = $total % 60;
+
+    return $h > 0
+        ? sprintf('%02d:%02d:%02d', $h, $m, $s)
+        : sprintf('%02d:%02d', $m, $s);
+}

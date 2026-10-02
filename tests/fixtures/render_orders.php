@@ -95,17 +95,20 @@ $scenarios = [
 
     // -------- ordenação --------
     'list-sort-oldest' => [
+        'user'   => 'no_orders',
         'query' => ['sort' => 'oldest'],
         // Datas crescentes: em "oldest" a primeira da lista é a de janeiro.
         'count' => 3,
         'orders' => [['status' => 'paid', 'payment' => 'paid', 'method' => 'pix', 'created' => '2026-01-01 09:00:00', 'step_min' => 60]],
     ],
     'list-sort-value' => [
+        'user'   => 'no_orders',
         'query' => ['sort' => 'value_desc'],
         'count' => 3,
         'orders' => [['status' => 'paid', 'payment' => 'paid', 'method' => 'pix', 'total' => [300.00, 900.00, 100.00], 'created' => '2026-01-01 09:00:00', 'step_min' => 60]],
     ],
     'list-sort-invalid' => [
+        'user'   => 'no_orders',
         'query' => ['sort' => 'lixo'],
         'count' => 2,
         'orders' => [['status' => 'paid', 'payment' => 'paid', 'method' => 'pix', 'created' => '2026-01-01 09:00:00', 'step_min' => 60]],

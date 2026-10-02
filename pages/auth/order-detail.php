@@ -5,17 +5,9 @@ declare(strict_types=1);
 /**
  * Detalhes do Pedido — progresso, itens, entrega, pagamento e ações.
  *
- * Vive no shell da conta, com a sidebar marcando "Meus Pedidos".
- *
- * O domínio inteiro mora em includes/order_state.php e order_repo.php:
- * aqui só se lê e se aplica. Isso vale para a linha do tempo (alimentada
- * por e5_order_history), para a faixa vermelha de cancelamento e para a
- * matriz de botões (order_actions_available).
- *
- * A regra de cancelamento aparece como uma frase discreta ao lado do
- * botão, e nunca como card de política: a especificação proíbe card de
- * política nesta tela e o cliente só precisa saber se pode cancelar
- * AGORA.
+ * Layout novo (cards, tracker, lista de itens, totais com desconto/frete,
+ * endereço em uma linha, ações por estado). A regra de negócio permanece
+ * em includes/order_state.php e order_repo.php.
  */
 
 require_once __DIR__ . '/../../includes/account_layout.php';
@@ -26,20 +18,15 @@ require_once __DIR__ . '/../../includes/image_helpers.php';
 require_once __DIR__ . '/../../database/connection.php';
 
 $user = account_require_login($pdo);
-
 $isAdmin = (string) ($user['role'] ?? '') === 'admin';
+
+$orderId = (int) ($_GET['id'] ?? 0);
 
 // ---------------------------------------------------------------------
 //  Cancelamento (POST com CSRF)
 // ---------------------------------------------------------------------
-$message      = null;
-$messageType  = 'ok';
-$orderId      = (int) ($_GET['id'] ?? 0);
-$order        = null;
-$orderActions = [];
-$paymentRow   = null;
-$progress     = [];
-$items        = [];
+$message     = null;
+$messageType = 'ok';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'cancel') {
     csrf_require_valid();
@@ -50,9 +37,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'cance
         $message     = 'Pedido não encontrado.';
         $messageType = 'error';
     } else {
-        // A transição é validada dentro de order_apply_status: ela devolve
-        // um erro claro em vez de gravar uma mudança inválida, e ainda
-        // registra o histórico, o estoque e o pagamento juntos.
         $result = order_apply_status($pdo, $orderId, 'canceled', [
             'note' => 'Cancelado pelo cliente',
         ]);
@@ -81,37 +65,25 @@ require_once __DIR__ . '/../../includes/order_state.php';
 $expireResult = order_expire_pending_pix_lazy($pdo, $order);
 if ($expireResult['expired']) {
     $order = $expireResult['order'];
-    $paymentRow = $expireResult['payment'];
 }
 
-$items       = order_repo_items($pdo, $orderId);
-$paymentRow  = $paymentRow ?? order_repo_payment($pdo, $orderId);
-$progress    = order_progress($pdo, $order);
+$items      = order_repo_items($pdo, $orderId);
+$paymentRow = order_repo_payment($pdo, $orderId);
+$progress   = order_progress($pdo, $order);
 $orderActions = order_actions_available($order);
+$addressLine = order_repo_address_line($order);
 
 $orderRef   = str_pad((string) $order['id'], 4, '0', STR_PAD_LEFT);
 $statusMeta = order_status_meta((string) $order['status']);
-$addressLine = order_repo_address_line($order);
-
-// Cartão de pagamento parcial, se houver.
+$payMethod  = (string) ($order['payment_method'] ?? '');
 $cardLastFour = (string) ($order['payment_card_last_four'] ?? '');
-$payMethod    = (string) ($order['payment_method'] ?? '');
-
-// Rótulo do pagamento: payment_label() já vem de status_labels.php e
-// traduz o payment_status com fallback honesto para valores inesperados.
 $payStatusLabel = payment_label((string) ($order['payment_status'] ?? ''));
 
-// Ação "Rastrear" só quando a transportadora devolveu uma URL real.
-// Não inventamos link de rastreio: sem label_url o código fica só como
-// texto no card de Entrega, que é o estado honesto do dado.
+// Shipment / rastreio
 $shipmentEvents = order_repo_tracking_events($pdo, $orderId);
-$trackUrl       = trim((string) (($shipmentEvents[0]['label_url'] ?? '')));
+$trackUrl = trim((string) (($shipmentEvents[0]['label_url'] ?? '')));
 
-// O <title> do documento é genérico: o número do pedido já vai no <h1>.
 $page_title = 'Detalhes do Pedido - Royal Tech';
-
-// A sidebar continua em "Meus Pedidos" (o item de nav marca order-detail.php
-// como atual), mas a última etapa do breadcrumb é a tela, não a seção.
 account_layout_head($user, 'pedidos', 'Detalhes do Pedido');
 ?>
 
@@ -127,8 +99,8 @@ account_layout_head($user, 'pedidos', 'Detalhes do Pedido');
         <div>
             <h1 class="account-page-title">Pedido #<?php echo e($orderRef); ?></h1>
             <p class="account-page-subtitle">
-                <?php echo e($statusMeta['label']); ?>
-                — <?php echo e(date('d/m/Y H:i', strtotime((string) $order['created_at']))); ?>
+                Feito em <?php echo e(date('d/m/Y H:i', strtotime((string) $order['created_at']))); ?>
+                &middot; <?php echo count($items); ?> item<?php echo count($items) > 1 ? 's' : ''; ?>
             </p>
         </div>
         <span class="account-status-pill account-status-pill--<?php echo e($statusMeta['tone']); ?>">
@@ -138,141 +110,251 @@ account_layout_head($user, 'pedidos', 'Detalhes do Pedido');
     </div>
 </div>
 
-<?php if ($progress['canceled'] ?? false): ?>
-    <div class="account-banner account-banner--danger" role="status">
-        <i class="fas fa-ban" aria-hidden="true"></i>
-        <div>
-            <strong>Pedido cancelado</strong>
-            <?php if ($progress['canceled_at'] ?? null): ?>
-                <span> em <?php echo e(date('d/m/Y H:i', strtotime((string) $progress['canceled_at']))); ?>.</span>
-            <?php endif; ?>
-            <?php if (trim((string) ($progress['canceled_note'] ?? '')) !== ''): ?>
-                <span class="account-banner-note"><?php echo e(trim((string) $progress['canceled_note'])); ?></span>
-            <?php endif; ?>
-        </div>
-    </div>
-<?php endif; ?>
-
 <section class="account-card" id="secao-detalhe">
 
-    <!-- ===================== Progresso (histórico) ===================== -->
+    <!-- ===================== Card: Progresso do Pedido ===================== -->
     <?php if (!empty($progress['steps'])): ?>
-        <div class="account-progress" aria-label="Andamento do pedido">
-            <?php foreach ($progress['steps'] as $step): ?>
-                <div class="account-progress-step<?php echo !empty($step['done']) ? ' is-done' : ''; ?>">
-                    <span class="account-progress-dot" aria-hidden="true">
-                        <i class="fas <?php echo e($step['icon']); ?>"></i>
-                    </span>
-                    <span class="account-progress-label"><?php echo e($step['label']); ?></span>
-                    <span class="account-progress-date"><?php echo e($step['date_label'] ?? ''); ?></span>
+        <div class="account-card-inner" aria-label="Andamento do pedido">
+            <div class="account-card-head">
+                <span class="account-card-icon"><i class="fas fa-route" aria-hidden="true"></i></span>
+                <h2 class="account-card-title">Progresso do pedido</h2>
+            </div>
+
+            <ol class="tracker" aria-label="Etapas do pedido #<?php echo e($orderRef); ?>">
+                <?php foreach ($progress['steps'] as $step): ?>
+                    <li class="tracker__step<?php echo !empty($step['done']) ? ' is-done' : ''; ?>">
+                        <span class="tracker__dot" aria-hidden="true">
+                            <i class="fas <?php echo e($step['icon']); ?>"></i>
+                        </span>
+                        <span class="tracker__label"><?php echo e($step['label']); ?></span>
+                        <span class="tracker__date"><?php echo e((string) ($step['date_label'] ?? '')); ?></span>
+                    </li>
+                <?php endforeach; ?>
+            </ol>
+
+            <?php if ($progress['canceled'] ?? false): ?>
+                <div class="order-notice order-notice--danger" style="margin-top:12px;" role="status">
+                    <i class="fas fa-ban" aria-hidden="true"></i>
+                    <div>
+                        <strong>Pedido cancelado</strong>
+                        <?php if ($progress['canceled_at'] ?? null): ?>
+                            <span> em <?php echo e(date('d/m/Y H:i', strtotime((string) $progress['canceled_at']))); ?>.</span>
+                        <?php endif; ?>
+                        <?php
+                        // Motivo: Pix expirado ou cancelamento voluntário
+                        $cancelNote = trim((string) ($progress['canceled_note'] ?? ''));
+                        $payStatus  = (string) ($order['payment_status'] ?? '');
+                        if ($payStatus === 'expired'): ?>
+                            <span class="account-banner-note">Pix expirado em
+                                <?php echo e(date('d/m/Y H:i', strtotime((string) $order['payment_expires_at']))); ?>
+                                (estoque liberado).</span>
+                        <?php elseif ($cancelNote !== ''): ?>
+                            <span class="account-banner-note"><?php echo e($cancelNote); ?></span>
+                        <?php endif; ?>
+                    </div>
                 </div>
-            <?php endforeach; ?>
+            <?php endif; ?>
         </div>
     <?php endif; ?>
 
-    <!-- ===================== Itens (snapshot) ===================== -->
-    <div class="ml-table-wrap">
-        <table class="ml-table">
-            <thead><tr><th>Produto</th><th>Qtd</th><th>Preço Unit.</th><th>Subtotal</th></tr></thead>
-            <tbody>
+    <!-- ===================== Card: Itens do Pedido ===================== -->
+    <div class="account-card-inner" style="margin-top:14px;">
+        <div class="account-card-head">
+            <span class="account-card-icon"><i class="fas fa-box" aria-hidden="true"></i></span>
+            <div>
+                <h2 class="account-card-title">Itens do pedido</h2>
+                <span class="account-card-pill"><?php echo count($items); ?> item<?php echo count($items) > 1 ? 's' : ''; ?></span>
+            </div>
+        </div>
+
+        <ul class="account-items">
             <?php foreach ($items as $item):
-                // display_name vem de COALESCE(oi.product_name, p.name): o
-                // snapshot do item tem prioridade sobre o nome atual do
-                // produto, para o pedido não mudar de cara depois da compra.
-                $img = renderProductImage((string) ($item['product_image'] ?? ''), base_url());
-                $qty = (int) $item['quantity'];
-                $unit = (float) $item['unit_price'];
+                $img   = renderProductImage((string) ($item['product_image'] ?? ''), base_url());
+                $qty   = (int) $item['quantity'];
+                $unit  = (float) $item['unit_price'];
+                $sub   = $unit * $qty;
+                $name  = (string) $item['display_name'];
             ?>
-                <tr>
-                    <td>
-                        <div class="account-item">
-                            <img src="<?php echo e($img); ?>" alt="<?php echo e((string) $item['display_name']); ?>" class="account-item-thumb">
-                            <span class="account-item-name"><?php echo e((string) $item['display_name']); ?></span>
-                        </div>
-                    </td>
-                    <td><?php echo $qty; ?></td>
-                    <td>R$ <?php echo e(number_format($unit, 2, ',', '.')); ?></td>
-                    <td>R$ <?php echo e(number_format($unit * $qty, 2, ',', '.')); ?></td>
-                </tr>
+                <li class="account-item-line">
+                    <img src="<?php echo e($img); ?>" alt="" class="account-item-thumb" loading="lazy">
+                    <div class="account-item-info">
+                        <a href="<?php echo e(base_url('pages/products/detail.php?id=' . (int) $item['product_id'])); ?>"
+                           class="account-item-name"><?php echo e($name); ?></a>
+                        <span class="account-item-meta"><?php echo $qty; ?> x R$ <?php echo e(number_format($unit, 2, ',', '.')); ?></span>
+                    </div>
+                    <span class="account-item-subtotal">R$ <?php echo e(number_format($sub, 2, ',', '.')); ?></span>
+                </li>
             <?php endforeach; ?>
-            </tbody>
-            <tfoot>
-                <tr>
-                    <td colspan="3" style="text-align:right;">Total:</td>
-                    <td style="font-weight:700; color:var(--rt-accent);">R$ <?php echo e(number_format((float) $order['total'], 2, ',', '.')); ?></td>
-                </tr>
-            </tfoot>
-        </table>
+        </ul>
+
+        <!-- Totais: Subtotal · Desconto · Frete · Total -->
+        <?php
+            $subtotal = 0;
+            foreach ($items as $it) { $subtotal += (float) $it['unit_price'] * (int) $it['quantity']; }
+            $shipping   = (float) ($order['shipping_cost'] ?? 0);
+            $discount   = (float) ($order['discount_amount'] ?? 0);
+            $grandTotal = (float) $order['total'];
+        ?>
+        <div class="totals" aria-label="Resumo financeiro">
+            <div class="totals__row">
+                <span class="totals__label">Subtotal dos produtos</span>
+                <span class="totals__value">R$ <?php echo e(number_format($subtotal, 2, ',', '.')); ?></span>
+            </div>
+            <?php if ($discount > 0): ?>
+                <div class="totals__row totals__row--discount">
+                    <span class="totals__label">Desconto Pix (5%)</span>
+                    <span class="totals__value totals__value--discount">&minus; R$ <?php echo e(number_format($discount, 2, ',', '.')); ?></span>
+                </div>
+            <?php endif; ?>
+            <div class="totals__row totals__row--free">
+                <span class="totals__label">Frete</span>
+                <span class="totals__value totals__value--free">
+                    <?php if ($shipping > 0): ?>
+                        R$ <?php echo e(number_format($shipping, 2, ',', '.')); ?>
+                    <?php else: ?>
+                        Grátis
+                    <?php endif; ?>
+                </span>
+            </div>
+            <div class="totals__row totals__row--total">
+                <span class="totals__label">Total</span>
+                <span class="totals__value totals__value--total">R$ <?php echo e(number_format($grandTotal, 2, ',', '.')); ?></span>
+            </div>
+        </div>
     </div>
 
-    <!-- ===================== Entrega e Pagamento (lado a lado) ===================== -->
-    <div class="account-pair">
-        <div class="account-card account-card--inner">
+    <!-- ===================== Grid: Entrega | Pagamento ===================== -->
+    <div class="grid-2" style="margin-top:14px;">
+
+        <!-- Entrega -->
+        <div class="account-card-inner">
             <div class="account-card-head">
                 <span class="account-card-icon"><i class="fas fa-truck" aria-hidden="true"></i></span>
-                <div>
-                    <h2 class="account-card-title">Entrega</h2>
-                </div>
+                <h2 class="account-card-title">Entrega</h2>
             </div>
+
             <dl class="account-kv">
                 <dt>Método</dt>
-                <dd><?php echo e(shipping_method_escaped((string) ($order['shipping_method'] ?? ''))); ?></dd>
+                <dd>
+                    <?php
+                        $shipMethod = (string) ($order['shipping_method'] ?? '');
+                        $shipCost   = (float) ($order['shipping_cost'] ?? 0);
+                        echo e(shipping_method_escaped($shipMethod));
+                        if ($shipCost > 0) {
+                            echo ' &middot; R$ ' . number_format($shipCost, 2, ',', '.');
+                        } else {
+                            echo ' &middot; <span style="color:var(--rt-success);">Grátis</span>';
+                        }
+                    ?>
+                </dd>
 
                 <dt>Endereço</dt>
-                <dd><?php echo $addressLine !== '' ? e($addressLine) : '—'; ?></dd>
-
-                <dt>CEP</dt>
-                <dd><?php echo e((string) ($order['shipping_postal_code'] ?? '')); ?></dd>
-
-                <dt>Frete</dt>
-                <dd>
-                    <?php if ((float) ($order['shipping_cost'] ?? 0) > 0): ?>
-                        R$ <?php echo e(number_format((float) $order['shipping_cost'], 2, ',', '.')); ?>
-                    <?php else: ?>
-                        <span style="color:var(--rt-success);">Grátis</span>
-                    <?php endif; ?>
-                </dd>
+                <dd><?php echo $addressLine !== '' ? e($addressLine) : 'Endereço não registrado'; ?></dd>
 
                 <?php if (trim((string) ($order['tracking_code'] ?? '')) !== ''): ?>
                     <dt>Rastreio</dt>
-                    <dd><code><?php echo e((string) $order['tracking_code']); ?></code></dd>
+                    <dd>
+                        <code><?php echo e((string) $order['tracking_code']); ?></code>
+                        <?php if ($trackUrl !== ''): ?>
+                            <a href="<?php echo e($trackUrl); ?>" target="_blank" rel="noopener noreferrer"
+                               class="account-btn account-btn--outline account-btn--sm" style="margin-left:8px;">
+                                <i class="fas fa-external-link-alt" aria-hidden="true"></i> Ver no site
+                            </a>
+                        <?php endif; ?>
+                    </dd>
+                <?php endif; ?>
+
+                <?php if (!empty($shipmentEvents)): ?>
+                    <dt>Eventos</dt>
+                    <dd>
+                        <ul style="margin:0;padding-left:18px;font-size:13px;">
+                            <?php foreach ($shipmentEvents as $evt): ?>
+                                <li><?php echo e((string) $evt['status']); ?>
+                                    <?php if ($evt['date'] ?? null): ?>
+                                        &middot; <?php echo e(date('d/m/Y H:i', strtotime((string) $evt['date']))); ?>
+                                    <?php endif; ?>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </dd>
                 <?php endif; ?>
             </dl>
         </div>
 
-        <div class="account-card account-card--inner">
+        <!-- Pagamento -->
+        <div class="account-card-inner">
             <div class="account-card-head">
                 <span class="account-card-icon"><i class="fas fa-credit-card" aria-hidden="true"></i></span>
-                <div>
-                    <h2 class="account-card-title">Pagamento</h2>
-                </div>
+                <h2 class="account-card-title">Pagamento</h2>
             </div>
+
             <dl class="account-kv">
                 <dt>Método</dt>
                 <dd><?php echo e(payment_method_label($payMethod)); ?></dd>
 
                 <dt>Status</dt>
                 <dd>
-                    <span class="account-status-pill account-status-pill--<?php echo e((string) ($paymentRow['status'] ?? $order['payment_status'] ?? '') === 'paid' ? 'success' : 'warning'); ?>">
+                    <?php
+                        $payStatus = (string) ($order['payment_status'] ?? '');
+                        $tone = match ($payStatus) {
+                            'paid' => 'success',
+                            'pending' => 'warning',
+                            'expired', 'canceled', 'failed' => 'danger',
+                            'refunded' => 'info',
+                            default => 'secondary',
+                        };
+                    ?>
+                    <span class="account-status-pill account-status-pill--<?php echo $tone; ?>">
                         <?php echo e($payStatusLabel); ?>
                     </span>
                 </dd>
 
-                <?php if ($cardLastFour !== ''): ?>
-                    <dt>Cartão</dt>
-                    <dd>Final <?php echo e($cardLastFour); ?></dd>
+                <?php if ($payStatus === 'pending' && $payMethod === 'pix' && $order['payment_expires_at'] ?? null): ?>
+                    <dt>Expira em</dt>
+                    <dd>
+                        <div class="pix-countdown-wrap" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                            <strong class="pix-countdown"
+                                    data-pix-deadline="<?php echo strtotime((string) $order['payment_expires_at']); ?>">
+                                <?php echo e(orders_format_remaining(strtotime((string) $order['payment_expires_at']))); ?>
+                            </strong>
+                            <button type="button" class="account-btn account-btn--outline account-btn--sm"
+                                    onclick="copyPixCode()"
+                                    aria-label="Copiar código Pix">
+                                <i class="fas fa-copy" aria-hidden="true"></i> Copiar código
+                            </button>
+                            <script>
+                                function copyPixCode() {
+                                    const code = document.querySelector('[data-pix-code]')?.textContent?.trim();
+                                    if (code) {
+                                        navigator.clipboard.writeText(code).then(() => {
+                                            alert('Código Pix copiado!');
+                                        });
+                                    }
+                                }
+                            </script>
+                        </div>
+                    </dd>
+                <?php elseif ($payStatus === 'expired'): ?>
+                    <dt>Expirado em</dt>
+                    <dd><?php echo e(date('d/m/Y H:i', strtotime((string) $order['payment_expires_at']))); ?></dd>
+                <?php elseif ($payStatus === 'paid'): ?>
+                    <dt>Pago em</dt>
+                    <dd><?php echo e(date('d/m/Y H:i', strtotime((string) ($paymentRow['paid_at'] ?? $order['created_at'])))); ?></dd>
+                <?php elseif ($payStatus === 'refunded'): ?>
+                    <dt>Reembolsado em</dt>
+                    <dd><?php echo e(date('d/m/Y H:i', strtotime((string) ($paymentRow['canceled_at'] ?? $order['created_at'])))); ?></dd>
                 <?php endif; ?>
 
-                <?php if (trim((string) ($order['payment_details'] ?? '')) !== ''): ?>
-                    <dt>Detalhes</dt>
-                    <dd><?php echo e((string) $order['payment_details']); ?></dd>
+                <?php if ($cardLastFour !== ''): ?>
+                    <dt>Cartão</dt>
+                    <dd><?php echo e($payMethod === 'cartao' ? ucfirst($payMethod) : 'Cartão'); ?> final <?php echo e($cardLastFour); ?></dd>
                 <?php endif; ?>
             </dl>
         </div>
     </div>
 
-    <!-- ===================== Ações ===================== -->
-    <div class="account-actions">
+    <!-- ===================== Barra de Ações ===================== -->
+    <div class="account-actions" style="margin-top:14px;">
         <a href="<?php echo e(base_url('pages/auth/orders.php')); ?>" class="account-btn account-btn--outline">
             <i class="fas fa-arrow-left" aria-hidden="true"></i> Voltar
         </a>
@@ -298,7 +380,7 @@ account_layout_head($user, 'pedidos', 'Detalhes do Pedido');
         <?php if ($orderActions['pay']): ?>
             <a href="<?php echo e(base_url('pages/cart/payment.php?order=' . $orderId)); ?>"
                class="account-btn account-btn--primary">
-                <i class="fas fa-pix" aria-hidden="true"></i> Pagar agora
+                <i class="fas fa-qrcode" aria-hidden="true"></i> Pagar agora
             </a>
         <?php endif; ?>
 
@@ -312,7 +394,6 @@ account_layout_head($user, 'pedidos', 'Detalhes do Pedido');
                     <i class="fas fa-times-circle" aria-hidden="true"></i> Cancelar pedido
                 </button>
             </form>
-            <!-- Regra de cancelamento: uma frase, discreta, ao lado do botão. -->
             <span class="account-cancel-rule">
                 <?php if ($order['status'] === 'pending'): ?>
                     Você pode cancelar enquanto o pagamento não for aprovado.
@@ -327,22 +408,20 @@ account_layout_head($user, 'pedidos', 'Detalhes do Pedido');
         <?php if ($orderActions['track'] && $trackUrl !== ''): ?>
             <a href="<?php echo e($trackUrl); ?>" class="account-btn account-btn--primary"
                target="_blank" rel="noopener noreferrer">
-                <i class="fas fa-truck-fast" aria-hidden="true"></i> Rastrear pedido
+                <i class="fas fa-truck-fast" aria-hidden="true"></i> Rastrear
             </a>
         <?php endif; ?>
 
         <?php if ($orderActions['rebuy'] && !empty($items)): ?>
-            <!-- Comprar novamente: reenvia cada item ao carrinho pelo
-                 endpoint real (cart/add.php) e manda o cliente ao carrinho. -->
             <form method="post" id="reorderForm" style="display:inline"
                   action="<?php echo e(base_url('pages/cart/add.php')); ?>">
-                <input type="hidden" name="_csrf_token" value="<?php echo e(csrf_token()); ?>">
+                <?php echo csrf_field(); ?>
                 <input type="hidden" name="redirect" value="<?php echo e(base_url('pages/cart/cart.php')); ?>">
                 <?php foreach ($items as $rebuyItem): ?>
                     <input type="hidden" name="product_id[]" value="<?php echo (int) $rebuyItem['product_id']; ?>">
                     <input type="hidden" name="quantity[]" value="<?php echo (int) $rebuyItem['quantity']; ?>">
                 <?php endforeach; ?>
-                <button type="submit" class="account-btn" id="reorderBtn">
+                <button type="submit" class="account-btn account-btn--primary" id="reorderBtn">
                     <i class="fas fa-rotate-right" aria-hidden="true"></i> Comprar novamente
                 </button>
             </form>

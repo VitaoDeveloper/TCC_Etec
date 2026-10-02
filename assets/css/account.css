@@ -3072,3 +3072,539 @@ body.modal-open {
         justify-content: flex-start;
     }
 }
+
+/* ======================================================================
+   Order Detail — nova tela de detalhes do pedido
+   ====================================================================== */
+
+/* Cabeçalho da página */
+.account-page-header {
+    margin-bottom: 14px;
+}
+.account-page-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+}
+.account-page-title {
+    margin: 0 0 4px;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--rt-text-strong);
+}
+.account-page-subtitle {
+    margin: 0;
+    font-size: 0.86rem;
+    color: var(--rt-text-soft);
+}
+.account-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.account-status-pill--success {
+    background: var(--rt-success-soft);
+    border: 1px solid var(--rt-success);
+    color: var(--rt-success);
+}
+.account-status-pill--warning {
+    background: var(--rt-warning-soft, rgba(245,197,24,0.15));
+    border: 1px solid var(--rt-warning, #f5c518);
+    color: var(--rt-warning, #f5c518);
+}
+.account-status-pill--danger {
+    background: var(--rt-danger-soft);
+    border: 1px solid var(--rt-danger);
+    color: var(--rt-danger);
+}
+.account-status-pill--info {
+    background: var(--rt-info-soft, rgba(106,169,255,0.12));
+    border: 1px solid var(--rt-info, #6aa9ff);
+    color: var(--rt-info, #6aa9ff);
+}
+.account-status-pill--secondary {
+    background: var(--rt-bg-inset);
+    border: 1px solid var(--rt-border);
+    color: var(--rt-text-secondary);
+}
+.account-status-pill i {
+    font-size: 0.7rem;
+}
+
+.account-alert {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-radius: 10px;
+    margin-bottom: 14px;
+    font-size: 0.88rem;
+}
+.account-alert--ok {
+    background: var(--rt-success-soft);
+    border: 1px solid var(--rt-success);
+    color: var(--rt-success);
+}
+.account-alert--error {
+    background: var(--rt-danger-soft);
+    border: 1px solid var(--rt-danger);
+    color: var(--rt-danger);
+}
+
+/* ======================================================================
+   Cards internos (cards dentro da seção de detalhes)
+   ====================================================================== */
+.account-card {
+    background: var(--rt-bg-surface);
+    border: 1px solid var(--rt-border);
+    border-radius: var(--account-radius);
+}
+.account-card-inner {
+    padding: 16px;
+}
+.account-card-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+.account-card-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: var(--rt-accent-soft);
+    border: 1px solid var(--rt-accent-line);
+    color: var(--rt-accent);
+    font-size: 1rem;
+}
+.account-card-title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--rt-text-strong);
+}
+.account-card-pill {
+    margin-left: auto;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--rt-bg-inset);
+    border: 1px solid var(--rt-border);
+    color: var(--rt-text-secondary);
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+/* ======================================================================
+   Tracker (progresso do pedido)
+   ====================================================================== */
+.tracker {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.tracker__step {
+    position: relative;
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 5px;
+    padding: 0 5px;
+}
+.tracker__step:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 13px;
+    left: calc(50% + 14px);
+    right: calc(-50% + 14px);
+    height: 2px;
+    background: var(--rt-border);
+}
+.tracker__step.is-done:not(:last-child)::after {
+    background: var(--rt-accent);
+}
+.tracker__dot {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--rt-bg-surface);
+    border: 1px solid var(--rt-border);
+    color: var(--rt-text-faint);
+    font-size: 0.68rem;
+}
+.tracker__step.is-done .tracker__dot {
+    background: var(--rt-accent-soft);
+    border-color: var(--rt-accent);
+    color: var(--rt-accent);
+}
+.tracker__label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--rt-text-strong);
+    white-space: nowrap;
+}
+.tracker__date {
+    font-size: 0.66rem;
+    color: var(--rt-text-faint);
+    min-height: 1em;
+}
+
+/* ======================================================================
+   Avisos dentro de cards
+   ====================================================================== */
+.order-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    margin: 13px 0 0;
+    padding: 10px 13px;
+    border-radius: 10px;
+    font-size: 0.82rem;
+    border: 1px solid transparent;
+}
+.order-notice i {
+    flex: 0 0 auto;
+    margin-top: 2px;
+}
+.order-notice strong {
+    font-variant-numeric: tabular-nums;
+}
+.order-notice--danger {
+    background: var(--rt-danger-soft);
+    border-color: rgba(255, 97, 97, 0.28);
+    color: #ff8f8f;
+}
+.order-notice--info {
+    background: var(--rt-info-soft, rgba(106,169,255,0.1));
+    border-color: rgba(106,169,255,0.26);
+    color: #9ec8ff;
+}
+.order-notice--warning {
+    background: rgba(245, 197, 24, 0.1);
+    border-color: rgba(245, 197, 24, 0.28);
+    color: #f5c518;
+}
+.order-notice--success {
+    background: var(--rt-success-soft);
+    border-color: rgba(0, 166, 80, 0.28);
+    color: #4ade80;
+}
+.account-banner-note {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.76rem;
+    font-weight: 400;
+    opacity: 0.9;
+}
+
+/* ======================================================================
+   Lista de itens (sem tabela)
+   ====================================================================== */
+.account-items {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.account-item-line {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: var(--rt-bg-inset);
+    border: 1px solid var(--rt-border);
+    border-radius: 10px;
+    transition: border-color 0.15s ease;
+}
+.account-item-line:hover {
+    border-color: var(--rt-border-strong);
+}
+.account-item-thumb {
+    flex: 0 0 48px;
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    object-fit: cover;
+    background: var(--rt-bg-surface);
+}
+.account-item-info {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.account-item-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--rt-text-strong);
+    text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.account-item-name:hover {
+    color: var(--rt-accent);
+}
+.account-item-meta {
+    font-size: 0.76rem;
+    color: var(--rt-text-secondary);
+}
+.account-item-subtotal {
+    flex: 0 0 auto;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--rt-accent);
+    white-space: nowrap;
+}
+
+/* ======================================================================
+   Totais (subtotal, desconto, frete, total)
+   ====================================================================== */
+.totals {
+    display: grid;
+    gap: 6px;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--rt-border-subtle);
+    font-size: 0.86rem;
+}
+.totals__row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+}
+.totals__label {
+    font-size: 0.82rem;
+    color: var(--rt-text-secondary);
+}
+.totals__value {
+    font-weight: 600;
+    color: var(--rt-text-strong);
+    white-space: nowrap;
+}
+.totals__row--discount .totals__value {
+    color: var(--rt-success);
+}
+.totals__row--free .totals__value {
+    color: var(--rt-success);
+}
+.totals__row--total {
+    padding-top: 8px;
+    border-top: 1px solid var(--rt-border-subtle);
+    font-weight: 700;
+    font-size: 1rem;
+}
+.totals__row--total .totals__value {
+    color: var(--rt-accent);
+    font-size: 1.1rem;
+}
+
+/* ======================================================================
+   Grid 2 colunas (Entrega | Pagamento)
+   ====================================================================== */
+.grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+@media (max-width: 760px) {
+    .grid-2 {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Key-value list para Entrega/Pagamento */
+.account-kv {
+    display: grid;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+}
+.account-kv dt {
+    margin: 0;
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--rt-text-faint);
+}
+.account-kv dd {
+    margin: 2px 0 12px;
+    font-size: 0.88rem;
+    color: var(--rt-text-strong);
+}
+.account-kv code {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.8rem;
+    background: var(--rt-bg-inset);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+.account-kv ul {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 0.82rem;
+}
+.account-kv li {
+    margin-bottom: 4px;
+}
+
+/* ======================================================================
+   Regras de cancelamento (texto discreto ao lado do botão)
+   ====================================================================== */
+.account-cancel-rule {
+    display: inline-block;
+    margin-left: 10px;
+    font-size: 0.74rem;
+    color: var(--rt-text-soft);
+    max-width: 320px;
+}
+
+/* ======================================================================
+   Botões de ação na barra final
+   ====================================================================== */
+.account-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 9px;
+    margin-top: 14px;
+    padding-top: 13px;
+    border-top: 1px solid var(--rt-border-subtle);
+}
+.account-actions form {
+    display: inline;
+    margin: 0;
+}
+
+/* Ação principal dourada (.btn-gold) */
+.account-actions .btn-gold {
+    background: var(--rt-accent-gradient);
+    border-color: var(--rt-accent);
+    color: var(--rt-text-on-accent);
+}
+.account-actions .btn-gold:hover:not(:disabled) {
+    border-color: var(--rt-accent-dark);
+    color: var(--rt-text-on-accent);
+    filter: brightness(1.06);
+    transform: none;
+}
+
+/* ======================================================================
+   Contagem regressiva do Pix
+   ====================================================================== */
+.pix-countdown-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.pix-countdown {
+    font-variant-numeric: tabular-nums;
+    font-size: 1rem;
+    color: var(--rt-warning, #f5c518);
+}
+.pix-countdown-wrap .account-btn {
+    white-space: nowrap;
+}
+
+/* ======================================================================
+   Pix code (campo somente leitura com botão copiar)
+   ====================================================================== */
+.pix-code-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.pix-code {
+    flex: 1 1 200px;
+    min-width: 160px;
+    padding: 8px 12px;
+    background: var(--rt-bg-inset);
+    border: 1px solid var(--rt-border);
+    border-radius: 8px;
+    font-family: var(--font-mono, monospace);
+    font-size: 0.85rem;
+    color: var(--rt-text-strong);
+    letter-spacing: 1px;
+}
+
+/* ======================================================================
+   Responsivo para a tela de detalhes
+   ====================================================================== */
+@media (max-width: 640px) {
+    .account-page-header-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .account-status-pill {
+        margin-top: 8px;
+    }
+    .account-card-head {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .account-card-pill {
+        margin-left: 0;
+        margin-top: 6px;
+    }
+    .tracker__label {
+        font-size: 0.64rem;
+    }
+    .tracker__dot {
+        width: 22px;
+        height: 22px;
+        font-size: 0.6rem;
+    }
+    .account-actions {
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: flex-start;
+    }
+    .account-actions .account-btn,
+    .account-actions form,
+    .account-actions form button {
+        width: 100%;
+        justify-content: center;
+    }
+    .account-cancel-rule {
+        max-width: 100%;
+        margin-left: 0;
+        margin-top: 8px;
+    }
+    .pix-countdown-wrap {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .pix-code-wrap {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .pix-code {
+        width: 100%;
+    }
+}

@@ -153,17 +153,6 @@ function orders_items_summary(array $items): string
 }
 
 /** Texto inicial do relógio do Pix, no mesmo formato do JS. */
-function orders_format_remaining(int $deadlineTs): string
-{
-    $total = max(0, $deadlineTs - time());
-    $h = intdiv($total, 3600);
-    $m = intdiv($total % 3600, 60);
-    $s = $total % 60;
-
-    return $h > 0
-        ? sprintf('%02d:%02d:%02d', $h, $m, $s)
-        : sprintf('%02d:%02d', $m, $s);
-}
 
 $user = account_require_login($pdo);
 
