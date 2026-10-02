@@ -1,5 +1,7 @@
 <?php
 
+date_default_timezone_set('America/Sao_Paulo');
+
 // Cache-buster para assets (JS/CSS) referenciados via ?v= nos componentes.
 // Bump este valor a CADA mudanca em assets/js/*.js ou assets/css/*.css versionados
 // por ele, senao o navegador continua servindo a versao em cache. (Bug historico:

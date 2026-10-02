@@ -382,38 +382,67 @@ class OrderRepositoryTest extends TestCase
     //  Seed do pedido de demonstração
     // =================================================================
 
-    public function testSeedOrder12IsIdempotentAndCoherent(): void
+    // =================================================================
+    //  Seed de demonstração idempotente (database/database.sql)
+    // =================================================================
+
+    public function testDemoUserSeedIsIdempotentAndCoherent(): void
     {
         $pdo = $this->db();
-        $sql = file_get_contents(__DIR__ . '/../database/seed_order_12.sql');
+        $sql = file_get_contents(__DIR__ . '/../database/database.sql');
         $this->assertIsString($sql);
 
-        // Rodar duas vezes seguidas não pode duplicar nada: é o que
-        // garante que o seed possa ser reaplicado sem estragar o banco.
+        // Rodar duas vezes seguidas não pode duplicar nada
         $pdo->exec($sql);
         $pdo->exec($sql);
 
-        $count = static function (PDO $db, string $table, string $col): int {
-            $st = $db->prepare("SELECT COUNT(*) FROM {$table} WHERE {$col} = 12");
-            $st->execute();
-
+        $count = static function (PDO $db, string $table, string $col, int $userId): int {
+            $st = $db->prepare("SELECT COUNT(*) FROM {$table} WHERE {$col} = ?");
+            $st->execute([$userId]);
             return (int) $st->fetchColumn();
         };
 
-        $this->assertSame(1, $count($pdo, 'e5_orders', 'id'));
-        $this->assertSame(1, $count($pdo, 'e5_order_items', 'order_id'));
-        $this->assertSame(1, $count($pdo, 'e5_payments', 'order_id'));
-        $this->assertSame(2, $count($pdo, 'e5_order_history', 'order_id'));
+        // O seed do usuário 1 cria 8 pedidos (ids 1001-1008)
+        $this->assertSame(8, (int)$pdo->query("SELECT COUNT(*) FROM e5_orders WHERE user_id = 1")->fetchColumn());
+        $this->assertSame(16, (int)$pdo->query("SELECT COUNT(*) FROM e5_order_items WHERE order_id IN (SELECT id FROM e5_orders WHERE user_id = 1)")->fetchColumn());
+        $this->assertSame(8, (int)$pdo->query("SELECT COUNT(*) FROM e5_payments WHERE order_id IN (SELECT id FROM e5_orders WHERE user_id = 1)")->fetchColumn());
+        $this->assertSame(24, (int)$pdo->query("SELECT COUNT(*) FROM e5_order_history WHERE order_id IN (SELECT id FROM e5_orders WHERE user_id = 1)")->fetchColumn());
+        // Verifica cada estado existe exatamente uma vez
+        $states = $pdo->query("SELECT status, payment_status, COUNT(*) as c FROM e5_orders WHERE user_id = 1 GROUP BY status, payment_status")->fetchAll(PDO::FETCH_ASSOC);
+        $expected = [
+            ['status' => 'pending', 'payment_status' => 'pending', 'c' => 1],
+            ['status' => 'paid', 'payment_status' => 'paid', 'c' => 1],
+            ['status' => 'preparing', 'payment_status' => 'paid', 'c' => 1],
+            ['status' => 'shipped', 'payment_status' => 'paid', 'c' => 1],
+            ['status' => 'delivered', 'payment_status' => 'paid', 'c' => 1],
+            ['status' => 'canceled', 'payment_status' => 'expired', 'c' => 1],
+            ['status' => 'canceled', 'payment_status' => 'canceled', 'c' => 1],
+            ['status' => 'canceled', 'payment_status' => 'refunded', 'c' => 1],
+        ];
 
-        $order = order_repo_find($pdo, 12);
-        $this->assertSame('canceled', $order['status']);
-        $this->assertSame('canceled', $order['payment_status']);
-        $this->assertSame(4599.90, (float) $order['total']);
-        $this->assertSame('2026-09-16 18:47', date('Y-m-d H:i', strtotime($order['created_at'])));
+        foreach ($expected as $exp) {
+            $found = false;
+            foreach ($states as $s) {
+                if ($s['status'] === $exp['status'] && $s['payment_status'] === $exp['payment_status']) {
+                    $this->assertSame($exp['c'], (int)$s['c'], "Estado {$exp['status']}/{$exp['payment_status']} deve ter {$exp['c']} pedido(s)");
+                    $found = true;
+                    break;
+                }
+            }
+            $this->assertTrue($found, "Estado {$exp['status']}/{$exp['payment_status']} deve existir");
+        }
 
-        $this->assertSame(
-            'Cancelado',
-            payment_status_meta($order['payment_status'])['label']
-        );
+        // Totais coerentes: subtotal - discount + shipping = total
+        $orders = $pdo->query("SELECT id, total, discount_amount, shipping_cost FROM e5_orders WHERE user_id = 1")->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($orders as $o) {
+            $items = $pdo->prepare("SELECT SUM(unit_price * quantity) AS subtotal FROM e5_order_items WHERE order_id = ?");
+            $items->execute([$o['id']]);
+            $subtotal = (float)$items->fetchColumn();
+            $discount = (float)$o['discount_amount'];
+            $shipping = (float)$o['shipping_cost'];
+            $total = (float)$o['total'];
+            $calculated = $subtotal - $discount + $shipping;
+            $this->assertEqualsWithDelta($calculated, $total, 0.01, "Pedido {$o['id']}: subtotal ($subtotal) - discount ($discount) + shipping ($shipping) = $calculated, mas total salvo é $total");
+        }
     }
 }
