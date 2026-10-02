@@ -15,10 +15,16 @@ declare(strict_types=1);
  * dupla, mas um HTTP request ainda estaria fora do cron. O guard abaixo
  * rejeita chamada web mesmo que alguém aponte o navegador pra cá.
  *
- * A expiração de Pix REUSA payment_expire_if_due() em vez de reescrever
- * a regra aqui: a tela de pagamento já aplica a mesma lógica na leitura,
- * e duas implementações divergentes significariam um pedido expirando
- * de um jeito no worker e de outro na tela.
+ * A expiração de Pix REUSA order_expire_pending_pix_lazy() em vez de
+ * reescrever a regra aqui: a tela de pedido já aplica a mesma função na
+ * leitura, e duas implementações divergentes significariam o pedido
+ * expirando de um jeito no worker e de outro na tela.
+ *
+ * Antes este worker chamava payment_expire_if_due(), que só troca o
+ * payment_status para 'expired'. Ele NÃO cancelava o pedido, NÃO gravava
+ * histórico e NÃO devolvia estoque — então o pedido ficava 'pending' para
+ * sempre com o Pix vencido, e a mercadoria reservada nunca voltava ao
+ * catálogo. A função de order_state.php faz a transação completa.
  */
 
 // ---------------------------------------------------------------------------
@@ -37,6 +43,7 @@ require_once $root . '/includes/mail.php';
 require_once $root . '/includes/order_repo.php';
 require_once $root . '/includes/notification_functions.php';
 require_once $root . '/includes/payment_functions.php';
+require_once $root . '/includes/order_state.php';
 require_once $root . '/database/connection.php';
 
 // ---------------------------------------------------------------------------
@@ -44,14 +51,17 @@ require_once $root . '/database/connection.php';
 // ---------------------------------------------------------------------------
 $emailLimit = 25;
 $only       = null;
+$once       = false;
 
 foreach (array_slice($argv, 1) as $arg) {
     if (preg_match('/^--emails=(\d+)$/', $arg, $m)) {
         $emailLimit = max(1, (int) $m[1]);
     } elseif (preg_match('/^--only=(emails|pix)$/', $arg, $m)) {
         $only = $m[1];
+    } elseif ($arg === '--once') {
+        $once = true;
     } elseif ($arg === '--help' || $arg === '-h') {
-        fwrite(STDOUT, "Uso: php worker.php [--emails=N] [--only=emails|pix]\n");
+        fwrite(STDOUT, "Uso: php worker.php [--emails=N] [--only=emails|pix] [--once]\n");
         exit(0);
     }
 }
@@ -107,7 +117,10 @@ if ($only === null || $only === 'emails') {
         $totalSent   += $result['sent'];
         $totalFailed += $result['failed'];
         $rounds++;
-    } while ($result['remaining'] > 0 && $result['sent'] + $result['failed'] > 0 && $rounds < 20);
+    } while (!$once
+        && $result['remaining'] > 0
+        && $result['sent'] + $result['failed'] > 0
+        && $rounds < 20);
 
     fwrite(STDOUT, sprintf(
         "worker: e-mails -> enviados=%d falhas=%d restam=%d rodadas=%d\n",
@@ -138,21 +151,37 @@ if ($only === null || $only === 'pix') {
     );
 
     $expired = 0;
+    $restocked = 0;
+    $canceled  = 0;
     foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $orderId) {
         $order = order_repo_find($pdo, (int) $orderId);
         if ($order === null) {
             continue;
         }
 
-        $before = (string) $order['payment_status'];
-        $order  = payment_expire_if_due($pdo, $order);
+        $beforeStatus = (string) $order['status'];
+        $beforePay    = (string) $order['payment_status'];
 
-        if ((string) $order['payment_status'] !== $before) {
+        // order_expire_pending_pix_lazy() faz a transação completa:
+        // pedido -> canceled, pagamento -> expired, histórico e estoque.
+        // payment_expire_if_due() (usado antes) só trocava o
+        // payment_status e deixava o pedido pending com estoque preso.
+        $result = order_expire_pending_pix_lazy($pdo, $order);
+        $order  = $result['order'];
+
+        if ($result['expired']) {
             $expired++;
+            if ((string) $order['status'] !== $beforeStatus) {
+                $canceled++;
+            }
+            if ((string) $order['payment_status'] !== $beforePay) {
+                $restocked++;
+            }
         }
     }
 
-    fwrite(STDOUT, "worker: expiração de Pix -> expirados={$expired}\n");
+    fwrite(STDOUT, "worker: expiração de Pix -> expirados={$expired} "
+        . "pedidos_cancelados={$canceled} pagamentos_vencidos={$restocked}\n");
 }
 
 fwrite(STDOUT, "worker: concluído " . date('Y-m-d H:i:s') . "\n");

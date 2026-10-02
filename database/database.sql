@@ -122,6 +122,11 @@ CREATE TABLE IF NOT EXISTS e5_orders (
   user_id INT NOT NULL,
   status ENUM('pending','paid','preparing','shipped','delivered','canceled') NOT NULL DEFAULT 'pending',
   total DECIMAL(10,2) NOT NULL,
+  -- Desconto aplicado (cupom/manual). Nullable porque total = subtotal +
+  -- frete - desconto; NULL significa "sem desconto informado". historicamente
+  -- esta coluna existia apenas em migração, então instalações novas ficavam
+  -- sem ela e o cálculo do desconto quebrava.
+  discount_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   shipping_method VARCHAR(50) NULL,
   shipping_cost DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   payment_method VARCHAR(50) NULL,
@@ -168,6 +173,53 @@ CREATE TABLE IF NOT EXISTS e5_orders (
   CONSTRAINT fk_orders_user FOREIGN KEY (user_id) REFERENCES e5_users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+-- Pagamentos do pedido. Fica separada de e5_orders porque um pedido pode
+-- ter vários registros ao longo da vida (tentativa que falhou, tentativa que
+-- foi paga, cancelamento). generated active_flag + UNIQUE (order_id,
+-- active_flag) garante no máximo um pagamento "vivo" (pending/paid) por
+-- pedido — MySQL não colide NULLs em índice UNIQUE, então pagamentos
+-- finalizados (canceled/expired/refunded/failed) convivem sem conflito.
+CREATE TABLE IF NOT EXISTS e5_payments (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  order_id INT NOT NULL,
+  method ENUM('pix','boleto','cartao','delivery') NOT NULL DEFAULT 'pix',
+  status ENUM('pending','paid','canceled','expired','refunded','failed') NOT NULL DEFAULT 'pending',
+  amount DECIMAL(10,2) NOT NULL,
+  -- Identificadores do Pix gerado pelo provedor. Nunca armazenar chave/segredo
+  -- do cliente aqui: pix_key é a chave pública de cobrança.
+  pix_key VARCHAR(140) NULL,
+  pix_code VARCHAR(255) NULL,
+  -- Cartão: só bandeira e os 4 últimos dígitos. PAN e CVV nunca entram no banco.
+  card_brand VARCHAR(20) NULL,
+  card_last_four CHAR(4) NULL,
+  installments TINYINT UNSIGNED NULL,
+  boleto_line VARCHAR(60) NULL,
+  gateway_token VARCHAR(64) NULL,
+  expires_at DATETIME NULL,
+  paid_at DATETIME NULL,
+  canceled_at DATETIME NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  active_flag TINYINT GENERATED ALWAYS AS (IF(status IN ('pending','paid'), 1, NULL)) STORED,
+  UNIQUE KEY uk_payments_active (order_id, active_flag),
+  INDEX idx_payments_order (order_id),
+  CONSTRAINT fk_payments_order FOREIGN KEY (order_id) REFERENCES e5_orders(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Trilha de mudança de status do pedido. UNIQUE (order_id, status) impede a
+-- mesma etapa de ser gravada duas vezes, então Includes/worker podem rodar
+-- várias vezes sem poluir o histórico.
+CREATE TABLE IF NOT EXISTS e5_order_history (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  order_id INT NOT NULL,
+  status VARCHAR(24) NOT NULL,
+  note VARCHAR(180) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_history_order_status (order_id, status),
+  INDEX idx_history_order (order_id, id),
+  CONSTRAINT fk_history_order FOREIGN KEY (order_id) REFERENCES e5_orders(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 CREATE TABLE IF NOT EXISTS e5_order_items (
   id INT PRIMARY KEY AUTO_INCREMENT,
   order_id INT NOT NULL,
@@ -195,6 +247,30 @@ CREATE TABLE IF NOT EXISTS e5_cart (
   CONSTRAINT fk_cart_product FOREIGN KEY (product_id) REFERENCES e5_products(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+-- Endereços do cliente. generated default_flag + UNIQUE (user_id,
+-- default_flag) garante no máximo um endereço marcado como principal por
+-- usuário — NULLs em índice UNIQUE não colidem no MySQL, então os endereços
+-- secundários convivem sem violar a restrição.
+CREATE TABLE IF NOT EXISTS e5_addresses (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  user_id INT NOT NULL,
+  label VARCHAR(40) NOT NULL DEFAULT 'Principal',
+  postal_code VARCHAR(10) NOT NULL,
+  street VARCHAR(120) NOT NULL,
+  number VARCHAR(10) NOT NULL,
+  complement VARCHAR(80) NULL,
+  neighborhood VARCHAR(80) NULL,
+  city VARCHAR(80) NOT NULL,
+  state CHAR(2) NOT NULL,
+  is_default TINYINT(1) NOT NULL DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  default_flag TINYINT(1) GENERATED ALWAYS AS (IF(is_default = 1, 1, NULL)) STORED,
+  UNIQUE KEY uk_addresses_default (user_id, default_flag),
+  INDEX idx_addresses_user (user_id, is_default),
+  CONSTRAINT fk_addresses_user FOREIGN KEY (user_id) REFERENCES e5_users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 CREATE TABLE IF NOT EXISTS e5_contacts (
   id INT PRIMARY KEY AUTO_INCREMENT,
   user_id INT NULL,
@@ -214,6 +290,20 @@ CREATE TABLE IF NOT EXISTS e5_contacts (
   INDEX idx_contacts_email_status (email, status),
   CONSTRAINT fk_contacts_user FOREIGN KEY (user_id) REFERENCES e5_users(id) ON DELETE SET NULL,
   CONSTRAINT fk_contacts_responded_by FOREIGN KEY (responded_by) REFERENCES e5_users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Trilha de auditoria da migração de usernames legados (executed uma vez,
+-- já concluída). Não é usada por nenhuma tela: existe só para preservar o
+-- registro "de qual username veio para qual" e para o diff de schema
+-- continuar vazio entre este arquivo e a base existente. Pode ser descartada
+-- sem impacto funcional.
+CREATE TABLE IF NOT EXISTS e5_username_migration_log (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  old_username VARCHAR(30) NOT NULL,
+  new_username VARCHAR(30) NOT NULL,
+  migrated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_username_migration_user (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE IF NOT EXISTS e5_newsletter (
