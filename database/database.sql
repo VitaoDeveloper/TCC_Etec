@@ -626,7 +626,283 @@ CREATE TABLE IF NOT EXISTS e5_notifications (
     KEY idx_notif_pending (status, created_at),
     KEY idx_notif_order (order_id),
     KEY idx_notif_user (user_id)
-) ENGINE=InnoDB
-  DEFAULT CHARSET=utf8mb4
-  COLLATE=utf8mb4_general_ci
-  COMMENT='Fila de notificações por evento de pedido';
+) ENGINE=InnoDB;
+
+-- =====================================================================
+-- Seed de demonstração — usuário 1 (Maria Silva Santos)
+-- Idempotente: apaga pedidos do user_id=1 e re-insere 8 pedidos em
+-- todos os estados exigidos pelo TCC. Cada pedido tem itens, pagamento,
+-- histórico e (quando aplicável) envio com totais coerentes:
+-- subtotal - discount_amount + shipping_cost = total.
+-- O seed pode ser importado quantas vezes quiser; a expiração do Pix
+-- pendente é calculada como NOW() + INTERVAL 30 MINUTE no momento
+-- da importação, então a contagem regressiva aparece "viva" na hora.
+-- =====================================================================
+
+-- Apaga apenas os pedidos do usuário demo para não sujar outros dados.
+DELETE FROM e5_payments        WHERE order_id IN (SELECT id FROM e5_orders WHERE user_id = 1);
+DELETE FROM e5_order_items     WHERE order_id IN (SELECT id FROM e5_orders WHERE user_id = 1);
+DELETE FROM e5_order_history   WHERE order_id IN (SELECT id FROM e5_orders WHERE user_id = 1);
+DELETE FROM e5_shipments       WHERE order_id IN (SELECT id FROM e5_orders WHERE user_id = 1);
+DELETE FROM e5_orders          WHERE user_id = 1;
+
+-- Endereço padrão do usuário 1 (id 900025) será usado como snapshot.
+-- Produtos reais do catálogo (id, name, price):
+-- 1: Smartphone Galaxy S25 256GB         4599.90
+-- 3: Notebook Nitro V15 i7               4899.99
+-- 5: Mouse Gamer Logitech G502           349.90
+-- 7: Processador Ryzen 7 7800X3D         2699.90
+-- 10: Caixa de Som JBL Flip 7            549.90
+
+-- ---------------------------------------------------------------
+-- 1) PENDENTE — Pix válido (expira em 30 min a partir do import)
+-- subtotal = 4599.90 + 349.90 = 4949.80; shipping = 50.00; total = 4999.80
+-- ---------------------------------------------------------------
+INSERT INTO e5_orders (
+    id, user_id, status, total, discount_amount, shipping_method, shipping_cost,
+    payment_method, payment_status, payment_expires_at,
+    shipping_street, shipping_number, shipping_complement, shipping_neighborhood,
+    shipping_city, shipping_state, shipping_postal_code,
+    email_status, created_at, updated_at
+) VALUES (
+    1001, 1, 'pending', 4999.80, 0.00, 'PAC', 50.00,
+    'pix', 'pending', NOW() + INTERVAL 30 MINUTE,
+    'Avenida Ameletto Marino', '300', '', 'Esplanada Santa Helena',
+    'Taubaté', 'SP', '12053-831',
+    'skipped', NOW(), NOW()
+);
+
+INSERT INTO e5_order_items (order_id, product_id, product_name, product_image, quantity, unit_price) VALUES
+(1001, 1, 'Smartphone Galaxy S25 256GB', NULL, 1, 4599.90),
+(1001, 5, 'Mouse Gamer Logitech G502', NULL, 1, 349.90);
+
+INSERT INTO e5_payments (order_id, method, status, amount, pix_key, pix_code, expires_at, created_at) VALUES
+(1001, 'pix', 'pending', 4999.80, 'pix-key-demo-1001', 'pix-code-1001', NOW() + INTERVAL 30 MINUTE, NOW());
+
+INSERT INTO e5_order_history (order_id, status, note, created_at) VALUES
+(1001, 'pending', 'Pedido criado aguardando pagamento Pix', NOW());
+
+-- ---------------------------------------------------------------
+-- 2) PAGO — pagamento confirmado, aguardando preparação
+-- subtotal = 4899.99 + 549.90 = 5449.89; shipping = 50.00; total = 5499.89 (corrigido para 5499.89)
+-- Wait: 4899.99 + 549.90 = 5449.89 + 50 = 5499.89
+-- ---------------------------------------------------------------
+INSERT INTO e5_orders (
+    id, user_id, status, total, discount_amount, shipping_method, shipping_cost,
+    payment_method, payment_status, payment_details,
+    shipping_street, shipping_number, shipping_complement, shipping_neighborhood,
+    shipping_city, shipping_state, shipping_postal_code,
+    email_status, created_at, updated_at
+) VALUES (
+    1002, 1, 'paid', 5499.89, 0.00, 'PAC', 50.00,
+    'pix', 'paid', '{"pix_key":"pix-key-demo-1002"}',
+    'Avenida Ameletto Marino', '300', '', 'Esplanada Santa Helena',
+    'Taubaté', 'SP', '12053-831',
+    'skipped', NOW() - INTERVAL 2 DAY, NOW()
+);
+
+INSERT INTO e5_order_items (order_id, product_id, product_name, product_image, quantity, unit_price) VALUES
+(1002, 3, 'Notebook Nitro V15 i7', NULL, 1, 4899.99),
+(1002, 10, 'Caixa de Som JBL Flip 7', NULL, 1, 549.90);
+
+INSERT INTO e5_payments (order_id, method, status, amount, pix_key, pix_code, paid_at, created_at) VALUES
+(1002, 'pix', 'paid', 5499.89, 'pix-key-demo-1002', 'pix-code-1002', NOW() - INTERVAL 1 DAY, NOW() - INTERVAL 2 DAY);
+
+INSERT INTO e5_order_history (order_id, status, note, created_at) VALUES
+(1002, 'pending', 'Pedido criado', NOW() - INTERVAL 2 DAY),
+(1002, 'paid', 'Pagamento Pix confirmado', NOW() - INTERVAL 1 DAY);
+
+-- ---------------------------------------------------------------
+-- 3) EM PREPARAÇÃO — separação/embalo
+-- subtotal = 2699.90 + 349.90 = 3049.80; shipping = 50.00; total = 3099.80
+-- ---------------------------------------------------------------
+INSERT INTO e5_orders (
+    id, user_id, status, total, discount_amount, shipping_method, shipping_cost,
+    payment_method, payment_status, payment_details,
+    shipping_street, shipping_number, shipping_complement, shipping_neighborhood,
+    shipping_city, shipping_state, shipping_postal_code,
+    email_status, created_at, updated_at
+) VALUES (
+    1003, 1, 'preparing', 3099.80, 0.00, 'PAC', 50.00,
+    'cartao', 'paid', '{"card_brand":"visa","card_last_four":"4242"}',
+    'Avenida Ameletto Marino', '300', '', 'Esplanada Santa Helena',
+    'Taubaté', 'SP', '12053-831',
+    'skipped', NOW() - INTERVAL 4 DAY, NOW()
+);
+
+INSERT INTO e5_order_items (order_id, product_id, product_name, product_image, quantity, unit_price) VALUES
+(1003, 7, 'Processador Ryzen 7 7800X3D', NULL, 1, 2699.90),
+(1003, 5, 'Mouse Gamer Logitech G502', NULL, 1, 349.90);
+
+INSERT INTO e5_payments (order_id, method, status, amount, card_brand, card_last_four, paid_at, created_at) VALUES
+(1003, 'cartao', 'paid', 3099.80, 'visa', '4242', NOW() - INTERVAL 3 DAY, NOW() - INTERVAL 4 DAY);
+
+INSERT INTO e5_order_history (order_id, status, note, created_at) VALUES
+(1003, 'pending', 'Pedido criado', NOW() - INTERVAL 5 DAY),
+(1003, 'paid', 'Pagamento cartão aprovado', NOW() - INTERVAL 4 DAY),
+(1003, 'preparing', 'Pedido em separação no estoque', NOW() - INTERVAL 2 DAY);
+
+-- ---------------------------------------------------------------
+-- 4) ENVIADO — PAC com previsão + código de rastreio
+-- subtotal = 4599.90 + 349.90 = 4949.90; shipping = 50.00; total = 4999.90
+-- Wait: 4599.90 + 349.90 = 4949.80 + 50 = 4999.80
+-- ---------------------------------------------------------------
+INSERT INTO e5_orders (
+    id, user_id, status, total, discount_amount, shipping_method, shipping_cost,
+    payment_method, payment_status, payment_details,
+    tracking_code, shipping_street, shipping_number, shipping_complement,
+    shipping_neighborhood, shipping_city, shipping_state, shipping_postal_code,
+    email_status, created_at, updated_at
+) VALUES (
+    1004, 1, 'shipped', 4999.80, 0.00, 'PAC', 50.00,
+    'pix', 'paid', '{"pix_key":"pix-key-demo-1004"}',
+    'BR123456789BR', 'Avenida Ameletto Marino', '300', '',
+    'Esplanada Santa Helena', 'Taubaté', 'SP', '12053-831',
+    'skipped', NOW() - INTERVAL 7 DAY, NOW()
+);
+
+INSERT INTO e5_order_items (order_id, product_id, product_name, product_image, quantity, unit_price) VALUES
+(1004, 1, 'Smartphone Galaxy S25 256GB', NULL, 1, 4599.90),
+(1004, 5, 'Mouse Gamer Logitech G502', NULL, 1, 349.90);
+
+INSERT INTO e5_payments (order_id, method, status, amount, pix_key, pix_code, paid_at, created_at) VALUES
+(1004, 'pix', 'paid', 4999.80, 'pix-key-demo-1004', 'pix-code-1004', NOW() - INTERVAL 5 DAY, NOW() - INTERVAL 7 DAY);
+
+INSERT INTO e5_shipments (order_id, carrier, service, tracking_code, label_url, status, price, delivery_min_days, delivery_max_days, created_at) VALUES
+(1004, 'Correios', 'PAC', 'BR123456789BR', 'https://rastreamento.correios.com.br/app/index.php?objeto=BR123456789BR', 'released', 50.00, 3, 7, NOW() - INTERVAL 4 DAY);
+
+INSERT INTO e5_order_history (order_id, status, note, created_at) VALUES
+(1004, 'pending', 'Pedido criado', NOW() - INTERVAL 8 DAY),
+(1004, 'paid', 'Pagamento Pix confirmado', NOW() - INTERVAL 6 DAY),
+(1004, 'preparing', 'Pedido preparado para envio', NOW() - INTERVAL 5 DAY),
+(1004, 'shipped', 'Enviado via Correios PAC — rastreio BR123456789BR', NOW() - INTERVAL 4 DAY);
+
+-- ---------------------------------------------------------------
+-- 5) ENTREGUE — entrega confirmada
+-- subtotal = 4899.99 + 549.90 = 5449.89; shipping = 50.00; total = 5499.89
+-- ---------------------------------------------------------------
+INSERT INTO e5_orders (
+    id, user_id, status, total, discount_amount, shipping_method, shipping_cost,
+    payment_method, payment_status, payment_details,
+    tracking_code, shipping_street, shipping_number, shipping_complement,
+    shipping_neighborhood, shipping_city, shipping_state, shipping_postal_code,
+    email_status, created_at, updated_at
+) VALUES (
+    1005, 1, 'delivered', 5499.89, 0.00, 'PAC', 50.00,
+    'cartao', 'paid', '{"card_brand":"mastercard","card_last_four":"1234"}',
+    'BR987654321BR', 'Avenida Ameletto Marino', '300', '',
+    'Esplanada Santa Helena', 'Taubaté', 'SP', '12053-831',
+    'skipped', NOW() - INTERVAL 15 DAY, NOW()
+);
+
+INSERT INTO e5_order_items (order_id, product_id, product_name, product_image, quantity, unit_price) VALUES
+(1005, 3, 'Notebook Nitro V15 i7', NULL, 1, 4899.99),
+(1005, 10, 'Caixa de Som JBL Flip 7', NULL, 1, 549.90);
+
+INSERT INTO e5_payments (order_id, method, status, amount, card_brand, card_last_four, paid_at, created_at) VALUES
+(1005, 'cartao', 'paid', 5499.89, 'mastercard', '1234', NOW() - INTERVAL 10 DAY, NOW() - INTERVAL 15 DAY);
+
+INSERT INTO e5_shipments (order_id, carrier, service, tracking_code, label_url, status, price, delivery_min_days, delivery_max_days, created_at) VALUES
+(1005, 'Correios', 'PAC', 'BR987654321BR', 'https://rastreamento.correios.com.br/app/index.php?objeto=BR987654321BR', 'delivered', 50.00, 3, 7, NOW() - INTERVAL 9 DAY);
+
+INSERT INTO e5_order_history (order_id, status, note, created_at) VALUES
+(1005, 'pending', 'Pedido criado', NOW() - INTERVAL 16 DAY),
+(1005, 'paid', 'Pagamento cartão aprovado', NOW() - INTERVAL 15 DAY),
+(1005, 'preparing', 'Pedido preparado', NOW() - INTERVAL 14 DAY),
+(1005, 'shipped', 'Enviado via Correios PAC — rastreio BR987654321BR', NOW() - INTERVAL 13 DAY),
+(1005, 'delivered', 'Entregue em 2026-09-20 14:30', NOW() - INTERVAL 8 DAY);
+
+-- ---------------------------------------------------------------
+-- 6) CANCELADO — Pix expirado (estilo #0006)
+-- subtotal = 2699.90 + 349.90 = 3049.80; shipping = 50.00; total = 3099.80
+-- ---------------------------------------------------------------
+INSERT INTO e5_orders (
+    id, user_id, status, total, discount_amount, shipping_method, shipping_cost,
+    payment_method, payment_status, payment_expires_at,
+    shipping_street, shipping_number, shipping_complement, shipping_neighborhood,
+    shipping_city, shipping_state, shipping_postal_code,
+    email_status, created_at, updated_at
+) VALUES (
+    1006, 1, 'canceled', 3099.80, 0.00, 'PAC', 50.00,
+    'pix', 'expired', NOW() - INTERVAL 1 HOUR,
+    'Avenida Ameletto Marino', '300', '', 'Esplanada Santa Helena',
+    'Taubaté', 'SP', '12053-831',
+    'skipped', NOW() - INTERVAL 2 DAY, NOW()
+);
+
+INSERT INTO e5_order_items (order_id, product_id, product_name, product_image, quantity, unit_price) VALUES
+(1006, 7, 'Processador Ryzen 7 7800X3D', NULL, 1, 2699.90),
+(1006, 5, 'Mouse Gamer Logitech G502', NULL, 1, 349.90);
+
+INSERT INTO e5_payments (order_id, method, status, amount, pix_key, pix_code, expires_at, canceled_at, created_at) VALUES
+(1006, 'pix', 'expired', 3099.80, 'pix-key-demo-1006', 'pix-code-1006', NOW() - INTERVAL 1 HOUR, NOW(), NOW() - INTERVAL 2 DAY);
+
+INSERT INTO e5_order_history (order_id, status, note, created_at) VALUES
+(1006, 'pending', 'Pedido criado', NOW() - INTERVAL 2 DAY),
+(1006, 'canceled', 'Pix expirou — pedido cancelado automaticamente e estoque devolvido', NOW());
+
+-- ---------------------------------------------------------------
+-- 7) CANCELADO PELO CLIENTE — cancelamento voluntário
+-- subtotal = 4599.90 + 549.90 = 5149.80; shipping = 50.00; total = 5199.80
+-- Wait: 4599.90 + 549.90 = 5149.80 + 50 = 5199.80
+-- ---------------------------------------------------------------
+INSERT INTO e5_orders (
+    id, user_id, status, total, discount_amount, shipping_method, shipping_cost,
+    payment_method, payment_status, payment_details,
+    shipping_street, shipping_number, shipping_complement, shipping_neighborhood,
+    shipping_city, shipping_state, shipping_postal_code,
+    email_status, created_at, updated_at
+) VALUES (
+    1007, 1, 'canceled', 5199.80, 0.00, 'PAC', 50.00,
+    'pix', 'canceled', '{"pix_key":"pix-key-demo-1007"}',
+    'Avenida Ameletto Marino', '300', '', 'Esplanada Santa Helena',
+    'Taubaté', 'SP', '12053-831',
+    'skipped', NOW() - INTERVAL 1 DAY, NOW()
+);
+
+INSERT INTO e5_order_items (order_id, product_id, product_name, product_image, quantity, unit_price) VALUES
+(1007, 1, 'Smartphone Galaxy S25 256GB', NULL, 1, 4599.90),
+(1007, 10, 'Caixa de Som JBL Flip 7', NULL, 1, 549.90);
+
+INSERT INTO e5_payments (order_id, method, status, amount, pix_key, pix_code, canceled_at, created_at) VALUES
+(1007, 'pix', 'canceled', 5199.80, 'pix-key-demo-1007', 'pix-code-1007', NOW() - INTERVAL 12 HOUR, NOW() - INTERVAL 1 DAY);
+
+INSERT INTO e5_order_history (order_id, status, note, created_at) VALUES
+(1007, 'pending', 'Pedido criado', NOW() - INTERVAL 1 DAY),
+(1007, 'canceled', 'Cancelado pelo cliente antes do envio', NOW() - INTERVAL 12 HOUR);
+
+-- ---------------------------------------------------------------
+-- 8) REEMBOLSADO — cancelado + reembolso processado
+-- subtotal = 4899.99 + 349.90 = 5249.89; shipping = 50.00; total = 5299.89
+-- Wait: 4899.99 + 349.90 = 5249.89 + 50 = 5299.89
+-- ---------------------------------------------------------------
+INSERT INTO e5_orders (
+    id, user_id, status, total, discount_amount, shipping_method, shipping_cost,
+    payment_method, payment_status, payment_details,
+    tracking_code, shipping_street, shipping_number, shipping_complement,
+    shipping_neighborhood, shipping_city, shipping_state, shipping_postal_code,
+    email_status, created_at, updated_at
+) VALUES (
+    1008, 1, 'canceled', 5299.89, 0.00, 'PAC', 50.00,
+    'cartao', 'refunded', '{"card_brand":"visa","card_last_four":"5678"}',
+    'BR555666777BR', 'Avenida Ameletto Marino', '300', '',
+    'Esplanada Santa Helena', 'Taubaté', 'SP', '12053-831',
+    'skipped', NOW() - INTERVAL 20 DAY, NOW()
+);
+
+INSERT INTO e5_order_items (order_id, product_id, product_name, product_image, quantity, unit_price) VALUES
+(1008, 3, 'Notebook Nitro V15 i7', NULL, 1, 4899.99),
+(1008, 5, 'Mouse Gamer Logitech G502', NULL, 1, 349.90);
+
+INSERT INTO e5_payments (order_id, method, status, amount, card_brand, card_last_four, paid_at, canceled_at, created_at) VALUES
+(1008, 'cartao', 'refunded', 5299.89, 'visa', '5678', NOW() - INTERVAL 12 DAY, NOW() - INTERVAL 8 DAY, NOW() - INTERVAL 20 DAY);
+
+INSERT INTO e5_shipments (order_id, carrier, service, tracking_code, label_url, status, price, delivery_min_days, delivery_max_days, created_at) VALUES
+(1008, 'Correios', 'PAC', 'BR555666777BR', 'https://rastreamento.correios.com.br/app/index.php?objeto=BR555666777BR', 'delivered', 50.00, 3, 7, NOW() - INTERVAL 11 DAY);
+
+INSERT INTO e5_order_history (order_id, status, note, created_at) VALUES
+(1008, 'pending', 'Pedido criado', NOW() - INTERVAL 21 DAY),
+(1008, 'paid', 'Pagamento cartão aprovado', NOW() - INTERVAL 20 DAY),
+(1008, 'preparing', 'Pedido preparado', NOW() - INTERVAL 19 DAY),
+(1008, 'shipped', 'Enviado via Correios PAC — rastreio BR555666777BR', NOW() - INTERVAL 18 DAY),
+(1008, 'canceled', 'Devolução recebida — reembolso processado no cartão', NOW() - INTERVAL 8 DAY);
