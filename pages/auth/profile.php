@@ -1086,11 +1086,9 @@ account_layout_head($user, 'perfil');
         <div class="account-modal-body avatar-editor">
             <!-- Área de corte principal -->
             <div class="avatar-editor-preview">
-                <div class="avatar-editor-frame">
+                <div class="avatar-editor-frame" id="avatarCropStage">
                     <img id="avatarCropperImage" src="" alt="Foto para recortar">
-                </div>
-                <div class="avatar-editor-preview-mini" aria-hidden="true">
-                    <div class="avatar-editor-preview-circle"></div>
+                    <div class="avatar-crop-grid" id="avatarCropGrid" aria-hidden="true"></div>
                 </div>
             </div>
             <!-- Controles -->
@@ -1315,8 +1313,10 @@ account_layout_head($user, 'perfil');
     var avatarCropper = null;
     var avatarCropperModal = document.getElementById('modal-avatar');
     var avatarCropperImage = document.getElementById('avatarCropperImage');
-    var avatarPreviewCircle = avatarCropperModal ? avatarCropperModal.querySelector('.avatar-editor-preview-circle') : null;
+    var avatarCropGrid = document.getElementById('avatarCropGrid');
     var avatarHasChanges = false;
+    var avatarObjectUrl = null;
+    var avatarWheelBound = false;
 
     // Abrir editor ao selecionar arquivo
     var avatarInput = document.getElementById('avatarInput');
@@ -1340,22 +1340,22 @@ account_layout_head($user, 'perfil');
                 return;
             }
 
-            // Cria URL temporária e abre modal PRIMEIRO
-            var objectUrl = URL.createObjectURL(file);
-            avatarCropperImage.src = objectUrl;
-            avatarCropperImage.onload = function () {
-                URL.revokeObjectURL(objectUrl);
-            };
-
-            // Abre modal PRIMEIRO para que o frame tenha dimensões
+            // Abre o modal ANTES de criar o Cropper: o palco precisa ter
+            // dimensões reais, senão o Cropper.js calcula container 0x0 e a
+            // caixa de corte nasce fora da imagem.
             openAvatarModal();
 
-            // Inicializa Cropper.js DEPOIS que o modal estiver visível
-            // Usa requestAnimationFrame para garantir que o layout foi calculado
-            requestAnimationFrame(function () {
-                if (avatarCropper) {
-                    avatarCropper.destroy();
-                }
+            if (avatarCropper) {
+                avatarCropper.destroy();
+                avatarCropper = null;
+            }
+
+            // O objectUrl fica vivo até o modal fechar: revogar no onload
+            // deixava o <img> sem fonte quando o Cropper relia a imagem.
+            avatarObjectUrl = URL.createObjectURL(file);
+            avatarCropperImage.src = avatarObjectUrl;
+
+            function startCropper() {
                 avatarCropper = new Cropper(avatarCropperImage, {
                     aspectRatio: 1,
                     viewMode: 3,
@@ -1369,98 +1369,162 @@ account_layout_head($user, 'perfil');
                     background: false,
                     toggleDragModeOnDblclick: false,
                     checkOrientation: true,
-                    ready: function () {
-                        // Ajusta a caixa de corte para preencher o palco
-                        setCropBoxToStage();
-                        // Configura slider de zoom com limites corretos
+                    // O Cropper cuida da roda sozinho por padrão (zoomOnWheel),
+                    // o que somava um segundo zoom ao deste editor e fazia o z
+                    // estourar o limite do slider. O zoom pela roda é feito só
+                    // pelo listener clampado abaixo.
+                    zoomOnWheel: false,
+                    ready: function (e) {
+                        // O palco visível é quadrado; a caixa de corte é um
+                        // quadrado centrality com 16px de respiro.
+                        fitCropBox();
+                        syncCropGrid();
                         setupZoomSlider();
-                        // Atualiza prévia mini
-                        updateAvatarPreview();
+                    },
+                    crop: function () {
+                        syncCropGrid();
                     },
                     cropmove: function () {
                         avatarHasChanges = true;
-                        updateAvatarPreview();
                     },
                     zoom: function () {
                         avatarHasChanges = true;
-                        updateAvatarPreview();
+                        syncCropGrid();
                     },
                 });
+            }
 
-                // Atualiza botões de rotação
-                document.getElementById('rotateLeft').onclick = function () { if (avatarCropper) { avatarCropper.rotate(-90); avatarHasChanges = true; } };
-                document.getElementById('rotateRight').onclick = function () { if (avatarCropper) { avatarCropper.rotate(90); avatarHasChanges = true; } };
-                document.getElementById('zoomIn').onclick = function () { if (avatarCropper) { avatarCropper.zoom(0.1); avatarHasChanges = true; } };
-                document.getElementById('zoomOut').onclick = function () { if (avatarCropper) { avatarCropper.zoom(-0.1); avatarHasChanges = true; } };
-                document.getElementById('zoomSlider').oninput = function () { if (avatarCropper) { avatarCropper.zoomTo(parseFloat(this.value)); avatarHasChanges = true; } };
-                document.getElementById('avatarReset').onclick = function () { if (avatarCropper) { avatarCropper.reset(); setCropBoxToStage(); setupZoomSlider(); avatarHasChanges = true; updateAvatarPreview(); } };
-                document.getElementById('avatarRemove').onclick = function () { removeAvatar(); };
-                document.getElementById('avatarCancel').onclick = function () { closeAvatarModalWithConfirm(); };
-                document.getElementById('avatarSave').onclick = function () { saveAvatarCrop(); };
+            if (avatarCropperImage.complete && avatarCropperImage.naturalWidth > 0) {
+                startCropper();
+            } else {
+                avatarCropperImage.onload = function () {
+                    startCropper();
+                };
+            }
 
-                // Mouse wheel zoom
-                avatarCropperImage.addEventListener('wheel', function (e) {
-                    e.preventDefault();
-                    if (!avatarCropper) return;
-                    var delta = e.deltaY > 0 ? -0.1 : 0.1;
-                    var currentZoom = avatarCropper.getData().width / avatarCropper.getImageData().naturalWidth;
-                    var newZoom = Math.max(avatarCropper._minZoom, Math.min(avatarCropper._maxZoom, currentZoom + delta));
-                    avatarCropper.zoomTo(newZoom);
-                    avatarHasChanges = true;
-                }, { passive: false });
-            });
+            bindAvatarControls();
         });
     }
 
-    function setCropBoxToStage() {
+    function bindAvatarControls() {
+        document.getElementById('rotateLeft').onclick = function () { if (avatarCropper) { avatarCropper.rotate(-90); avatarHasChanges = true; } };
+        document.getElementById('rotateRight').onclick = function () { if (avatarCropper) { avatarCropper.rotate(90); avatarHasChanges = true; } };
+        document.getElementById('zoomIn').onclick = function () { if (avatarCropper) { avatarCropper.zoom(0.1); avatarHasChanges = true; } };
+        document.getElementById('zoomOut').onclick = function () { if (avatarCropper) { avatarCropper.zoom(-0.1); avatarHasChanges = true; } };
+        document.getElementById('zoomSlider').oninput = function () { if (avatarCropper) { avatarCropper.zoomTo(parseFloat(this.value)); avatarHasChanges = true; } };
+        document.getElementById('avatarReset').onclick = function () {
+            if (!avatarCropper) return;
+            avatarCropper.reset();
+            fitCropBox();
+            syncCropGrid();
+            setupZoomSlider();
+            avatarHasChanges = true;
+        };
+        document.getElementById("avatarRemove").onclick = function () { removeAvatar(); };
+        document.getElementById('avatarCancel').onclick = function () { closeAvatarModalWithConfirm(); };
+        document.getElementById('avatarSave').onclick = function () { saveAvatarCrop(); };
+
+        // Wheel: este listener é adicionado uma vez só. Antes, cada troca de
+        // arquivo empilhava outro e um gesto ampliava N vezes.
+        //
+        // O listener fica no PALCO, e não na <img>: dentro do palco, a
+        // <img> é irmã do drag-box/cropper-box (não ancestral), então um
+        // gesto sobre a área de corte subia a árvore a partir do drag-box e
+        // nunca passava pela <img> — o zoom da roda simplesmente não
+        // acontecia. No palco, qualquer elemento abaixo entrega o evento.
+        var avatarStage = document.getElementById('avatarCropStage');
+        if (!avatarWheelBound && avatarStage) {
+            avatarWheelBound = true;
+            avatarStage.addEventListener('wheel', function (e) {
+                e.preventDefault();
+                if (!avatarCropper) return;
+                var delta = e.deltaY > 0 ? -0.1 : 0.1;
+                var currentZoom = currentZoomRatio();
+                var newZoom = Math.max(avatarCropper._minZoom, Math.min(avatarCropper._maxZoom, currentZoom + delta));
+                avatarCropper.zoomTo(newZoom);
+                avatarHasChanges = true;
+            }, { passive: false });
+        }
+    }
+
+    // Caixa de corte: quadrado centrality dentro do palco, com respiro.
+    // O respiro é o que faz a moldura circular parecer "preenchendo" o palco
+    // em vez de encostar nas bordas.
+    var AVATAR_CROP_PADDING = 16;
+
+    function fitCropBox() {
         if (!avatarCropper) return;
-        var containerData = avatarCropper.getContainerData();
-        // O frame é circular e preenche o container (sem padding extra)
-        var stageSize = Math.min(containerData.width, containerData.height);
-        var left = (containerData.width - stageSize) / 2;
-        var top = (containerData.height - stageSize) / 2;
+        var c = avatarCropper.getContainerData();
+        var stage = Math.min(c.width, c.height);
+        var size = Math.max(40, stage - (AVATAR_CROP_PADDING * 2));
         avatarCropper.setCropBoxData({
-            left: left,
-            top: top,
-            width: stageSize,
-            height: stageSize
+            left: (c.width - size) / 2,
+            top: (c.height - size) / 2,
+            width: size,
+            height: size
         });
+    }
+
+    // A malha acompanha a view-box real do Cropper, em vez de cobrir o palco
+    // inteiro — é isso que mantém a grade dentro do círculo de recorte.
+    function syncCropGrid() {
+        if (!avatarCropper || !avatarCropGrid) return;
+        var box = avatarCropper.getCropBoxData();
+        if (!box || !box.width) return;
+        avatarCropGrid.style.left = box.left + 'px';
+        avatarCropGrid.style.top = box.top + 'px';
+        avatarCropGrid.style.width = box.width + 'px';
+        avatarCropGrid.style.height = box.height + 'px';
+    }
+
+    // Zoom atual, na unidade que o Cropper.js usa em zoomTo().
+    //
+    // O Cropper relaciona: canvas renderizado = tamanho natural * escala * z.
+    // getData().width / naturalWidth NÃO é esse z — é a razão em pixels
+    // naturais (dá ~0.24 quando o z real é 0.4). Usar essa fórmula punha o
+    // slider abaixo do próprio min e a roda do mouse travava no mínimo,
+    // então nenhum zoom funcionava. Aqui o z sai de getImageData(), que já
+    // devolve o canvas renderizado, com a rotação/scala já aplicadas.
+    function currentZoomRatio() {
+        if (!avatarCropper) return 1;
+        var d = avatarCropper.getImageData();
+        var natW = d.naturalWidth * Math.abs(d.scaleX || 1);
+        var natH = d.naturalHeight * Math.abs(d.scaleY || 1);
+        // Com rotação de 90/270 os eixos naturais trocam de lugar.
+        if (d.rotate === 90 || d.rotate === 270) {
+            var t = natW; natW = natH; natH = t;
+        }
+        if (!natW || !natH) return 1;
+        return Math.max(d.width / natW, d.height / natH);
     }
 
     function setupZoomSlider() {
         if (!avatarCropper) return;
         var imageData = avatarCropper.getImageData();
-        var containerData = avatarCropper.getContainerData();
-        var stageSize = Math.min(containerData.width, containerData.height);
-        // Zoom mínimo = zoom de cobertura (imagem preenche o palco)
-        var minZoom = stageSize / Math.min(imageData.naturalWidth, imageData.naturalHeight);
-        // Zoom máximo = 3x o mínimo
-        var maxZoom = minZoom * 3;
-        var currentZoom = avatarCropper.getData().width / imageData.naturalWidth;
+        var box = avatarCropper.getCropBoxData();
 
-        // Guarda no cropper para usar no wheel
+        var z = currentZoomRatio();
+        // Menor zoom em que a caixa de corte ainda cabe dentro da imagem:
+        // medido a partir do canvas já renderizado, então vale para qualquer
+        // proporção e para imagem rotacionada. Abaixo disso aparecem bordas
+        // vazias — exatamente o defeito que viewMode 3 esconde sozinho.
+        var fitRatio = Math.max(
+            (box && box.width ? box.width / imageData.width : 1),
+            (box && box.height ? box.height / imageData.height : 1)
+        );
+        var minZoom = z * fitRatio;
+        // Teto: 3x o mínimo, mas nunca abaixo de 1.0 — zoom 1 é a imagem em
+        // 1:1 com o pixel, e o usuário sempre deve conseguir chegar lá.
+        var maxZoom = Math.max(minZoom * 3, 1);
+
         avatarCropper._minZoom = minZoom;
         avatarCropper._maxZoom = maxZoom;
 
         var zoomSlider = document.getElementById('zoomSlider');
-        zoomSlider.min = minZoom.toFixed(2);
-        zoomSlider.max = maxZoom.toFixed(2);
+        zoomSlider.min = minZoom.toFixed(3);
+        zoomSlider.max = maxZoom.toFixed(3);
         zoomSlider.step = '0.01';
-        zoomSlider.value = currentZoom.toFixed(2);
-    }
-
-    function updateAvatarPreview() {
-        if (!avatarCropper || !avatarPreviewCircle) return;
-        try {
-            var canvas = avatarCropper.getCroppedCanvas({
-                width: 80,
-                height: 80,
-                imageSmoothingQuality: 'high',
-            });
-            avatarPreviewCircle.style.backgroundImage = 'url(' + canvas.toDataURL('image/jpeg', 0.9) + ')';
-        } catch (e) {
-            // Ignora erros de canvas
-        }
+        zoomSlider.value = z.toFixed(3);
     }
 
     function openAvatarModal() {
@@ -1507,16 +1571,24 @@ account_layout_head($user, 'perfil');
             avatarCropper.destroy();
             avatarCropper = null;
         }
-        if (avatarCropperImage.src) {
-            URL.revokeObjectURL(avatarCropperImage.src);
-            avatarCropperImage.src = '';
+        // Libera o objectUrl só agora: revogar no onload quebrava o
+        // recorte porque o Cropper.js relia a imagem.
+        if (avatarObjectUrl) {
+            URL.revokeObjectURL(avatarObjectUrl);
+            avatarObjectUrl = null;
         }
+        avatarCropperImage.onload = null;
+        avatarCropperImage.removeAttribute('src');
+        if (avatarCropGrid) avatarCropGrid.removeAttribute('style');
         avatarCropperModal.hidden = true;
         document.body.classList.remove('account-modal-open');
         var avatarInput = document.getElementById('avatarInput');
         if (avatarInput) avatarInput.value = '';
-        // Devolve foco ao badge de câmera na sidebar
-        var cameraBadge = document.querySelector('.avatar-camera-badge, [data-avatar-trigger]');
+        // Devolve foco ao botão de câmera da sidebar. O seletor antigo procurava
+        // .avatar-camera-badge / [data-avatar-trigger], que não existem no
+        // markup — o botão real é #avatarEditBtn (classe .avatar-edit), então
+        // o foco caía no <body> ao fechar.
+        var cameraBadge = document.querySelector('#avatarEditBtn, .avatar-edit, .avatar-camera-badge, [data-avatar-trigger]');
         if (cameraBadge && typeof cameraBadge.focus === 'function') {
             cameraBadge.focus();
         }
@@ -1539,9 +1611,10 @@ account_layout_head($user, 'perfil');
 
     // Redimensionar cropper ao redimensionar janela
     window.addEventListener('resize', function () {
-        if (avatarCropper && !avatarCropperModal.hidden) {
+        if (avatarCropper && avatarCropperModal && !avatarCropperModal.hidden) {
             avatarCropper.resize();
-            setCropBoxToStage();
+            fitCropBox();
+            syncCropGrid();
             setupZoomSlider();
         }
     });
@@ -1553,23 +1626,19 @@ account_layout_head($user, 'perfil');
         setButtonLoading(saveBtn, true);
 
         try {
-            // Valida se o crop está dentro da imagem
+            // viewMode 3 já impede o recorte de sair da imagem. Este bloco é
+            // só uma rede de segurança: se mesmo assim getData() reportar
+            // coords fora dos limites, re-centraliza e re-calcula o zoom em
+            // vez de passar coordenada natural para setCropBoxData (que
+            // espera coordenada de container — bug antigo que deslocava a
+            // caixa para o canto).
             var cropData = avatarCropper.getData();
             var imageData = avatarCropper.getImageData();
             if (cropData.x < 0 || cropData.y < 0 ||
                 cropData.x + cropData.width > imageData.naturalWidth ||
                 cropData.y + cropData.height > imageData.naturalHeight) {
-                // Corrige movendo/zoom para caber
-                var maxX = imageData.naturalWidth - cropData.width;
-                var maxY = imageData.naturalHeight - cropData.height;
-                var newX = Math.max(0, Math.min(cropData.x, maxX));
-                var newY = Math.max(0, Math.min(cropData.y, maxY));
-                avatarCropper.setCropBoxData({
-                    left: newX,
-                    top: newY,
-                    width: cropData.width,
-                    height: cropData.height
-                });
+                fitCropBox();
+                syncCropGrid();
             }
 
             var canvas = avatarCropper.getCroppedCanvas({
@@ -2259,10 +2328,11 @@ account_layout_head($user, 'perfil');
     // Expose functions to global scope for inline event handlers
     window.saveAvatarCrop = saveAvatarCrop;
     window.removeAvatar = removeAvatar;
-    window.avatarCropper = avatarCropper;
+    // Getter, não cópia: avatarCropper é reatribuído a cada arquivo escolhido
+    // e no close. Uma atribuição única exportava sempre o null inicial.
+    Object.defineProperty(window, 'avatarCropper', { get: function () { return avatarCropper; } });
     window.closeAvatarModal = closeAvatarModal;
     window.openAvatarModal = openAvatarModal;
-    window.updateAvatarPreview = updateAvatarPreview;
 })();
 </script>
 

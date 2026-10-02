@@ -299,7 +299,18 @@ function account_layout_head(array $user, string $active, ?string $breadcrumb = 
     // O header.php lê este array; sem ele a folha da conta acabaria
     // emitida no <body>, onde o navegador ainda a aplica, mas o HTML
     // fica inválido e o devtools mostra o aviso.
-    $extra_head_css = [asset_url('assets/css/account.css')];
+    //
+    // A página que chama este layout pode ter pedido folhas extras via
+    // $GLOBALS['extra_head_css'] (o editor de avatar usa a do Cropper.js).
+    // Isto sobrescrevia o array e a folha extra nunca era linkada — o
+    // Cropper.js subia sem CSS nenhum e a caixa de corte nascia sem
+    // posicionamento, o que era a causa do editor de foto quebrado.
+    $accountCss = asset_url('assets/css/account.css');
+    $extraCss  = $GLOBALS['extra_head_css'] ?? [];
+    if (!is_array($extraCss)) {
+        $extraCss = [$extraCss];
+    }
+    $extra_head_css = array_values(array_unique(array_merge([$accountCss], $extraCss)));
 
     require_once dirname(__DIR__) . '/components/header.php';
     ?>

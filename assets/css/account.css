@@ -2106,82 +2106,83 @@ body.modal-open {
     min-height: 0;
 }
 
+/* O palco é um quadrado neutro que delimita a área visível do recorte.
+   O `overflow: hidden` aqui é seguro e necessário: o canvas do Cropper é
+   maior que o palco (480px dentro de 320px, porque a imagem é arrastada
+   para fora dos limites ao enquadrar) e, sem o clip, a foto vazava para
+   fora da moldura. O recorte SALVO não é afetado — ele vem de
+   getCroppedCanvas(), que usa as coordenadas do Cropper, e não os pixels
+   desenhados na tela. */
 .avatar-editor-frame {
     position: relative;
+    flex: 0 0 auto;
+    /* `flex: 0 0 auto` impede a esticada vertical que transformava o palco
+       em 304x1083. O dimensionamento vem da largura; o aspect-ratio deriva
+       a altura. Não usar `height: %` aqui: o pai é flex com altura
+       resolvida pelo conteúdo, então a porcentagem colapsava para 0 em
+       viewport alto. */
     width: min(100%, 320px);
-    aspect-ratio: 1/1;
-    border-radius: 50%;
+    aspect-ratio: 1 / 1;
+    margin: 0 auto;
     overflow: hidden;
-    border: 3px solid #d4af37;
-    box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.15), 0 8px 32px rgba(0, 0, 0, 0.4);
     background: #101010;
 }
 
-/* O cropper cria seu próprio container; o frame serve só de moldura visual.
-   O cropper-view-box (circular) é que define a área de recorte real. */
+/* Malha 3x3 (regra dos terços). É a ÚNICA camada desenhada em círculo e
+   fica com `pointer-events: none` de propósito: ela é só o overlay que
+   marca o recorte final e nunca pode roubar o ponteiro do arrasto. */
+.avatar-crop-grid {
+    position: absolute;
+    z-index: 10;
+    pointer-events: none;
+    border-radius: 50%;
+    outline: 2px solid rgba(212, 175, 55, 0.9);
+    /* O spread de 9999px escurece tudo que está FORA do círculo; o
+       `overflow: hidden` do palco impede que essa sombra escape para o
+       resto da modal. */
+    box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.18), 0 0 0 9999px rgba(0, 0, 0, 0.55);
+    background-image:
+        linear-gradient(to right, rgba(255, 255, 255, 0.22) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.22) 1px, transparent 1px);
+    background-size: 33.3333% 33.3333%;
+    background-position: 0 0;
+}
+
 .avatar-editor-frame .cropper-container {
     width: 100% !important;
     height: 100% !important;
 }
 
+/* NENHUM elemento estrutural do Cropper recebe `border-radius` aqui.
+   O Cropper decide a ação do arrasto pelo elemento que recebe o
+   pointerdown (cropper-move / cropper-crop / cropper-point). Com
+   `border-radius: 50%`, as quinas do círculo ficam fora da área de acerto
+   do elemento: o pointerdown caía no `.cropper-crop-box`, que não tem ação
+   associada, e o arrastar morria em silêncio exatamente nos cantos do
+   círculo e nos quatro cantos do palco. O círculo vem só do overlay da
+   malha, que não intercepta o ponteiro. */
 .avatar-editor-frame .cropper-view-box {
-    border-radius: 50%;
-    outline: 2px solid #d4af37;
-    outline-color: rgba(212, 175, 55, 0.9);
-    box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.15), 0 8px 32px rgba(0, 0, 0, 0.4);
+    outline: none;
+    opacity: 1;
 }
 
-.avatar-editor-frame .cropper-face {
-    border-radius: 50%;
-}
-
-.avatar-editor-frame .cropper-canvas,
-.avatar-editor-frame .cropper-crop-box,
-.avatar-editor-frame .cropper-drag-box,
+/* O Cropper aplica `cropper-modal` no drag-box para escurecer o entorno da
+   caixa de corte. Aqui o drag-box cobre o palco INTEIRO (320x320), então o
+   escurecimento também passava por cima da área que será salva — as cores
+   da foto no editor saíam erradas em relação ao avatar final. Quem
+   escurece fora do círculo agora é o box-shadow da malha. */
 .avatar-editor-frame .cropper-modal,
-.avatar-editor-frame .cropper-wrap-box {
-    border-radius: 50%;
+.avatar-editor-frame .cropper-drag-box {
+    background: none;
+    opacity: 1;
 }
 
-.avatar-editor-frame::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: 50%;
-    pointer-events: none;
-    background-image:
-        linear-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
-    background-size: 20% 20%;
-    z-index: 10;
-}
-
+/* object-fit:cover aqui deformaria o transform do Cropper.js: o canvas é
+   posicionado por left/top/scale, e o cover o redesenha por fora. */
 .avatar-editor-frame img {
     display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+    max-width: 100%;
     z-index: 0;
-}
-
-.avatar-editor-preview-mini {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-top: 4px;
-    flex: 0 0 auto;
-}
-
-.avatar-editor-preview-circle {
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    border: 2px solid #d4af37;
-    background: #101010;
-    background-size: cover;
-    background-position: center;
-    overflow: hidden;
-    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5);
 }
 
 .avatar-editor-controls {
@@ -2313,19 +2314,9 @@ body.modal-open {
     min-width: 100px;
 }
 
-/* Cropper.js overrides para moldura circular */
-/* Cropper.js overrides globais (fallback) */
-.cropper-view-box,
-.cropper-face {
-    border-radius: 50%;
-}
-
-.cropper-view-box {
-    outline: 2px solid #d4af37;
-    outline-color: rgba(212, 175, 55, 0.9);
-    box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.15), 0 8px 32px rgba(0, 0, 0, 0.4);
-}
-
+/* Guias nativas do Cropper (dashed/center/point/line). As opções já as
+   desligam (guides:false, highlight:false, cropBoxResizable:false); o
+   display:none é só uma rede de segurança. */
 .cropper-dashed,
 .cropper-center,
 .cropper-point,
@@ -2333,10 +2324,16 @@ body.modal-open {
     display: none;
 }
 
-.cropper-modal {
-    background: #000;
-    opacity: 0.6;
-}
+/* O anel dourado, o círculo e a máscara externa são desenhados UMA vez só,
+   pela malha (`.avatar-crop-grid`). Repetir `outline`/`box-shadow` aqui
+   produzia um segundo anel sobreposto no mesmo retângulo de 288x288 — era
+   um dos "dois círculos" da tela de edição. E `border-radius: 50%` em
+   qualquer elemento estrutural do Cropper tira as quinas do círculo da área
+   de acerto do elemento, o que mata o arrasto exatamente nos cantos. */
+
+/* O escurecimento do entorno da caixa de corte é feito pelo box-shadow da
+   malha (ver `.avatar-editor-frame .cropper-modal`), e não por aqui: esta
+   regra global escureceria a área que será salva junto com o resto. */
 
 /* Override do modal para modo full */
 .account-modal[aria-modal="true"] .account-modal-panel--full {
