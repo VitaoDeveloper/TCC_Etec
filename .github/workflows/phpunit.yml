@@ -1,30 +1,76 @@
 name: PHPUnit
 
 on:
-  pull_request:
-    branches: ["**"]
   push:
-    branches: ["**"]
+    branches: ['*']
+  pull_request:
+    branches: ['*']
 
 jobs:
   test:
+    name: PHPUnit (PHP 8.2, MariaDB 10.4)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      db:
+        image: mariadb:10.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: e5_royaltech
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_NAME: e5_royaltech
+      DB_USER: root
+      DB_PASS: root
+      DB_CHARSET: utf8mb4
+      # App env (for tests that read these)
+      APP_ENV: test
+      MAIL_TRANSPORT: file
+      SUPERFRETE_TOKEN: ${{ secrets.SUPERFRETE_TOKEN }}
+      SUPERFRETE_BASE_URL: https://sandbox.superfrete.com/
+      SUPERFRETE_WEBHOOK_SECRET: ${{ secrets.SUPERFRETE_WEBHOOK_SECRET }}
 
     steps:
-      - name: Checkout do código
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Configurar PHP
+      - name: Setup PHP 8.2
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
+          php-version: '8.2'
+          extensions: pdo, pdo_mysql, mbstring, gd, curl, fileinfo, openssl, dom, xml, json
           coverage: none
+          ini-values: memory_limit=256M
 
-      - name: Instalar dependências (composer)
-        run: composer install --no-interaction --prefer-dist --no-progress --no-scripts
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ runner.os }}-${{ hashFiles('**/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
 
-      - name: Rodar testes (phpunit)
-        run: vendor/bin/phpunit
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
 
-      - name: Confirmar teste de integridade executou
-        run: vendor/bin/phpunit --filter AssetIntegrityTest
+      - name: Wait for MariaDB to be ready
+        run: |
+          for i in {1..30}; do
+            mysqladmin ping -h 127.0.0.1 -uroot -proot --silent && break
+            echo "Waiting for MariaDB... ($i/30)"
+            sleep 2
+          done
+
+      - name: Import database schema + seed
+        run: mysql -h 127.0.0.1 -uroot -proot e5_royaltech < database/database.sql
+
+      - name: Run PHPUnit (excluding @group network)
+        run: php vendor/bin/phpunit --exclude-group network
