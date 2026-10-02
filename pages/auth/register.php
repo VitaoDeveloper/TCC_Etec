@@ -1,12 +1,15 @@
 <?php
 session_start();
 require_once __DIR__ . '/../../includes/csrf.php';
+require_once __DIR__ . '/../../includes/config.php';
 
 if (isset($_SESSION['user_id'])) {
     header('Location: ../products/products.php');
     exit;
 }
 
+$siteLogo = get_site_logo();
+$storeName = store_config('store_name') ?: 'Royal Tech';
 $feedbackErrors = $_SESSION['auth_errors'] ?? [];
 $old = $_SESSION['auth_old'] ?? [];
 unset($_SESSION['auth_errors'], $_SESSION['auth_old']);
@@ -29,8 +32,12 @@ unset($_SESSION['auth_errors'], $_SESSION['auth_old']);
   <main class="auth-shell">
     <aside class="auth-brand">
       <a href="../../index.php" class="auth-brand-logo" aria-label="Royal Tech — Página inicial">
+        <?php if ($siteLogo !== ''): ?>
+        <img src="<?php echo htmlspecialchars('../../' . ltrim($siteLogo, '/'), ENT_QUOTES, 'UTF-8'); ?>" class="auth-brand-logo-img" alt="<?php echo htmlspecialchars($storeName, ENT_QUOTES, 'UTF-8'); ?>">
+        <?php else: ?>
         <span class="logo-icon"><i class="fas fa-crown"></i></span>
         <span class="logo-text">Royal<span>Tech</span></span>
+        <?php endif; ?>
       </a>
       <p class="auth-brand-tagline">Tecnologia premium para quem exige o melhor.</p>
       <ul class="auth-brand-perks">

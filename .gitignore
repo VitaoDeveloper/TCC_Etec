@@ -2,9 +2,6 @@
 .env.prod
 test
 vendor
-assets/img/*/*
-!assets/img/theme/
-!assets/img/theme/accent-mark.png
 storage/*
 .phpunit.cache/
 .phpunit.result.cache

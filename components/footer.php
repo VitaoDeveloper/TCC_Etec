@@ -1,4 +1,7 @@
-<?php require_once dirname(__DIR__) . '/includes/config.php'; ?>
+<?php
+require_once dirname(__DIR__) . '/includes/config.php';
+$siteLogo = get_site_logo();
+?>
     <!-- Footer -->
     <footer class="main-footer">
         <div class="footer-top">
@@ -6,8 +9,12 @@
                 <div class="footer-grid">
                     <div class="footer-col">
                         <div class="footer-logo">
+                            <?php if ($siteLogo !== ''): ?>
+                            <img src="<?php echo htmlspecialchars(($base_path ?? '') . ltrim($siteLogo, '/'), ENT_QUOTES, 'UTF-8'); ?>" class="footer-logo-img" alt="<?php echo htmlspecialchars(store_config('store_name') ?: 'Royal Tech', ENT_QUOTES, 'UTF-8'); ?>">
+                            <?php else: ?>
                             <span class="logo-icon"><i class="fas fa-crown"></i></span>
                             <span class="logo-text">Royal<span>Tech</span></span>
+                            <?php endif; ?>
                         </div>
                         <p class="footer-desc">Sua loja de tecnologia premium. Oferecemos os melhores produtos tecnológicos com qualidade e atendimento diferenciado.</p>
                         <div class="footer-social">
