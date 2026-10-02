@@ -420,10 +420,18 @@ function order_apply_status(PDO $pdo, int $orderId, string $to, array $opts = []
  * banco marca dourado com data/hora, o que nao existe fica cinza. Um
  * pedido cancelado nunca avanca etapas: o historico nao ganha linhas
  * novas e a faixa vermelha aparece acima da linha do tempo.
+ *
+ * $history existe para a listagem: quem desenha 10 cards de uma vez ja
+ * buscou a trilha dos 10 numa consulta so (order_repo_history_batch) e a
+ * repassa aqui, o que evita uma query por card. Sem o parametro o
+ * comportamento e o de sempre - a trilha e lida do banco -, entao as
+ * telas que mostram um pedido por vez nao mudam.
+ *
+ * @param array<int, array>|null $history Trilha ja carregada, ou null para ler do banco.
  */
-function order_progress(PDO $pdo, array $order): array
+function order_progress(PDO $pdo, array $order, ?array $history = null): array
 {
-    $history = order_repo_history($pdo, (int) $order['id']);
+    $history = $history ?? order_repo_history($pdo, (int) $order['id']);
     $byStatus = [];
     foreach ($history as $h) {
         $byStatus[(string) $h['status']] = $h;

@@ -69,6 +69,47 @@ function order_repo_items(PDO $pdo, int $orderId): array
     return $st->fetchAll();
 }
 
+/**
+ * Itens de varios pedidos em uma consulta so.
+ *
+ * A versao por pedido (order_repo_items) e um SELECT por pedido, o que
+ * numa listagem de 10 pedidos vira 10 idas ao banco para desenhar a
+ * mesma informacao. Aqui os ids entram num unico IN e o PHP agrupa.
+ *
+ * Mesma semantica da funcao por pedido: o nome exibido e o snapshot da
+ * compra (oi.product_name) e, so quando o snapshot nao existe, o nome
+ * atual do catalogo.
+ *
+ * @param int[] $orderIds
+ * @return array<int, array<int, array>> order_id => itens (na ordem de oi.id)
+ */
+function order_repo_items_batch(PDO $pdo, array $orderIds): array
+{
+    $orderIds = order_repo_normalize_ids($orderIds);
+    if ($orderIds === []) {
+        return [];
+    }
+
+    $st = $pdo->prepare(
+        'SELECT oi.order_id, oi.product_id, oi.quantity, oi.unit_price,
+                oi.product_name, oi.product_image,
+                COALESCE(oi.product_name, p.name) AS display_name,
+                p.slug AS product_slug
+           FROM e5_order_items oi
+           LEFT JOIN e5_products p ON p.id = oi.product_id
+          WHERE oi.order_id IN (' . order_repo_id_placeholders($orderIds) . ')
+          ORDER BY oi.order_id ASC, oi.id ASC'
+    );
+    $st->execute(order_repo_id_params($orderIds));
+
+    $byOrder = [];
+    foreach ($st->fetchAll() as $row) {
+        $byOrder[(int) $row['order_id']][] = $row;
+    }
+
+    return $byOrder;
+}
+
 /** Pagamento do pedido (o unico ativo, ou o terminal mais recente). */
 function order_repo_payment(PDO $pdo, int $orderId): ?array
 {
@@ -93,6 +134,39 @@ function order_repo_history(PDO $pdo, int $orderId): array
     $st->execute([':oid' => $orderId]);
 
     return $st->fetchAll();
+}
+
+/**
+ * Trilha de status de varios pedidos em uma consulta so.
+ *
+ * Mesma razao de order_repo_items_batch: a linha do tempo do card e
+ * lida de e5_order_history, e consultar pedido a pedido transformaria
+ * a listagem num laço de queries.
+ *
+ * @param int[] $orderIds
+ * @return array<int, array<int, array>> order_id => historico (ordem cronologica)
+ */
+function order_repo_history_batch(PDO $pdo, array $orderIds): array
+{
+    $orderIds = order_repo_normalize_ids($orderIds);
+    if ($orderIds === []) {
+        return [];
+    }
+
+    $st = $pdo->prepare(
+        'SELECT order_id, status, note, created_at
+           FROM e5_order_history
+          WHERE order_id IN (' . order_repo_id_placeholders($orderIds) . ')
+          ORDER BY order_id ASC, id ASC'
+    );
+    $st->execute(order_repo_id_params($orderIds));
+
+    $byOrder = [];
+    foreach ($st->fetchAll() as $row) {
+        $byOrder[(int) $row['order_id']][] = $row;
+    }
+
+    return $byOrder;
 }
 
 /**
@@ -180,6 +254,99 @@ function order_repo_tracking_events(PDO $pdo, int $orderId): array
     $row = $st->fetch();
 
     return $row === false ? [] : [$row];
+}
+
+/**
+ * Ultimo registro de e5_shipments de varios pedidos em uma consulta so.
+ *
+ * Reproduz a escolha de order_repo_tracking_events (a linha mais recente
+ * por pedido, ORDER BY id DESC LIMIT 1) sem repetir a query por card.
+ * A chave do retorno e o order_id, e o valor ja e a linha vencedora:
+ * quem chama so precisa saber se existe URL de rastreio.
+ *
+ * @param int[] $orderIds
+ * @return array<int, array> order_id => linha mais recente
+ */
+function order_repo_shipments_batch(PDO $pdo, array $orderIds): array
+{
+    $orderIds = order_repo_normalize_ids($orderIds);
+    if ($orderIds === []) {
+        return [];
+    }
+
+    $st = $pdo->prepare(
+        'SELECT order_id, tracking_code, carrier, service, label_url, status
+           FROM e5_shipments
+          WHERE order_id IN (' . order_repo_id_placeholders($orderIds) . ')
+          ORDER BY order_id ASC, id DESC'
+    );
+    $st->execute(order_repo_id_params($orderIds));
+
+    $latest = [];
+    foreach ($st->fetchAll() as $row) {
+        $orderId = (int) $row['order_id'];
+        // DESC por id: a primeira linha de cada pedido e a mais recente,
+        // entao as seguintes do mesmo pedido sao descartadas.
+        if (!isset($latest[$orderId])) {
+            $latest[$orderId] = $row;
+        }
+    }
+
+    return $latest;
+}
+
+/**
+ * Normaliza a lista de ids que entra num IN().
+ *
+ * Deduplica, descarta o que nao for inteiro e ordena, para que a mesma
+ * pagina montada duas vezes gere a mesma SQL (e o mesmo cache do banco).
+ *
+ * @param array<int|string> $ids
+ * @return int[]
+ */
+function order_repo_normalize_ids(array $ids): array
+{
+    $clean = [];
+    foreach ($ids as $id) {
+        $n = (int) $id;
+        if ($n > 0) {
+            $clean[$n] = $n;
+        }
+    }
+    ksort($clean);
+
+    return array_values($clean);
+}
+
+/**
+ * Placeholders nomeados :oid0, :oid1... para um IN de tamanho variavel.
+ *
+ * Nomeados em vez de posicionais porque o mesmo trecho de SQL pode ser
+ * montado em outro lugar com outros params; e cada nome so pode
+ * aparecer uma vez na statement com EMULATE_PREPARES desligado.
+ *
+ * @param int[] $ids
+ */
+function order_repo_id_placeholders(array $ids): string
+{
+    return implode(', ', array_map(
+        static fn(int $i): string => ':oid' . $i,
+        $ids
+    ));
+}
+
+/**
+ * @param int[] $ids
+ * @return array<string, int>
+ */
+function order_repo_id_params(array $ids): array
+{
+    $params = [];
+    foreach ($ids as $i) {
+        $params[':oid' . $i] = $i;
+    }
+
+    return $params;
 }
 
 /**

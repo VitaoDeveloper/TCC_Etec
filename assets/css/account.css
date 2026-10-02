@@ -2351,3 +2351,669 @@ body.modal-open {
         padding: 10px 14px;
     }
 }
+
+/* =====================================================================
+   Meus Pedidos (pages/auth/orders.php)
+   ---------------------------------------------------------------------
+   Cards de pedido, resumo, toolbar de busca/ordem e os chips de status.
+
+   Tudo com os tokens --rt-* do tema escuro: cor literal nesta seção
+   enjoaria de sincronizar com o resto da conta na próxima troca de
+   paleta. As únicas exceções são as cores de status dos pills, que
+   precisam ser reconhecíveis por si (verde = entregue, vermelho =
+   cancelado) e já são as mesmas em order_state.php.
+   ===================================================================== */
+
+/* ---------- Resumo ---------- */
+.orders-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--account-gap);
+    margin-bottom: var(--account-gap);
+}
+
+.stat-card {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    padding: 16px;
+    background: var(--rt-bg-surface);
+    border: 1px solid var(--rt-border);
+    border-radius: var(--account-radius);
+    min-width: 0;
+}
+
+.stat-card__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 42px;
+    height: 42px;
+    border-radius: 11px;
+    background: var(--rt-accent-soft);
+    border: 1px solid var(--rt-accent-line);
+    color: var(--rt-accent);
+    font-size: 1.05rem;
+}
+
+.stat-card__icon--ongoing {
+    background: rgba(106, 169, 255, 0.12);
+    border-color: rgba(106, 169, 255, 0.3);
+    color: var(--rt-info);
+}
+
+.stat-card__icon--delivered {
+    background: var(--rt-success-soft);
+    border-color: rgba(0, 166, 80, 0.32);
+    color: var(--rt-success);
+}
+
+.stat-card__icon--spent {
+    background: rgba(212, 175, 55, 0.14);
+    border-color: var(--rt-accent-line);
+    color: var(--rt-accent-light);
+}
+
+.stat-card__body {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.stat-card__value {
+    font-size: 1.28rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--rt-text-strong);
+    /* "R$ 1.234,56" é o valor mais longo do card; sem isso ele empurraria
+       o layout em telas estreitas. */
+    overflow-wrap: anywhere;
+}
+
+.stat-card__label {
+    font-size: 0.76rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--rt-text-muted);
+}
+
+.stat-card__hint {
+    font-size: 0.74rem;
+    color: var(--rt-text-faint);
+}
+
+/* ---------- Toolbar: busca + ordenação ---------- */
+.orders-controls {
+    margin-bottom: var(--account-gap);
+}
+
+.orders-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.orders-search {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 1 1 260px;
+    min-width: 0;
+}
+
+.orders-search > i {
+    position: absolute;
+    left: 13px;
+    font-size: 0.82rem;
+    color: var(--rt-text-faint);
+    pointer-events: none;
+}
+
+.orders-search__input {
+    width: 100%;
+    padding: 11px 14px 11px 36px;
+    background: var(--account-input-bg, var(--rt-bg-inset));
+    border: 1px solid var(--rt-border);
+    border-radius: 10px;
+    color: var(--rt-text-strong);
+    font-size: 0.88rem;
+}
+
+.orders-search__input::placeholder {
+    color: var(--rt-text-faint);
+}
+
+/* O anel de foco NÃO é declarado aqui de propósito: em components.css
+   já existe `:where(input, select, textarea):not([type=checkbox])
+   :not([type=radio]):focus`, que desenha 3px de `--rt-accent`. Uma
+   regra defocus aqui perde no confronto de especificidade e ficaria
+   morta no CSS, dando a impressão de que o foco do campo de busca foi
+   tratado. */
+
+.orders-sort {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.orders-sort > i {
+    position: absolute;
+    right: 12px;
+    font-size: 0.7rem;
+    color: var(--rt-text-faint);
+    pointer-events: none;
+}
+
+.orders-sort__select {
+    appearance: none;
+    -webkit-appearance: none;
+    padding: 11px 34px 11px 14px;
+    background: var(--account-input-bg, var(--rt-bg-inset));
+    border: 1px solid var(--rt-border);
+    border-radius: 10px;
+    color: var(--rt-text-secondary);
+    font-size: 0.84rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* Mesmo anel de foco do campo de busca: vem da regra global de
+   components.css, não daqui. Ver o comentário em .orders-search__input. */
+
+/* ---------- Chips de status ---------- */
+.orders-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 13px;
+    border-radius: 999px;
+    background: var(--rt-bg-inset);
+    border: 1px solid var(--rt-border);
+    color: var(--rt-text-secondary);
+    font-size: 0.82rem;
+    font-weight: 600;
+    transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.chip:hover {
+    border-color: var(--rt-accent-line);
+    color: var(--rt-text-strong);
+}
+
+.chip.is-active {
+    background: var(--rt-accent-soft);
+    border-color: var(--rt-accent);
+    color: var(--rt-accent);
+}
+
+.chip-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--rt-text-soft);
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.chip.is-active .chip-count {
+    background: rgba(212, 175, 55, 0.18);
+    color: var(--rt-accent-light);
+}
+
+/* ---------- Lista e grupo de mês ---------- */
+.orders-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.orders-group {
+    margin: 8px 0 0;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--rt-text-muted);
+}
+
+.orders-group:first-child {
+    margin-top: 0;
+}
+
+/* ---------- Card ---------- */
+.order-card {
+    padding: 16px;
+    background: var(--rt-bg-surface);
+    border: 1px solid var(--rt-border);
+    border-radius: var(--account-radius);
+    transition: border-color 0.15s ease;
+}
+
+.order-card:hover {
+    border-color: var(--rt-border-strong);
+}
+
+.order-card__top {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+}
+
+.order-card__body {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.order-thumb {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 54px;
+    height: 54px;
+    border-radius: 10px;
+    background: var(--rt-bg-inset);
+    border: 1px solid var(--rt-border-subtle);
+    color: var(--rt-text-faint);
+    font-size: 1.15rem;
+    overflow: hidden;
+}
+
+.order-thumb__img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.order-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.order-title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--rt-text-strong);
+}
+
+.pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.74rem;
+    font-weight: 700;
+    border: 1px solid transparent;
+    white-space: nowrap;
+}
+
+.pill--pending {
+    background: rgba(245, 197, 24, 0.13);
+    border-color: rgba(245, 197, 24, 0.34);
+    color: #f5c518;
+}
+
+.pill--paid {
+    background: var(--rt-success-soft);
+    border-color: rgba(0, 166, 80, 0.32);
+    color: #2ecc71;
+}
+
+.pill--preparing {
+    background: rgba(106, 169, 255, 0.13);
+    border-color: rgba(106, 169, 255, 0.32);
+    color: #6aa9ff;
+}
+
+.pill--shipped {
+    background: rgba(167, 139, 250, 0.14);
+    border-color: rgba(167, 139, 250, 0.34);
+    color: #a78bfa;
+}
+
+.pill--delivered {
+    background: rgba(34, 197, 94, 0.14);
+    border-color: rgba(34, 197, 94, 0.34);
+    color: #22c55e;
+}
+
+.pill--canceled {
+    background: var(--rt-danger-soft);
+    border-color: rgba(255, 97, 97, 0.34);
+    color: #ff6161;
+}
+
+.pill--refunded {
+    background: rgba(106, 169, 255, 0.11);
+    border-color: rgba(106, 169, 255, 0.28);
+    color: #8fbcff;
+}
+
+.order-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    margin-top: 6px;
+}
+
+.order-meta__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    color: var(--rt-text-soft);
+}
+
+.order-meta__item i {
+    font-size: 0.72rem;
+    color: var(--rt-text-faint);
+}
+
+.order-items {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-top: 8px;
+    font-size: 0.84rem;
+    min-width: 0;
+}
+
+.order-items__name {
+    color: var(--rt-text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.order-items__qty {
+    flex: 0 0 auto;
+    color: var(--rt-text-faint);
+}
+
+.order-items__more {
+    flex: 0 0 auto;
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: var(--rt-accent-soft);
+    color: var(--rt-accent);
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: help;
+}
+
+.order-total {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    flex: 0 0 auto;
+    text-align: right;
+}
+
+.order-total__label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--rt-text-faint);
+}
+
+.order-total__value {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--rt-accent);
+    white-space: nowrap;
+}
+
+/* ---------- Aviso do card ---------- */
+.order-notice {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin: 13px 0 0;
+    padding: 10px 13px;
+    border-radius: 10px;
+    font-size: 0.82rem;
+    border: 1px solid transparent;
+}
+
+.order-notice i {
+    flex: 0 0 auto;
+}
+
+.order-notice strong {
+    font-variant-numeric: tabular-nums;
+}
+
+.order-notice--warning {
+    background: rgba(245, 197, 24, 0.1);
+    border-color: rgba(245, 197, 24, 0.28);
+    color: #f5c518;
+}
+
+.order-notice--info {
+    background: rgba(106, 169, 255, 0.1);
+    border-color: rgba(106, 169, 255, 0.26);
+    color: #9ec8ff;
+}
+
+.order-notice--success {
+    background: var(--rt-success-soft);
+    border-color: rgba(0, 166, 80, 0.28);
+    color: #4ade80;
+}
+
+.order-notice--danger {
+    background: var(--rt-danger-soft);
+    border-color: rgba(255, 97, 97, 0.28);
+    color: #ff8f8f;
+}
+
+/* ---------- Tracker de 5 etapas ---------- */
+.tracker {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    margin: 15px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.tracker__step {
+    position: relative;
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 5px;
+    padding: 0 5px;
+}
+
+/* Conector entre etapas: cinza por padrão, dourado só no trecho que o
+   pedido realmente percorreu — o mesmo desenho do detalhe do pedido. */
+.tracker__step:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 13px;
+    left: calc(50% + 14px);
+    right: calc(-50% + 14px);
+    height: 2px;
+    background: var(--rt-border);
+}
+
+.tracker__step.is-done:not(:last-child)::after {
+    background: var(--rt-accent);
+}
+
+.tracker__dot {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--rt-bg-surface);
+    border: 1px solid var(--rt-border);
+    color: var(--rt-text-faint);
+    font-size: 0.68rem;
+}
+
+.tracker__step.is-done .tracker__dot {
+    background: var(--rt-accent-soft);
+    border-color: var(--rt-accent);
+    color: var(--rt-accent);
+}
+
+.tracker__label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    line-height: 1.25;
+    color: var(--rt-text-muted);
+}
+
+.tracker__step.is-done .tracker__label {
+    color: var(--rt-text-secondary);
+}
+
+.tracker__date {
+    font-size: 0.66rem;
+    color: var(--rt-text-faint);
+    min-height: 1em;
+}
+
+/* ---------- Ações ---------- */
+.order-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 9px;
+    margin-top: 15px;
+    padding-top: 13px;
+    border-top: 1px solid var(--rt-border-subtle);
+}
+
+/* O form de "Comprar novamente" é inline só para o botão ficar na mesma
+   linha dos links vizinhos — sem isso cada ação viraria um bloco. */
+.order-actions form {
+    display: inline;
+    margin: 0;
+}
+
+/* Alinha a altura do <button> com a dos <a> vizinhos. As duas classes
+   são a mesma (account-btn account-btn--sm) e o padding também, mas o
+   Chromium deixa <button> com line-height: normal (~16px de caixa)
+   enquanto o <a> herda o 1.6 do body (20.48px). Sem isto o botão de
+   recompra saía 4.5px mais baixo que "Ver detalhes" na mesma linha. */
+.order-actions .account-btn {
+    line-height: 1.6;
+}
+
+/* ---------- Estado vazio ---------- */
+.orders-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 10px;
+    padding: 46px 24px;
+    background: var(--rt-bg-surface);
+    border: 1px solid var(--rt-border);
+    border-radius: var(--account-radius);
+}
+
+.orders-empty > i {
+    font-size: 2.1rem;
+    color: var(--rt-text-faint);
+}
+
+.orders-empty__title {
+    margin: 0;
+    font-size: 1.06rem;
+    font-weight: 700;
+    color: var(--rt-text-strong);
+}
+
+.orders-empty__text {
+    margin: 0 0 6px;
+    font-size: 0.86rem;
+    color: var(--rt-text-soft);
+}
+
+/* ---------- Responsivo ----------
+   1100px: o resumo perde uma coluna, que é onde a grade aperta primeiro.
+   900px: o topo do card empilha, para o total não espremer o nome do
+   produto em telas médias.
+   640px: coluna única e toolbar com o botão occupying a linha inteira —
+   é o ponto em que "Buscar" ao lado do select fica ilegível. */
+@media (max-width: 1100px) {
+    .orders-stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 900px) {
+    .order-card__top {
+        flex-wrap: wrap;
+    }
+
+    .order-total {
+        align-items: flex-start;
+        text-align: left;
+        width: 100%;
+        padding-top: 4px;
+        border-top: 1px solid var(--rt-border-subtle);
+    }
+}
+
+@media (max-width: 640px) {
+    .orders-stats {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .orders-toolbar > .account-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .orders-sort,
+    .orders-sort__select {
+        width: 100%;
+    }
+
+    .tracker__label {
+        font-size: 0.64rem;
+    }
+
+    .order-actions .account-btn,
+    .order-actions form,
+    .order-actions form button {
+        width: 100%;
+    }
+
+    .order-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
